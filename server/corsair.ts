@@ -8,5 +8,5 @@ export const corsair = createCorsair({
     database: pool,
     kek: process.env.CORSAIR_KEK!,
     plugins: [github()],
-    multiTenancy: false,
+    multiTenancy: true,
 });
