@@ -54,14 +54,6 @@ takl-to-your-github/
 - Corsair-owned (4): `corsair_integrations`, `corsair_accounts`, `corsair_entities` (60 repos), `corsair_events`
 - Drizzle-owned (7): `users`, `github_connections`, `conversations`, `messages`, `repository_summaries`, `embeddings`, `activity_logs`
 
----
-
-## 🔜 Day 4 — Auth Scaffolding
-
-- Set up BetterAuth with GitHub OAuth
-- Build sign-in page and `/api/auth/callback/github` route
-- Wire OAuth callback to `corsair.withTenant(userId).setupAccount({ githubToken })`
-
 
 
 
