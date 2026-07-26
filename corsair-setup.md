@@ -1,7 +1,10 @@
 # 🛡️ Production-Grade Setup: Corsair + Neon + Drizzle ORM
-### *The definitive reference for the `takl-to-your-github` project*
 
-> Written from real experience building this exact stack. Covers the mental model, every step, every gotcha, every error message you will encounter, and the precise order of operations that works — nothing is hand-wavy.
+### _The definitive reference for the `takl-to-your-github` project_
+
+> Written from real experience building this exact stack. Covers the mental
+> model, every step, every gotcha, every error message you will encounter, and
+> the precise order of operations that works — nothing is hand-wavy.
 
 ---
 
@@ -31,19 +34,23 @@
 
 ## 🧠 The Mental Model — Read This First
 
-Before writing a single line of code, understand these three facts. They answer 90% of the questions you'll have while building.
+Before writing a single line of code, understand these three facts. They answer
+90% of the questions you'll have while building.
 
 ### Fact 1 — Corsair is a credential vault with a sync engine, not just an OAuth library
 
 Corsair does three separate things that look like one thing:
 
-| What | What it actually does |
-|---|---|
-| **Credential storage** | Encrypts OAuth tokens / API keys at rest using a per-account DEK, encrypted with your master KEK |
-| **GitHub API proxy** | `tenant.github.api.*` — proxies live GitHub API calls, injecting the stored token automatically |
-| **Sync engine** | `tenant.github.db.*` — maintains a local copy of repos, commits, PRs, issues, branches in `corsair_entities` (synced from GitHub webhooks and the initial backfill) |
+| What                   | What it actually does                                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Credential storage** | Encrypts OAuth tokens / API keys at rest using a per-account DEK, encrypted with your master KEK                                                                    |
+| **GitHub API proxy**   | `tenant.github.api.*` — proxies live GitHub API calls, injecting the stored token automatically                                                                     |
+| **Sync engine**        | `tenant.github.db.*` — maintains a local copy of repos, commits, PRs, issues, branches in `corsair_entities` (synced from GitHub webhooks and the initial backfill) |
 
-You interact with all three through the same `corsair` instance, scoped by tenant. The local sync layer is what makes the chat feel fast — instead of hitting GitHub's API on every question, your AI tools query `corsair_entities` directly (no rate limits, sub-millisecond reads).
+You interact with all three through the same `corsair` instance, scoped by
+tenant. The local sync layer is what makes the chat feel fast — instead of
+hitting GitHub's API on every question, your AI tools query `corsair_entities`
+directly (no rate limits, sub-millisecond reads).
 
 ### Fact 2 — The database has two completely separate ownership zones
 
@@ -58,23 +65,28 @@ Your Neon DB (one database, 11 tables total)
 │                                              ├── repository_summaries
 │   Created by: `pnpm corsair setup`           ├── embeddings
 │   Managed by: Corsair internally             └── activity_logs
-│   Drizzle: MUST NEVER TOUCH                 
+│   Drizzle: MUST NEVER TOUCH
 │                                              Created by: `drizzle-kit push`
 │                                              Managed by: Drizzle schema
 │                                              Corsair: ignores completely
 ```
 
-Corsair and Drizzle share the same physical Postgres database — they just never touch each other's tables.
+Corsair and Drizzle share the same physical Postgres database — they just never
+touch each other's tables.
 
 ### Fact 3 — Multi-tenancy is per-user isolation at the query level
 
-With `multiTenancy: true`, every Corsair operation is namespaced by a `tenant_id` string. The `corsair_accounts` table stores `tenant_id TEXT NOT NULL`, and every query Corsair makes is `WHERE tenant_id = $1`. This means:
+With `multiTenancy: true`, every Corsair operation is namespaced by a
+`tenant_id` string. The `corsair_accounts` table stores
+`tenant_id TEXT NOT NULL`, and every query Corsair makes is
+`WHERE tenant_id = $1`. This means:
 
 - User A's GitHub token is never accessible from User B's tenant context
 - `corsair.github` (top-level) **does not exist** with `multiTenancy: true`
 - Every call goes through `corsair.withTenant(userId).*`
 
-The `tenant_id` you pass to `withTenant()` is just a string you own — it should be your `users.corsairTenantId` column. You control that mapping.
+The `tenant_id` you pass to `withTenant()` is just a string you own — it should
+be your `users.corsairTenantId` column. You control that mapping.
 
 ---
 
@@ -140,10 +152,13 @@ The `tenant_id` you pass to `withTenant()` is just a string you own — it shoul
 ```
 
 **Data flow for a chat query:**
+
 1. User sends "show me my last 5 commits on `ApexZero`"
 2. AI SDK calls `get-commits` tool with `{ repo: "ApexZero", limit: 5 }`
-3. Tool calls `corsair.withTenant(user.corsairTenantId).github.db.commits.search({ filters: { repository: "ApexZero" } })`
-4. Corsair queries `corsair_entities WHERE tenant_id = $1 AND entity_type = 'commits'`
+3. Tool calls
+   `corsair.withTenant(user.corsairTenantId).github.db.commits.search({ filters: { repository: "ApexZero" } })`
+4. Corsair queries
+   `corsair_entities WHERE tenant_id = $1 AND entity_type = 'commits'`
 5. Data returned instantly (no GitHub API call, no rate limits)
 6. AI formats and streams response
 
@@ -151,22 +166,31 @@ The `tenant_id` you pass to `withTenant()` is just a string you own — it shoul
 
 ## ⚠️ The Golden Rule — Two Systems, Two Namespaces
 
-**Corsair and Drizzle are two completely separate schema management systems. They NEVER own the same tables.**
+**Corsair and Drizzle are two completely separate schema management systems.
+They NEVER own the same tables.**
 
-| System | Tables it owns | How created | What manages it |
-|--------|---------------|-------------|-----------------|
-| **Corsair** | `corsair_integrations`, `corsair_accounts`, `corsair_entities`, `corsair_events` | `pnpm corsair setup --plugin=github` CLI | Corsair internally — runs its own migrations |
-| **Drizzle** | `users`, `github_connections`, `conversations`, `messages`, `repository_summaries`, `embeddings`, `activity_logs` | `pnpm drizzle-kit push` from `db/schema.ts` | Drizzle Kit — reads your TypeScript schema |
+| System      | Tables it owns                                                                                                    | How created                                 | What manages it                              |
+| ----------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | -------------------------------------------- |
+| **Corsair** | `corsair_integrations`, `corsair_accounts`, `corsair_entities`, `corsair_events`                                  | `pnpm corsair setup --plugin=github` CLI    | Corsair internally — runs its own migrations |
+| **Drizzle** | `users`, `github_connections`, `conversations`, `messages`, `repository_summaries`, `embeddings`, `activity_logs` | `pnpm drizzle-kit push` from `db/schema.ts` | Drizzle Kit — reads your TypeScript schema   |
 
 ### Rules that must never be broken
 
-1. **Never write Drizzle TypeScript schema for Corsair's 4 tables.** The SQL in [Step 5](#️-step-5--migrate-the-database-corsairs-4-tables) is for reference only — never paste it into `db/schema.ts` as Drizzle definitions.
+1. **Never write Drizzle TypeScript schema for Corsair's 4 tables.** The SQL in
+   [Step 5](#️-step-5--migrate-the-database-corsairs-4-tables) is for reference
+   only — never paste it into `db/schema.ts` as Drizzle definitions.
 
-2. **Always have `tablesFilter: ["!corsair_*"]` in `drizzle.config.ts`.** Without it, the next `drizzle-kit push` will see Corsair's tables as "unknown tables" and offer to DROP them. If you ever see `corsair_*` listed as "about to be deleted", **abort immediately** and add the filter.
+2. **Always have `tablesFilter: ["!corsair_*"]` in `drizzle.config.ts`.**
+   Without it, the next `drizzle-kit push` will see Corsair's tables as "unknown
+   tables" and offer to DROP them. If you ever see `corsair_*` listed as "about
+   to be deleted", **abort immediately** and add the filter.
 
-3. **Never pass Drizzle's `db` instance to `createCorsair()`.** The `database` field takes a raw `pg.Pool`. Passing the Drizzle wrapper will cause silent failures or runtime errors.
+3. **Never pass Drizzle's `db` instance to `createCorsair()`.** The `database`
+   field takes a raw `pg.Pool`. Passing the Drizzle wrapper will cause silent
+   failures or runtime errors.
 
-4. **Never use `multiTenancy: false` in production.** You cannot change it later without a data migration. Set it correctly on Day 1.
+4. **Never use `multiTenancy: false` in production.** You cannot change it later
+   without a data migration. Set it correctly on Day 1.
 
 ---
 
@@ -182,18 +206,19 @@ pnpm add -D @corsair-dev/cli drizzle-kit @types/pg
 
 **What each package does:**
 
-| Package | Purpose |
-|---------|---------|
-| `corsair` | Core library — `createCorsair()`, tenant management, encryption |
-| `@corsair-dev/github` | GitHub plugin — adds `.github.db.*` and `.github.api.*` |
-| `@corsair-dev/cli` | Dev CLI — `pnpm corsair setup`, `pnpm corsair generate-kek` |
-| `pg` | Raw Postgres driver — Corsair requires this directly |
-| `drizzle-orm` | ORM for your 7 app tables |
-| `drizzle-kit` | Schema migration CLI — `drizzle-kit push` |
-| `dotenv` | Load `.env` in scripts (not needed in Next.js app routes, only in standalone scripts) |
-| `@types/pg` | TypeScript types for `pg` |
+| Package               | Purpose                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| `corsair`             | Core library — `createCorsair()`, tenant management, encryption                       |
+| `@corsair-dev/github` | GitHub plugin — adds `.github.db.*` and `.github.api.*`                               |
+| `@corsair-dev/cli`    | Dev CLI — `pnpm corsair setup`, `pnpm corsair generate-kek`                           |
+| `pg`                  | Raw Postgres driver — Corsair requires this directly                                  |
+| `drizzle-orm`         | ORM for your 7 app tables                                                             |
+| `drizzle-kit`         | Schema migration CLI — `drizzle-kit push`                                             |
+| `dotenv`              | Load `.env` in scripts (not needed in Next.js app routes, only in standalone scripts) |
+| `@types/pg`           | TypeScript types for `pg`                                                             |
 
 **Verify installed versions (this project uses):**
+
 ```bash
 pnpm list corsair @corsair-dev/github @corsair-dev/cli
 
@@ -203,13 +228,16 @@ pnpm list corsair @corsair-dev/github @corsair-dev/cli
 # @corsair-dev/cli        0.1.19
 ```
 
-> If Corsair's CLI (`pnpm corsair`) doesn't resolve after install, add `.bin` to your path or prefix with `./node_modules/.bin/corsair`. The `pnpm corsair` shorthand works because `@corsair-dev/cli` registers a binary named `corsair`.
+> If Corsair's CLI (`pnpm corsair`) doesn't resolve after install, add `.bin` to
+> your path or prefix with `./node_modules/.bin/corsair`. The `pnpm corsair`
+> shorthand works because `@corsair-dev/cli` registers a binary named `corsair`.
 
 ---
 
 ## 🔑 Step 2 — Generate Your KEK
 
-The KEK (Key Encryption Key) is a 32-byte random secret that Corsair uses to encrypt the per-account DEKs (Data Encryption Keys). The encryption chain is:
+The KEK (Key Encryption Key) is a 32-byte random secret that Corsair uses to
+encrypt the per-account DEKs (Data Encryption Keys). The encryption chain is:
 
 ```
 GitHub OAuth Token
@@ -224,17 +252,22 @@ Master KEK   ← this is CORSAIR_KEK in your .env
 corsair_accounts.dek column
 ```
 
-**Why this matters:** If you lose `CORSAIR_KEK`, you lose the ability to decrypt any DEK, which means you lose access to all stored GitHub tokens. The GitHub data in `corsair_entities` is still readable (it's plaintext), but you can't make any new API calls until users re-authenticate.
+**Why this matters:** If you lose `CORSAIR_KEK`, you lose the ability to decrypt
+any DEK, which means you lose access to all stored GitHub tokens. The GitHub
+data in `corsair_entities` is still readable (it's plaintext), but you can't
+make any new API calls until users re-authenticate.
 
 ### Generate the KEK
 
 **Option A — Corsair CLI (recommended):**
+
 ```bash
 pnpm corsair generate-kek
 # Output: CORSAIR_KEK=base64:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 **Option B — openssl:**
+
 ```bash
 # macOS / Linux
 openssl rand -base64 32
@@ -244,15 +277,22 @@ openssl rand -base64 32
 ```
 
 **Option C — Node.js:**
+
 ```js
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
 All three produce a valid 256-bit key. Copy the output.
 
-> ⚠️ **CRITICAL: Back this up before you do anything else.** Store it in Vercel Environment Variables, Doppler, 1Password, AWS Secrets Manager, or any secrets vault. Write it in a comment in your diary if you have to. This is the only key that can never be regenerated without user impact.
+> ⚠️ **CRITICAL: Back this up before you do anything else.** Store it in Vercel
+> Environment Variables, Doppler, 1Password, AWS Secrets Manager, or any secrets
+> vault. Write it in a comment in your diary if you have to. This is the only
+> key that can never be regenerated without user impact.
 
-> ⚠️ **Never rotate the KEK casually.** Rotation requires decrypting every DEK with the old KEK, re-encrypting with the new KEK, and storing the result — in a transaction. There is no built-in rotation command. If you need to rotate, write a migration script first.
+> ⚠️ **Never rotate the KEK casually.** Rotation requires decrypting every DEK
+> with the old KEK, re-encrypting with the new KEK, and storing the result — in
+> a transaction. There is no built-in rotation command. If you need to rotate,
+> write a migration script first.
 
 ---
 
@@ -291,78 +331,91 @@ INNGEST_SIGNING_KEY=...
 
 ### Why `DATABASE_URL_POOLED` and not `DATABASE_URL`?
 
-Neon uses PgBouncer as a connection pooler. In serverless Next.js deployments, each request can spawn a new process, and Postgres has a hard cap on simultaneous connections (~100 on the free tier). Without pooling:
+Neon uses PgBouncer as a connection pooler. In serverless Next.js deployments,
+each request can spawn a new process, and Postgres has a hard cap on
+simultaneous connections (~100 on the free tier). Without pooling:
 
-- 100 simultaneous Vercel function invocations = 100 Postgres connections = connection exhaustion
-- With PgBouncer pooling: 100 functions share a small pool (5–10 actual connections)
+- 100 simultaneous Vercel function invocations = 100 Postgres connections =
+  connection exhaustion
+- With PgBouncer pooling: 100 functions share a small pool (5–10 actual
+  connections)
 
-Always use the `*-pooler.neon.tech` URL in your app. Reserve the direct URL for `drizzle-kit` migrations if you need it.
+Always use the `*-pooler.neon.tech` URL in your app. Reserve the direct URL for
+`drizzle-kit` migrations if you need it.
 
 ---
 
 ## 📁 Step 4 — Create the File Structure
 
-Create these files **in this exact order** before running any CLI commands. Each file has dependencies on the previous ones.
+Create these files **in this exact order** before running any CLI commands. Each
+file has dependencies on the previous ones.
 
 ---
 
 ### `lib/pool.ts`
 
-The single shared `pg.Pool` instance. Both Corsair and Drizzle use this — Corsair gets it directly, Drizzle wraps it.
+The single shared `pg.Pool` instance. Both Corsair and Drizzle use this —
+Corsair gets it directly, Drizzle wraps it.
 
 ```typescript
 // lib/pool.ts
 import { Pool } from "pg";
 
 export const pool = new Pool({
-    connectionString: process.env.DATABASE_URL_POOLED,
-    // Optional tuning for Neon's serverless environment:
-    max: 10,          // max connections in pool (stay well under Neon's limit)
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 5_000,
+  connectionString: process.env.DATABASE_URL_POOLED,
+  // Optional tuning for Neon's serverless environment:
+  max: 10, // max connections in pool (stay well under Neon's limit)
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 5_000,
 });
 ```
 
-> **Why a single shared `Pool`?** Creating a `new Pool()` per request in Next.js is a classic mistake that causes connection exhaustion. The `pool` singleton is created once at module load time and reused. Both `db/index.ts` and `server/corsair.ts` import from here.
+> **Why a single shared `Pool`?** Creating a `new Pool()` per request in Next.js
+> is a classic mistake that causes connection exhaustion. The `pool` singleton
+> is created once at module load time and reused. Both `db/index.ts` and
+> `server/corsair.ts` import from here.
 
 ---
 
 ### `server/corsair.ts`
 
-The Corsair client. This is the entry point for all GitHub data access. Notice it takes the raw `pool` — not the Drizzle `db`.
+The Corsair client. This is the entry point for all GitHub data access. Notice
+it takes the raw `pool` — not the Drizzle `db`.
 
 ```typescript
 // server/corsair.ts
 import dotenv from "dotenv";
 dotenv.config(); // Needed for standalone scripts (bun server/playground.ts).
-                 // Next.js API routes load .env automatically — harmless to call here.
+// Next.js API routes load .env automatically — harmless to call here.
 
 import { createCorsair } from "corsair";
 import { github } from "@corsair-dev/github";
 import { pool } from "@/lib/pool";
 
 export const corsair = createCorsair({
-    database: pool,           // ← raw pg.Pool, NOT the Drizzle instance
-    kek: process.env.CORSAIR_KEK!,
-    plugins: [github()],
-    multiTenancy: true,       // ← ALWAYS true for real apps. Never change this later.
+  database: pool, // ← raw pg.Pool, NOT the Drizzle instance
+  kek: process.env.CORSAIR_KEK!,
+  plugins: [github()],
+  multiTenancy: true, // ← ALWAYS true for real apps. Never change this later.
 });
 ```
 
 **Why `multiTenancy: true` is not optional:**
 
-| Setting | Behavior | Problem |
-|---------|----------|---------|
-| `false` | One global GitHub account for the whole app | All users share one token. Changing to `true` requires data migration |
-| `true` | Each user gets completely isolated namespace | Correct. `corsair.github` doesn't exist at top level — must use `withTenant()` |
+| Setting | Behavior                                     | Problem                                                                        |
+| ------- | -------------------------------------------- | ------------------------------------------------------------------------------ |
+| `false` | One global GitHub account for the whole app  | All users share one token. Changing to `true` requires data migration          |
+| `true`  | Each user gets completely isolated namespace | Correct. `corsair.github` doesn't exist at top level — must use `withTenant()` |
 
-Set this correctly from Day 1. There is no safe upgrade path without a data migration.
+Set this correctly from Day 1. There is no safe upgrade path without a data
+migration.
 
 ---
 
 ### `db/schema.ts`
 
-Your 7 Drizzle-managed tables. These are the *only* tables that should appear in this file — never add Corsair's 4 tables here.
+Your 7 Drizzle-managed tables. These are the _only_ tables that should appear in
+this file — never add Corsair's 4 tables here.
 
 ```typescript
 // db/schema.ts
@@ -376,60 +429,60 @@ import { pgTable, text, timestamp, jsonb, integer } from "drizzle-orm/pg-core";
 // Best practice: use the GitHub numeric user ID (e.g. "12345678") — stable
 // across username renames and guaranteed globally unique.
 export const users = pgTable("users", {
-    id: text("id")
-        .primaryKey()
-        .$defaultFn(() => crypto.randomUUID()),
-    createdAt: timestamp("created_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
-    email: text("email").notNull().unique(),
-    name: text("name"),
-    avatarUrl: text("avatar_url"),
-    // Matches the --tenant value passed to `corsair setup --tenant=<id>`
-    corsairTenantId: text("corsair_tenant_id").unique(),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  avatarUrl: text("avatar_url"),
+  // Matches the --tenant value passed to `corsair setup --tenant=<id>`
+  corsairTenantId: text("corsair_tenant_id").unique(),
 });
 
 // ─── github_connections ───────────────────────────────────────────────────────
 // Records which GitHub identity belongs to each user after OAuth sign-in.
 // githubUserId mirrors corsairTenantId — use the same value for both.
 export const githubConnections = pgTable("github_connections", {
-    id: text("id")
-        .primaryKey()
-        .$defaultFn(() => crypto.randomUUID()),
-    createdAt: timestamp("created_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
-    userId: text("user_id")
-        .notNull()
-        .references(() => users.id, { onDelete: "cascade" }),
-    githubLogin: text("github_login").notNull(),    // e.g. "therajarshichakraborty"
-    githubUserId: text("github_user_id").notNull(), // e.g. "12345678" — stable ID
-    connectedAt: timestamp("connected_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  githubLogin: text("github_login").notNull(), // e.g. "therajarshichakraborty"
+  githubUserId: text("github_user_id").notNull(), // e.g. "12345678" — stable ID
+  connectedAt: timestamp("connected_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ─── conversations ────────────────────────────────────────────────────────────
 // Each chat session. Optionally scoped to a single repository.
 export const conversations = pgTable("conversations", {
-    id: text("id")
-        .primaryKey()
-        .$defaultFn(() => crypto.randomUUID()),
-    createdAt: timestamp("created_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
-    userId: text("user_id")
-        .notNull()
-        .references(() => users.id, { onDelete: "cascade" }),
-    title: text("title"),
-    repositoryOwner: text("repository_owner"),
-    repositoryName: text("repository_name"),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  title: text("title"),
+  repositoryOwner: text("repository_owner"),
+  repositoryName: text("repository_name"),
 });
 
 // ─── messages ─────────────────────────────────────────────────────────────────
@@ -437,18 +490,18 @@ export const conversations = pgTable("conversations", {
 // toolCalls stores AI SDK CoreToolCall[] as JSONB so the UI can render
 // tool call results inline in the chat history.
 export const messages = pgTable("messages", {
-    id: text("id")
-        .primaryKey()
-        .$defaultFn(() => crypto.randomUUID()),
-    createdAt: timestamp("created_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
-    conversationId: text("conversation_id")
-        .notNull()
-        .references(() => conversations.id, { onDelete: "cascade" }),
-    role: text("role").notNull(),      // 'user' | 'assistant' | 'tool'
-    content: text("content").notNull(),
-    toolCalls: jsonb("tool_calls"),    // AI SDK CoreToolCall[] | null
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  conversationId: text("conversation_id")
+    .notNull()
+    .references(() => conversations.id, { onDelete: "cascade" }),
+  role: text("role").notNull(), // 'user' | 'assistant' | 'tool'
+  content: text("content").notNull(),
+  toolCalls: jsonb("tool_calls"), // AI SDK CoreToolCall[] | null
 });
 
 // ─── repository_summaries ─────────────────────────────────────────────────────
@@ -456,24 +509,24 @@ export const messages = pgTable("messages", {
 // Written by the Inngest `generate-repo-summary` job on github.connected event.
 // Powers the "what is this repo about?" context in the chat system prompt.
 export const repositorySummaries = pgTable("repository_summaries", {
-    id: text("id")
-        .primaryKey()
-        .$defaultFn(() => crypto.randomUUID()),
-    createdAt: timestamp("created_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
-    userId: text("user_id")
-        .notNull()
-        .references(() => users.id, { onDelete: "cascade" }),
-    repositoryOwner: text("repository_owner").notNull(),
-    repositoryName: text("repository_name").notNull(),
-    summary: text("summary").notNull(),
-    generatedAt: timestamp("generated_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  repositoryOwner: text("repository_owner").notNull(),
+  repositoryName: text("repository_name").notNull(),
+  summary: text("summary").notNull(),
+  generatedAt: timestamp("generated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ─── embeddings ───────────────────────────────────────────────────────────────
@@ -485,20 +538,20 @@ export const repositorySummaries = pgTable("repository_summaries", {
 //   import { vector } from "drizzle-orm/pg-core";
 //   embedding: vector("embedding", { dimensions: 1536 })
 export const embeddings = pgTable("embeddings", {
-    id: text("id")
-        .primaryKey()
-        .$defaultFn(() => crypto.randomUUID()),
-    createdAt: timestamp("created_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
-    userId: text("user_id")
-        .notNull()
-        .references(() => users.id, { onDelete: "cascade" }),
-    sourceType: text("source_type").notNull(),  // 'repository' | 'commit' | 'issue' | 'pull_request'
-    sourceId: text("source_id").notNull(),      // entity_id from corsair_entities
-    content: text("content").notNull(),         // the text chunk that was embedded
-    embedding: jsonb("embedding"),              // number[] — swap to vector() later
-    metadata: jsonb("metadata"),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  sourceType: text("source_type").notNull(), // 'repository' | 'commit' | 'issue' | 'pull_request'
+  sourceId: text("source_id").notNull(), // entity_id from corsair_entities
+  content: text("content").notNull(), // the text chunk that was embedded
+  embedding: jsonb("embedding"), // number[] — swap to vector() later
+  metadata: jsonb("metadata"),
 });
 
 // ─── activity_logs ────────────────────────────────────────────────────────────
@@ -506,23 +559,23 @@ export const embeddings = pgTable("embeddings", {
 // Written by the Inngest `update-activity-log` function triggered on GitHub webhooks.
 // Powers the "Continue Working" dashboard — shows what you were last doing.
 export const activityLogs = pgTable("activity_logs", {
-    id: text("id")
-        .primaryKey()
-        .$defaultFn(() => crypto.randomUUID()),
-    createdAt: timestamp("created_at", { withTimezone: true })
-        .notNull()
-        .defaultNow(),
-    userId: text("user_id")
-        .notNull()
-        .references(() => users.id, { onDelete: "cascade" }),
-    repositoryOwner: text("repository_owner"),
-    repositoryName: text("repository_name"),
-    activityType: text("activity_type").notNull(), // 'commit' | 'pr' | 'issue' | 'review'
-    activityId: text("activity_id"),
-    title: text("title"),
-    description: text("description"),
-    metadata: jsonb("metadata"),
-    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  repositoryOwner: text("repository_owner"),
+  repositoryName: text("repository_name"),
+  activityType: text("activity_type").notNull(), // 'commit' | 'pr' | 'issue' | 'review'
+  activityId: text("activity_id"),
+  title: text("title"),
+  description: text("description"),
+  metadata: jsonb("metadata"),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
 });
 ```
 
@@ -530,7 +583,9 @@ export const activityLogs = pgTable("activity_logs", {
 
 ### `db/index.ts`
 
-The Drizzle instance. Pass `{ schema }` so that `db.query.tableName.findFirst()` (relational queries) work — without it, you're limited to `db.select().from(table)` style.
+The Drizzle instance. Pass `{ schema }` so that `db.query.tableName.findFirst()`
+(relational queries) work — without it, you're limited to
+`db.select().from(table)` style.
 
 ```typescript
 // db/index.ts
@@ -553,16 +608,16 @@ dotenv.config();
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
-    dialect: "postgresql",
-    schema: ["./db/schema.ts"],  // ← ONLY your schema file, not server/ or any Corsair schema
-    out: "./drizzle",            // migration files output directory
-    // CRITICAL: Tells drizzle-kit to pretend corsair_* tables don't exist.
-    // Without this, `drizzle-kit push` will see them as "unknown tables"
-    // and offer to DROP them — which would destroy all synced GitHub data.
-    tablesFilter: ["!corsair_*"],
-    dbCredentials: {
-        url: process.env.DATABASE_URL_POOLED!,
-    },
+  dialect: "postgresql",
+  schema: ["./db/schema.ts"], // ← ONLY your schema file, not server/ or any Corsair schema
+  out: "./drizzle", // migration files output directory
+  // CRITICAL: Tells drizzle-kit to pretend corsair_* tables don't exist.
+  // Without this, `drizzle-kit push` will see them as "unknown tables"
+  // and offer to DROP them — which would destroy all synced GitHub data.
+  tablesFilter: ["!corsair_*"],
+  dbCredentials: {
+    url: process.env.DATABASE_URL_POOLED!,
+  },
 });
 ```
 
@@ -570,17 +625,20 @@ export default defineConfig({
 
 ## 🗃️ Step 5 — Migrate the Database (Corsair's 4 Tables)
 
-Before anything else, Corsair's 4 tables must exist in Neon. There are two paths — pick one.
+Before anything else, Corsair's 4 tables must exist in Neon. There are two paths
+— pick one.
 
 ### Path A — CLI (Simplest, Recommended)
 
-This is what we use. It runs Corsair's internal migration AND registers the GitHub plugin in one command:
+This is what we use. It runs Corsair's internal migration AND registers the
+GitHub plugin in one command:
 
 ```bash
 pnpm corsair setup --plugin=github
 ```
 
 **Expected output:**
+
 ```
 [corsair:setup] Running migrations...
 [corsair:setup] Created table: corsair_integrations ✓
@@ -590,15 +648,20 @@ pnpm corsair setup --plugin=github
 [corsair:setup] 'github' (api_key) is configured ✓
 ```
 
-> **The SSL warning** (`sslmode` notice from `pg`) is cosmetic — Neon uses SSL by default and `pg` acknowledges it. This is not an error. Nothing is broken.
+> **The SSL warning** (`sslmode` notice from `pg`) is cosmetic — Neon uses SSL
+> by default and `pg` acknowledges it. This is not an error. Nothing is broken.
 
-> **If you see `command not found: corsair`:** Run `./node_modules/.bin/corsair setup --plugin=github` instead, or ensure `@corsair-dev/cli` is in `devDependencies` and run `pnpm install` again.
+> **If you see `command not found: corsair`:** Run
+> `./node_modules/.bin/corsair setup --plugin=github` instead, or ensure
+> `@corsair-dev/cli` is in `devDependencies` and run `pnpm install` again.
 
 ---
 
 ### Path B — Manual SQL (if you need to inspect or version-control it)
 
-This is the **exact SQL** Corsair runs internally, extracted from `corsair@0.1.76/dist/tests.js`. Run this in the Neon SQL editor if you prefer full visibility:
+This is the **exact SQL** Corsair runs internally, extracted from
+`corsair@0.1.76/dist/tests.js`. Run this in the Neon SQL editor if you prefer
+full visibility:
 
 ```sql
 -- Corsair migration SQL (PostgreSQL)
@@ -645,7 +708,9 @@ CREATE TABLE IF NOT EXISTS corsair_events (
 );
 ```
 
-> ⚠️ **Do NOT copy this SQL into `db/schema.ts` as Drizzle TypeScript definitions.** This is reference-only. Corsair owns these tables; Drizzle must ignore them.
+> ⚠️ **Do NOT copy this SQL into `db/schema.ts` as Drizzle TypeScript
+> definitions.** This is reference-only. Corsair owns these tables; Drizzle must
+> ignore them.
 
 ---
 
@@ -662,6 +727,7 @@ ORDER BY table_name;
 ```
 
 **Expected result:**
+
 ```
  table_name
 ───────────────────────
@@ -678,13 +744,15 @@ If fewer than 4 rows appear, the setup command failed silently. Re-run Path A.
 
 ## 🚀 Step 6 — Push Your App Schema
 
-Now push your 7 Drizzle-managed tables. At this point, Corsair's 4 tables already exist — `tablesFilter` ensures Drizzle ignores them completely.
+Now push your 7 Drizzle-managed tables. At this point, Corsair's 4 tables
+already exist — `tablesFilter` ensures Drizzle ignores them completely.
 
 ```bash
 pnpm drizzle-kit push
 ```
 
 **Expected output (clean run, no prompts):**
+
 ```
 [✓] Pulling schema from database...
 [✓] Comparing schemas...
@@ -712,6 +780,7 @@ pnpm drizzle-kit push
 **Cause:** `tablesFilter: ["!corsair_*"]` is missing from `drizzle.config.ts`.
 
 **Fix:**
+
 1. **Choose "No, abort"** at the prompt — do not apply these changes
 2. Add `tablesFilter: ["!corsair_*"]` to `drizzle.config.ts`
 3. Re-run `pnpm drizzle-kit push`
@@ -724,13 +793,16 @@ pnpm drizzle-kit push
     ~ rename from old_users
 ```
 
-**Always choose the `+` (create table) option.** Never choose a `~` rename option unless you explicitly renamed a table and are handling a migration.
+**Always choose the `+` (create table) option.** Never choose a `~` rename
+option unless you explicitly renamed a table and are handling a migration.
 
 #### Danger Sign 3 — `drizzle-kit push` hangs at "Pulling schema"
 
-**Cause:** Usually a bad `DATABASE_URL_POOLED` — wrong host, wrong password, SSL config issue.
+**Cause:** Usually a bad `DATABASE_URL_POOLED` — wrong host, wrong password, SSL
+config issue.
 
 **Fix:** Test the connection:
+
 ```bash
 node -e "require('dotenv').config(); const { Pool } = require('pg'); new Pool({ connectionString: process.env.DATABASE_URL_POOLED }).query('SELECT 1').then(r => console.log('OK:', r.rows)).catch(e => console.error('FAIL:', e.message))"
 ```
@@ -739,22 +811,29 @@ node -e "require('dotenv').config(); const { Pool } = require('pg'); new Pool({ 
 
 ## 🧪 Step 7 — Provision a Tenant & Smoke Test
 
-Corsair needs to know about each user (tenant) before you can query their data. In production this happens via the OAuth callback (Day 5). For development and smoke testing, provision manually.
+Corsair needs to know about each user (tenant) before you can query their data.
+In production this happens via the OAuth callback (Day 5). For development and
+smoke testing, provision manually.
 
 ### Get a GitHub Personal Access Token
 
-1. Go to **GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)**
+1. Go to **GitHub → Settings → Developer settings → Personal access tokens →
+   Tokens (classic)**
 2. Click **"Generate new token (classic)"**
 3. Select scopes: `repo`, `read:org`, `read:user`
 4. Copy the token — it starts with `ghp_`
 
-> **Why classic tokens and not fine-grained?** Fine-grained tokens (starting with `github_pat_`) work but require you to explicitly select repositories. Classic tokens with `repo` scope work across all your repos. For a dev smoke test, classic is simpler.
+> **Why classic tokens and not fine-grained?** Fine-grained tokens (starting
+> with `github_pat_`) work but require you to explicitly select repositories.
+> Classic tokens with `repo` scope work across all your repos. For a dev smoke
+> test, classic is simpler.
 
 ---
 
 ### Run Setup + Backfill
 
 **macOS / Linux:**
+
 ```bash
 export GITHUB_TOKEN=ghp_YOUR_TOKEN_HERE
 
@@ -766,6 +845,7 @@ pnpm corsair setup --tenant=test_user --plugin=github api_key=$GITHUB_TOKEN --ba
 ```
 
 **Windows PowerShell:**
+
 ```powershell
 $env:GITHUB_TOKEN = "ghp_YOUR_TOKEN_HERE"
 
@@ -773,7 +853,9 @@ $env:GITHUB_TOKEN = "ghp_YOUR_TOKEN_HERE"
 pnpm corsair setup --tenant=test_user --plugin=github api_key=$env:GITHUB_TOKEN --backfill
 ```
 
-> **Note on command format:** The official docs show `api_key=` as a positional argument, not `--api-key`. Both `--github api_key=` and `api_key=` inline work — the inline form is shorter.
+> **Note on command format:** The official docs show `api_key=` as a positional
+> argument, not `--api-key`. Both `--github api_key=` and `api_key=` inline work
+> — the inline form is shorter.
 
 ---
 
@@ -827,13 +909,17 @@ GROUP BY ca.tenant_id, ci.name;
 -- test_user  | github           |          322
 ```
 
-**You must see `repositories` with `count > 0` before proceeding.** If `corsair_entities` is empty, the backfill failed — re-run the setup command with the `--backfill` flag and check that the GitHub token has `repo` scope.
+**You must see `repositories` with `count > 0` before proceeding.** If
+`corsair_entities` is empty, the backfill failed — re-run the setup command with
+the `--backfill` flag and check that the GitHub token has `repo` scope.
 
 ---
 
 ## 🔗 Step 8 — End-to-End Wiring Test
 
-This script tests that the two systems (Drizzle + Corsair) cooperate correctly via the `corsairTenantId` bridge column. Run it with `bun server/playground.ts` or `npx ts-node server/playground.ts`.
+This script tests that the two systems (Drizzle + Corsair) cooperate correctly
+via the `corsairTenantId` bridge column. Run it with `bun server/playground.ts`
+or `npx ts-node server/playground.ts`.
 
 ```typescript
 // server/playground.ts
@@ -846,39 +932,46 @@ console.log("🔌 Running end-to-end wiring test...\n");
 
 // ── Step 1: Insert a user linked to the test_user Corsair tenant ────────────
 const [inserted] = await db
-    .insert(users)
-    .values({
-        email: "smoke-test@example.com",
-        name: "Smoke Test User",
-        corsairTenantId: "test_user", // must match --tenant value from setup
-    })
-    .onConflictDoUpdate({
-        target: users.email,
-        set: { corsairTenantId: "test_user" },
-    })
-    .returning();
+  .insert(users)
+  .values({
+    email: "smoke-test@example.com",
+    name: "Smoke Test User",
+    corsairTenantId: "test_user", // must match --tenant value from setup
+  })
+  .onConflictDoUpdate({
+    target: users.email,
+    set: { corsairTenantId: "test_user" },
+  })
+  .returning();
 
 console.log("✓ Step 1 — Drizzle insert succeeded, user ID:", inserted.id);
 
 // ── Step 2: Read the user back via Drizzle relational query ────────────────
 const found = await db.query.users.findFirst({
-    where: eq(users.email, "smoke-test@example.com"),
+  where: eq(users.email, "smoke-test@example.com"),
 });
 
 if (!found) throw new Error("User not found — db.query is broken");
-console.log("✓ Step 2 — Drizzle read succeeded, corsairTenantId:", found.corsairTenantId);
+console.log(
+  "✓ Step 2 — Drizzle read succeeded, corsairTenantId:",
+  found.corsairTenantId,
+);
 
 // ── Step 3: Query Corsair using the tenant key from our users table ─────────
 // This proves the bridge works: Drizzle row → corsairTenantId → Corsair query
 const repos = await (corsair as any)
-    .withTenant(found.corsairTenantId)
-    .github.db.repositories.search({});
+  .withTenant(found.corsairTenantId)
+  .github.db.repositories.search({});
 
-console.log(`✓ Step 3 — Corsair returned ${repos.length} repositories from corsair_entities`);
+console.log(
+  `✓ Step 3 — Corsair returned ${repos.length} repositories from corsair_entities`,
+);
 
 if (repos.length === 0) {
-    console.error("❌ No repositories found. Did you run --backfill? Is GITHUB_TOKEN correct?");
-    process.exit(1);
+  console.error(
+    "❌ No repositories found. Did you run --backfill? Is GITHUB_TOKEN correct?",
+  );
+  process.exit(1);
 }
 
 console.log(`\n🎉 Foundation is solid! All 3 steps passed.`);
@@ -888,28 +981,32 @@ console.log(`   Drizzle ↔ Corsair handshake works correctly.\n`);
 // await db.delete(users).where(eq(users.email, "smoke-test@example.com"));
 ```
 
-**All 3 steps must print `✓` before moving on.** If Step 3 fails with "corsair.github is undefined", your `corsair.ts` has `multiTenancy: false` or you're calling `corsair.github.*` without `withTenant()`.
+**All 3 steps must print `✓` before moving on.** If Step 3 fails with
+"corsair.github is undefined", your `corsair.ts` has `multiTenancy: false` or
+you're calling `corsair.github.*` without `withTenant()`.
 
 ---
 
 ## 🧠 The API Pattern — Always Use `withTenant()`
 
-With `multiTenancy: true`, `corsair.github` does not exist at the top level. Every call must be scoped:
+With `multiTenancy: true`, `corsair.github` does not exist at the top level.
+Every call must be scoped:
 
 ```typescript
 // ❌ WRONG — TypeError: Cannot read properties of undefined (reading 'db')
-corsair.github.db.repositories.search({})
-corsair.github.api.repositories.listCommits({ owner, repo })
+corsair.github.db.repositories.search({});
+corsair.github.api.repositories.listCommits({ owner, repo });
 
 // ✅ CORRECT — always scope to a tenant first
-const tenant = corsair.withTenant(userId);  // userId = users.corsairTenantId value
+const tenant = corsair.withTenant(userId); // userId = users.corsairTenantId value
 ```
 
 ---
 
 ### Corsair `.github.db.*` — Fast local reads (use for AI tools)
 
-These read from `corsair_entities` directly. No API call to GitHub, no rate limits, ~1ms latency.
+These read from `corsair_entities` directly. No API call to GitHub, no rate
+limits, ~1ms latency.
 
 ```typescript
 const tenant = corsair.withTenant(user.corsairTenantId);
@@ -919,17 +1016,17 @@ const repos = await tenant.github.db.repositories.search({});
 
 // Search commits in a specific repo
 const commits = await tenant.github.db.commits.search({
-    filters: { repository: "ApexZero" }
+  filters: { repository: "ApexZero" },
 });
 
 // Search all open PRs
 const prs = await tenant.github.db.pull_requests.search({
-    filters: { state: "open" }
+  filters: { state: "open" },
 });
 
 // Search issues
 const issues = await tenant.github.db.issues.search({
-    filters: { state: "open", repository: "my-repo" }
+  filters: { state: "open", repository: "my-repo" },
 });
 
 // Branches
@@ -940,21 +1037,30 @@ const branches = await tenant.github.db.branches.search({});
 
 ### Corsair `.github.api.*` — Live GitHub API calls (use sparingly)
 
-These call the GitHub REST API in real-time, injecting the stored token automatically. Use for write operations and for data not in the sync cache (file contents, raw diffs, etc.).
+These call the GitHub REST API in real-time, injecting the stored token
+automatically. Use for write operations and for data not in the sync cache (file
+contents, raw diffs, etc.).
 
 ```typescript
 // List commits (live, not cached — use .db.commits for chat tools)
-await tenant.github.api.repositories.listCommits({ owner: "me", repo: "my-repo" });
+await tenant.github.api.repositories.listCommits({
+  owner: "me",
+  repo: "my-repo",
+});
 
 // Get a specific file's content (not in sync cache — must use live API)
-await tenant.github.api.repos.getContent({ owner: "me", repo: "my-repo", path: "README.md" });
+await tenant.github.api.repos.getContent({
+  owner: "me",
+  repo: "my-repo",
+  path: "README.md",
+});
 
 // Create an issue (write operation)
 await tenant.github.api.issues.create({
-    owner: "me",
-    repo: "my-repo",
-    title: "New issue from AI",
-    body: "This was created via the chat interface.",
+  owner: "me",
+  repo: "my-repo",
+  title: "New issue from AI",
+  body: "This was created via the chat interface.",
 });
 
 // List issues for a repo (live)
@@ -965,7 +1071,8 @@ await tenant.github.api.issues.listForRepo({ owner: "me", repo: "my-repo" });
 
 ### Getting `userId` in API Routes
 
-In production, always derive the tenant ID from your auth session — never hardcode it:
+In production, always derive the tenant ID from your auth session — never
+hardcode it:
 
 ```typescript
 // In a Next.js App Router API route:
@@ -976,24 +1083,24 @@ import { eq } from "drizzle-orm";
 import { corsair } from "@/server/corsair";
 
 export async function POST(req: Request) {
-    // 1. Verify the session
-    const session = await auth.getSession(req);
-    if (!session) return new Response("Unauthorized", { status: 401 });
+  // 1. Verify the session
+  const session = await auth.getSession(req);
+  if (!session) return new Response("Unauthorized", { status: 401 });
 
-    // 2. Load the user row (which has corsairTenantId)
-    const user = await db.query.users.findFirst({
-        where: eq(users.id, session.userId),
-    });
-    if (!user?.corsairTenantId) {
-        return new Response("GitHub not connected", { status: 403 });
-    }
+  // 2. Load the user row (which has corsairTenantId)
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, session.userId),
+  });
+  if (!user?.corsairTenantId) {
+    return new Response("GitHub not connected", { status: 403 });
+  }
 
-    // 3. Scope Corsair to this user's tenant
-    const tenant = (corsair as any).withTenant(user.corsairTenantId);
+  // 3. Scope Corsair to this user's tenant
+  const tenant = (corsair as any).withTenant(user.corsairTenantId);
 
-    // 4. Query
-    const repos = await tenant.github.db.repositories.search({});
-    return Response.json({ repos });
+  // 4. Query
+  const repos = await tenant.github.db.repositories.search({});
+  return Response.json({ repos });
 }
 ```
 
@@ -1001,10 +1108,12 @@ export async function POST(req: Request) {
 
 ## 🔄 Production Tenant Provisioning (OAuth Callback)
 
-When a user connects their GitHub account via OAuth, two things must happen in sequence:
+When a user connects their GitHub account via OAuth, two things must happen in
+sequence:
 
 1. Upsert the `users` row with the GitHub user's numeric ID as `corsairTenantId`
-2. Call `corsair.withTenant().github.setupAccount({ api_key: access_token })` to store the OAuth token in Corsair's encrypted vault
+2. Call `corsair.withTenant().github.setupAccount({ api_key: access_token })` to
+   store the OAuth token in Corsair's encrypted vault
 
 ```typescript
 // app/api/auth/callback/github/route.ts
@@ -1014,63 +1123,65 @@ import { users, githubConnections } from "@/db/schema";
 import { inngest } from "@/lib/inngest"; // add on Day 13
 
 export async function GET(req: Request) {
-    const url = new URL(req.url);
-    const code = url.searchParams.get("code");
-    if (!code) return new Response("Missing code", { status: 400 });
+  const url = new URL(req.url);
+  const code = url.searchParams.get("code");
+  if (!code) return new Response("Missing code", { status: 400 });
 
-    // 1. Exchange code for token + user info (BetterAuth handles this, or do it manually)
-    const { access_token, github_user } = await exchangeCodeForToken(code);
-    //   github_user.id is a number — e.g. 12345678
-    //   github_user.login is a string — e.g. "therajarshichakraborty"
+  // 1. Exchange code for token + user info (BetterAuth handles this, or do it manually)
+  const { access_token, github_user } = await exchangeCodeForToken(code);
+  //   github_user.id is a number — e.g. 12345678
+  //   github_user.login is a string — e.g. "therajarshichakraborty"
 
-    // 2. Upsert users row
-    //    Use github_user.id.toString() as corsairTenantId — stable across renames
-    const [user] = await db
-        .insert(users)
-        .values({
-            email: github_user.email,
-            name: github_user.name,
-            avatarUrl: github_user.avatar_url,
-            corsairTenantId: github_user.id.toString(), // e.g. "12345678"
-        })
-        .onConflictDoUpdate({
-            target: users.email,
-            set: {
-                name: github_user.name,
-                avatarUrl: github_user.avatar_url,
-                corsairTenantId: github_user.id.toString(),
-            },
-        })
-        .returning();
+  // 2. Upsert users row
+  //    Use github_user.id.toString() as corsairTenantId — stable across renames
+  const [user] = await db
+    .insert(users)
+    .values({
+      email: github_user.email,
+      name: github_user.name,
+      avatarUrl: github_user.avatar_url,
+      corsairTenantId: github_user.id.toString(), // e.g. "12345678"
+    })
+    .onConflictDoUpdate({
+      target: users.email,
+      set: {
+        name: github_user.name,
+        avatarUrl: github_user.avatar_url,
+        corsairTenantId: github_user.id.toString(),
+      },
+    })
+    .returning();
 
-    // 3. Record the connection
-    await db
-        .insert(githubConnections)
-        .values({
-            userId: user.id,
-            githubLogin: github_user.login,
-            githubUserId: github_user.id.toString(),
-        })
-        .onConflictDoNothing();
+  // 3. Record the connection
+  await db
+    .insert(githubConnections)
+    .values({
+      userId: user.id,
+      githubLogin: github_user.login,
+      githubUserId: github_user.id.toString(),
+    })
+    .onConflictDoNothing();
 
-    // 4. Provision Corsair tenant with the OAuth token
-    await (corsair as any)
-        .withTenant(user.corsairTenantId)
-        .github.setupAccount({ api_key: access_token });
+  // 4. Provision Corsair tenant with the OAuth token
+  await (corsair as any)
+    .withTenant(user.corsairTenantId)
+    .github.setupAccount({ api_key: access_token });
 
-    // 5. Trigger async backfill via Inngest (Day 13+)
-    // await inngest.send({
-    //     name: "github/connected",
-    //     data: { userId: user.id, corsairTenantId: user.corsairTenantId },
-    // });
+  // 5. Trigger async backfill via Inngest (Day 13+)
+  // await inngest.send({
+  //     name: "github/connected",
+  //     data: { userId: user.id, corsairTenantId: user.corsairTenantId },
+  // });
 
-    // 6. Redirect to dashboard
-    return Response.redirect(new URL("/dashboard", req.url));
+  // 6. Redirect to dashboard
+  return Response.redirect(new URL("/dashboard", req.url));
 }
 ```
 
-> **Why the GitHub numeric ID and not the login string?**
-> GitHub users can rename their account (`login` changes). The numeric `id` is immutable — it persists even if they rename. Using the login string as a tenant key would silently break all Corsair queries after a rename.
+> **Why the GitHub numeric ID and not the login string?** GitHub users can
+> rename their account (`login` changes). The numeric `id` is immutable — it
+> persists even if they rename. Using the login string as a tenant key would
+> silently break all Corsair queries after a rename.
 
 ---
 
@@ -1083,22 +1194,23 @@ For real-time sync (new commits, PRs, etc.), set up a webhook endpoint:
 import { corsair } from "@/server/corsair";
 
 export async function POST(req: Request) {
-    const payload = await req.json();
-    const signature = req.headers.get("x-hub-signature-256") ?? "";
+  const payload = await req.json();
+  const signature = req.headers.get("x-hub-signature-256") ?? "";
 
-    // Corsair's processWebhook handles signature verification,
-    // entity updates in corsair_entities, and event logging in corsair_events
-    await (corsair as any).processWebhook({
-        payload,
-        signature,
-        secret: process.env.GITHUB_WEBHOOK_SECRET!,
-    });
+  // Corsair's processWebhook handles signature verification,
+  // entity updates in corsair_entities, and event logging in corsair_events
+  await (corsair as any).processWebhook({
+    payload,
+    signature,
+    secret: process.env.GITHUB_WEBHOOK_SECRET!,
+  });
 
-    return new Response("OK", { status: 200 });
+  return new Response("OK", { status: 200 });
 }
 ```
 
 **Configure the webhook in GitHub:**
+
 1. Repo → Settings → Webhooks → Add webhook
 2. Payload URL: `https://your-domain.com/api/webhooks/github`
 3. Content type: `application/json`
@@ -1111,15 +1223,21 @@ export async function POST(req: Request) {
 
 ### Error: `corsair.github is undefined` or `Cannot read properties of undefined`
 
-**Cause:** You're calling `corsair.github.*` without `withTenant()`, while `multiTenancy: true`.
+**Cause:** You're calling `corsair.github.*` without `withTenant()`, while
+`multiTenancy: true`.
 
 **Fix:**
+
 ```typescript
 // ❌ broken
-corsair.github.db.repositories.search({})
-
-// ✅ fixed
-(corsair as any).withTenant(userId).github.db.repositories.search({})
+corsair.github.db.repositories
+  .search({})
+  (
+    // ✅ fixed
+    corsair as any,
+  )
+  .withTenant(userId)
+  .github.db.repositories.search({});
 ```
 
 ---
@@ -1129,9 +1247,11 @@ corsair.github.db.repositories.search({})
 **Cause:** Missing `tablesFilter` in `drizzle.config.ts`.
 
 **Fix:** Add to `drizzle.config.ts`:
+
 ```typescript
 tablesFilter: ["!corsair_*"],
 ```
+
 Then **abort the current prompt** and re-run `drizzle-kit push`.
 
 ---
@@ -1139,10 +1259,13 @@ Then **abort the current prompt** and re-run `drizzle-kit push`.
 ### Error: `Invalid KEK format` or `Cannot decrypt DEK`
 
 **Cause A:** `CORSAIR_KEK` is missing from `.env` or not loaded.  
-**Cause B:** The KEK in `.env` doesn't match the one used when accounts were provisioned (was rotated without a migration).
+**Cause B:** The KEK in `.env` doesn't match the one used when accounts were
+provisioned (was rotated without a migration).
 
-**Fix A:** Ensure `.env` exists, has `CORSAIR_KEK=...`, and that `dotenv.config()` is called before `createCorsair()`.  
-**Fix B:** Restore the original KEK from your secrets vault. If lost, users must re-authenticate via OAuth.
+**Fix A:** Ensure `.env` exists, has `CORSAIR_KEK=...`, and that
+`dotenv.config()` is called before `createCorsair()`.  
+**Fix B:** Restore the original KEK from your secrets vault. If lost, users must
+re-authenticate via OAuth.
 
 ---
 
@@ -1151,6 +1274,7 @@ Then **abort the current prompt** and re-run `drizzle-kit push`.
 **Cause:** `DATABASE_URL_POOLED` is wrong — connection cannot be established.
 
 **Fix:** Test your connection string:
+
 ```bash
 # PowerShell
 node -e "require('dotenv').config(); const { Pool } = require('pg'); new Pool({ connectionString: process.env.DATABASE_URL_POOLED }).query('SELECT NOW()').then(r => { console.log('Connected:', r.rows[0]); process.exit(0); }).catch(e => { console.error('Failed:', e.message); process.exit(1); })"
@@ -1161,10 +1285,12 @@ node -e "require('dotenv').config(); const { Pool } = require('pg'); new Pool({ 
 ### Error: `tenant.github.db.repositories.search({})` returns empty array
 
 **Cause A:** Backfill wasn't run (`--backfill` flag missing from setup).  
-**Cause B:** The `--tenant` value doesn't match what's in `corsair_accounts.tenant_id`.
+**Cause B:** The `--tenant` value doesn't match what's in
+`corsair_accounts.tenant_id`.
 
 **Fix A:** Re-run setup with `--backfill`.  
 **Fix B:** Check:
+
 ```sql
 SELECT tenant_id FROM corsair_accounts;
 -- Compare with what you're passing to withTenant()
@@ -1177,12 +1303,15 @@ SELECT tenant_id FROM corsair_accounts;
 ```
 Warning: There is already a client in the pool that has the same connectionString
 ```
+
 or
+
 ```
 notice: there is no parameter $1
 ```
 
-These are cosmetic warnings from `pg` interacting with Neon's SSL. They do not indicate failures. Your queries are working correctly.
+These are cosmetic warnings from `pg` interacting with Neon's SSL. They do not
+indicate failures. Your queries are working correctly.
 
 ---
 
@@ -1192,7 +1321,8 @@ These are cosmetic warnings from `pg` interacting with Neon's SSL. They do not i
 ? Is users table created or renamed from another table?
 ```
 
-**Always choose `+ users (create table)`.** Never choose a rename option unless you explicitly renamed a table and are intentionally migrating data.
+**Always choose `+ users (create table)`.** Never choose a rename option unless
+you explicitly renamed a table and are intentionally migrating data.
 
 ---
 
@@ -1201,6 +1331,7 @@ These are cosmetic warnings from `pg` interacting with Neon's SSL. They do not i
 **Cause:** Using wrong Drizzle import for your driver.
 
 **Fix:** For `pg` (node-postgres), always use:
+
 ```typescript
 import { drizzle } from "drizzle-orm/node-postgres"; // ← correct
 // NOT: import { drizzle } from "drizzle-orm/pg";      ← wrong for node-postgres
@@ -1212,30 +1343,32 @@ import { drizzle } from "drizzle-orm/node-postgres"; // ← correct
 
 ### Secrets Checklist
 
-| Secret | Where to store | Rotation policy |
-|--------|---------------|-----------------|
-| `CORSAIR_KEK` | Vercel Env Vars + 1Password/Doppler backup | Never rotate without a migration script |
-| `DATABASE_URL_POOLED` | Vercel Env Vars | Rotate if DB credentials are compromised |
-| `GITHUB_CLIENT_SECRET` | Vercel Env Vars | Rotate via GitHub → OAuth Apps |
-| `GITHUB_WEBHOOK_SECRET` | Vercel Env Vars | Rotate in GitHub Settings + .env together |
-| `OPENAI_API_KEY` | Vercel Env Vars | Rotate via OpenAI dashboard |
+| Secret                  | Where to store                             | Rotation policy                           |
+| ----------------------- | ------------------------------------------ | ----------------------------------------- |
+| `CORSAIR_KEK`           | Vercel Env Vars + 1Password/Doppler backup | Never rotate without a migration script   |
+| `DATABASE_URL_POOLED`   | Vercel Env Vars                            | Rotate if DB credentials are compromised  |
+| `GITHUB_CLIENT_SECRET`  | Vercel Env Vars                            | Rotate via GitHub → OAuth Apps            |
+| `GITHUB_WEBHOOK_SECRET` | Vercel Env Vars                            | Rotate in GitHub Settings + .env together |
+| `OPENAI_API_KEY`        | Vercel Env Vars                            | Rotate via OpenAI dashboard               |
 
 ### What happens if the KEK is lost?
 
 1. `corsair_accounts.dek` can no longer be decrypted
 2. Corsair cannot retrieve any stored OAuth tokens
-3. All `.github.db.*` queries still work (data is plaintext in `corsair_entities`)
+3. All `.github.db.*` queries still work (data is plaintext in
+   `corsair_entities`)
 4. All `.github.api.*` calls fail (no token available)
-5. Recovery: All users must re-sign-in via GitHub OAuth to re-provision their tenant
+5. Recovery: All users must re-sign-in via GitHub OAuth to re-provision their
+   tenant
 
 ### What data is encrypted at rest?
 
-| Column | Encrypted? | With what? |
-|--------|-----------|------------|
-| `corsair_accounts.dek` | ✅ Yes | Master KEK (AES-256-GCM) |
-| `corsair_integrations.config` | Partially | Sensitive fields only |
-| `corsair_entities.data` | ❌ No | Plaintext JSON — this is sync cache |
-| All your Drizzle tables | ❌ No | Neon encrypts disk, but columns are plaintext |
+| Column                        | Encrypted? | With what?                                    |
+| ----------------------------- | ---------- | --------------------------------------------- |
+| `corsair_accounts.dek`        | ✅ Yes     | Master KEK (AES-256-GCM)                      |
+| `corsair_integrations.config` | Partially  | Sensitive fields only                         |
+| `corsair_entities.data`       | ❌ No      | Plaintext JSON — this is sync cache           |
+| All your Drizzle tables       | ❌ No      | Neon encrypts disk, but columns are plaintext |
 
 ### Multi-Tenant Isolation Audit
 
@@ -1267,33 +1400,42 @@ Use this before moving from Day 3 to Day 4.
 
 - [ ] `CORSAIR_KEK` generated once and backed up in a secrets manager
 - [ ] `.env` has `DATABASE_URL_POOLED` and `CORSAIR_KEK` set
-- [ ] `lib/pool.ts` creates a single `pg.Pool` shared by both Corsair and Drizzle
+- [ ] `lib/pool.ts` creates a single `pg.Pool` shared by both Corsair and
+      Drizzle
 
 ### Corsair Setup
 
 - [ ] `server/corsair.ts` uses raw `pg.Pool` (not Drizzle), `multiTenancy: true`
 - [ ] `pnpm corsair setup --plugin=github` ran successfully
-- [ ] All 4 Corsair tables exist in Neon: `corsair_integrations`, `corsair_accounts`, `corsair_entities`, `corsair_events`
+- [ ] All 4 Corsair tables exist in Neon: `corsair_integrations`,
+      `corsair_accounts`, `corsair_entities`, `corsair_events`
 
 ### Drizzle Setup
 
 - [ ] `drizzle.config.ts` has `tablesFilter: ["!corsair_*"]`
 - [ ] `db/schema.ts` has **zero references** to `corsair_*` tables
-- [ ] `pnpm drizzle-kit push` ran cleanly with no rename prompts and no Corsair table warnings
-- [ ] All 7 app tables exist in Neon: `users`, `github_connections`, `conversations`, `messages`, `repository_summaries`, `embeddings`, `activity_logs`
+- [ ] `pnpm drizzle-kit push` ran cleanly with no rename prompts and no Corsair
+      table warnings
+- [ ] All 7 app tables exist in Neon: `users`, `github_connections`,
+      `conversations`, `messages`, `repository_summaries`, `embeddings`,
+      `activity_logs`
 
 ### Verification
 
 - [ ] Tenant backfill ran (`--backfill` flag used), `corsair_entities` has rows
 - [ ] `corsair_entities` has `repositories` with `count > 0`
-- [ ] End-to-end smoke test passed — all 3 steps in `server/playground.ts` printed `✓`
+- [ ] End-to-end smoke test passed — all 3 steps in `server/playground.ts`
+      printed `✓`
 - [ ] 11 total tables in Neon (4 Corsair + 7 Drizzle)
 
 ### Patterns
 
-- [ ] All Corsair API calls use `corsair.withTenant(userId).*` — never `corsair.github.*` directly
-- [ ] `corsairTenantId` on the `users` table is populated for every connected user
-- [ ] GitHub numeric user ID is used as the `corsairTenantId` (not the login string)
+- [ ] All Corsair API calls use `corsair.withTenant(userId).*` — never
+      `corsair.github.*` directly
+- [ ] `corsairTenantId` on the `users` table is populated for every connected
+      user
+- [ ] GitHub numeric user ID is used as the `corsairTenantId` (not the login
+      string)
 
 ---
 
@@ -1393,4 +1535,5 @@ SELECT tenant_id, count(*) as accounts FROM corsair_accounts GROUP BY tenant_id;
 
 ---
 
-*Last updated: Day 3 complete — foundation verified, ready for Day 4 (Auth scaffolding).*
+_Last updated: Day 3 complete — foundation verified, ready for Day 4 (Auth
+scaffolding)._
