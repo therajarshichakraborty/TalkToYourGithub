@@ -6,45 +6,49 @@ import { Spinner } from '@/components/ui/spinner';
 import { useFormStatus } from 'react-dom';
 import { signInWithGithub } from '../actions';
 
-function GitHubIcon() {
-    return (
-        
-        <svg viewBox= "0 0 24 24" className = "size-4" aria hidden fill = "currentColor" >
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
-        </svg>
+function GitHubIcon({ className = "size-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill="currentColor">
+      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+    </svg>
   );
 }
 
 function SubmitButton() {
-    const { pending } = useFormStatus();
+  const { pending } = useFormStatus();
 
-    let buttonLabel = 'Continue with GitHub';
-    let buttonIcon = <GitHubIcon />;
-
-    if (pending) {
-        buttonLabel = 'Redirecting to GitHub…';
-        buttonIcon = <Spinner className="size-4" />;
-    }
-
-    return (
-        <Button type= "submit" className = { 'w-full'} size = { 'lg'} disabled = { pending } >
-            { buttonIcon }
-    { buttonLabel }
+  return (
+    <Button
+      type="submit"
+      size="lg"
+      disabled={pending}
+      className="group relative w-full h-12 overflow-hidden rounded-xl border border-foreground/10 bg-foreground text-sm font-semibold text-background transition-all duration-300 hover:border-foreground/20 hover:bg-foreground/90 active:scale-[0.98] disabled:opacity-50"
+    >
+      <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-background/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+      {pending ? (
+        <span className="relative flex items-center gap-2.5">
+          <Spinner className="size-4 animate-spin opacity-80" />
+          <span>Connecting to GitHub…</span>
+        </span>
+      ) : (
+        <span className="relative flex items-center gap-2.5">
+          <GitHubIcon className="size-5" />
+          <span>Continue with GitHub</span>
+        </span>
+      )}
     </Button>
   );
 }
 
 type GithubSignInFormProps = {
-    /** Optional post-login redirect path (e.g. GitHub install callback). */
-    callbackUrl?: string;
+  callbackUrl?: string;
 };
 
 export function GithubSignInForm({ callbackUrl }: GithubSignInFormProps) {
-    return (
-        <form action= { signInWithGithub } className = "w-full" >
-            { callbackUrl?<input type = "hidden" name = "callbackUrl" value = { callbackUrl } /> : null
-}
-<SubmitButton />
+  return (
+    <form action={signInWithGithub} className="w-full">
+      {callbackUrl ? <input type="hidden" name="callbackUrl" value={callbackUrl} /> : null}
+      <SubmitButton />
     </form>
   );
 }
