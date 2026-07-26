@@ -12,12 +12,13 @@
     "db:migrate": "bun run drizzle-kit migrate",
     "db:studio": "bun run drizzle-kit studio",
     "db:check": "bun run drizzle-kit check",
-    "db:generate":"bun run drizzle-kit generate",
-    "db:reset":""
+    "db:generate": "bun run drizzle-kit generate",
+    "db:reset": ""
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
     "@corsair-dev/github": "^0.1.10",
+    "better-auth": "^1.6.25",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
