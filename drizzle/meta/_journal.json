@@ -1,1 +1,13 @@
-{"version":"7","dialect":"postgresql","entries":[]}
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1785084441370,
+      "tag": "0000_warm_robbie_robertson",
+      "breakpoints": true
+    }
+  ]
+}

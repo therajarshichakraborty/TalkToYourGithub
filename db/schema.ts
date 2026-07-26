@@ -1,8 +1,5 @@
 import { pgTable, text, timestamp, jsonb, integer } from "drizzle-orm/pg-core";
 
-// ─── users ────────────────────────────────────────────────────────────────────
-// One row per authenticated user. corsairTenantId links to Corsair's tenant
-// namespace — never store Corsair's internal table IDs here.
 export const users = pgTable("users", {
     id: text("id")
         .primaryKey()
@@ -20,8 +17,6 @@ export const users = pgTable("users", {
     corsairTenantId: text("corsair_tenant_id").unique(),
 });
 
-// ─── github_connections ───────────────────────────────────────────────────────
-// Records which GitHub identity belongs to each user after OAuth.
 export const githubConnections = pgTable("github_connections", {
     id: text("id")
         .primaryKey()
@@ -39,8 +34,6 @@ export const githubConnections = pgTable("github_connections", {
         .defaultNow(),
 });
 
-// ─── conversations ────────────────────────────────────────────────────────────
-// Each chat session. Optionally scoped to a single repo.
 export const conversations = pgTable("conversations", {
     id: text("id")
         .primaryKey()
@@ -59,9 +52,6 @@ export const conversations = pgTable("conversations", {
     repositoryName: text("repository_name"),
 });
 
-// ─── messages ─────────────────────────────────────────────────────────────────
-// Individual turns inside a conversation. toolCalls stores AI SDK tool call
-// results as JSONB so the UI can render them inline.
 export const messages = pgTable("messages", {
     id: text("id")
         .primaryKey()
@@ -77,8 +67,6 @@ export const messages = pgTable("messages", {
     toolCalls: jsonb("tool_calls"), // AI SDK CoreToolCall[] | null
 });
 
-// ─── repository_summaries ─────────────────────────────────────────────────────
-// AI-generated summaries per repo, written by the Inngest job on github.connected.
 export const repositorySummaries = pgTable("repository_summaries", {
     id: text("id")
         .primaryKey()
@@ -100,10 +88,6 @@ export const repositorySummaries = pgTable("repository_summaries", {
         .defaultNow(),
 });
 
-// ─── embeddings ───────────────────────────────────────────────────────────────
-// Semantic embeddings over Corsair-synced content (repos, commits, PRs, issues).
-// `embedding` is stored as JSONB (number[]) until pgvector is confirmed enabled
-// on the Neon project; swap to vector(1536) when ready.
 export const embeddings = pgTable("embeddings", {
     id: text("id")
         .primaryKey()
@@ -121,9 +105,6 @@ export const embeddings = pgTable("embeddings", {
     metadata: jsonb("metadata"),
 });
 
-// ─── activity_logs ────────────────────────────────────────────────────────────
-// Recent developer activity per repo, written by the Inngest webhook handler.
-// Powers the "Continue Working" dashboard feature.
 export const activityLogs = pgTable("activity_logs", {
     id: text("id")
         .primaryKey()

@@ -1,12 +1,19 @@
 {
-  "name": "takl-to-your-github",
+  "name": "talk-to-your-github",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "studio": "drizzle-kit studio",
+    "db:push": "bun run drizzle-kit push",
+    "db:migrate": "bun run drizzle-kit migrate",
+    "db:studio": "bun run drizzle-kit studio",
+    "db:check": "bun run drizzle-kit check",
+    "db:generate":"bun run drizzle-kit generate",
+    "db:reset":""
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -24,6 +31,7 @@
     "next": "16.2.9",
     "next-themes": "^0.4.6",
     "pg": "^8.21.0",
+    "prettier": "^3.9.6",
     "radix-ui": "^1.6.0",
     "react": "19.2.4",
     "react-day-picker": "^10.0.1",
