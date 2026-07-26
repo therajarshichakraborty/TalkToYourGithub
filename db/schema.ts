@@ -1,4 +1,3 @@
-// db/schema.ts
 import { relations } from "drizzle-orm";
 import { pgTable, text, timestamp, boolean, jsonb, index } from "drizzle-orm/pg-core";
 
