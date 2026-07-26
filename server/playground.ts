@@ -20,7 +20,6 @@ await tenant.github.keys.set_api_key(process.env.GITHUB_TOKEN!);
 //     console.log(`${count}. ${element.commit.message}`);
 // });
 
-
 // let allCommits: any[] = [];
 // let page = 1;
 
@@ -46,35 +45,31 @@ await tenant.github.keys.set_api_key(process.env.GITHUB_TOKEN!);
 
 // console.log(`Total commits fetched: ${allCommits.length}`);
 
-
 let allRepos: any[] = [];
 let page = 1;
 
 while (true) {
-    //@ts-ignore
-    const repos = (await tenant.github.api.repositories.list({
-        per_page: 100, // <--- Use snake_case per_page so GitHub API accepts it
-        page: page,
-    })) as any[];
+  //@ts-ignore
+  const repos = (await tenant.github.api.repositories.list({
+    per_page: 100, // <--- Use snake_case per_page so GitHub API accepts it
+    page: page,
+  })) as any[];
 
-    if (!repos || repos.length === 0) break;
-    allRepos.push(...repos);
+  if (!repos || repos.length === 0) break;
+  allRepos.push(...repos);
 
-    // let count = 0;
-    // (repos as any[]).forEach((element: any) => {
-    //     count++;
-    //     console.log(`${count}. ${element.fullName}`);
-    // });
+  // let count = 0;
+  // (repos as any[]).forEach((element: any) => {
+  //     count++;
+  //     console.log(`${count}. ${element.fullName}`);
+  // });
 
-    if (repos.length < 100) break; // Reached the last page
-    page++;
-
-    
+  if (repos.length < 100) break; // Reached the last page
+  page++;
 }
 
 allRepos.forEach((element: any) => {
-        console.log(element.name);
-    })
+  console.log(element.name);
+});
 
 console.log("Total number of repos:", allRepos.length);
-

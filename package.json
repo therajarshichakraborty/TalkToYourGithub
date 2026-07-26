@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "format": "bunx prettier --write .",
     "studio": "drizzle-kit studio",
     "db:push": "bun run drizzle-kit push",
     "db:migrate": "bun run drizzle-kit migrate",

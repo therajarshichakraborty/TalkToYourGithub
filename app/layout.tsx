@@ -20,9 +20,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-[family-name:var(--font-inter)]">
-        <div className="flex justify-end p-6">
+    <html lang='en' className={`${inter.variable} h-full antialiased`}>
+      <body className='min-h-full flex flex-col font-[family-name:var(--font-inter)]'>
+        <div className='flex justify-end p-6'>
           <AnimatedThemeToggler />
         </div>
         {children}
