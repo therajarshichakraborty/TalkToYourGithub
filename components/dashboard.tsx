@@ -58,7 +58,10 @@ const badgeVariants = cva("capitalize text-white", {
 });
 
 // --- MAIN COMPONENT ---
-export const ProjectDataTable = ({ projects, visibleColumns }: ProjectDataTableProps) => {
+export const ProjectDataTable = ({
+  projects,
+  visibleColumns,
+}: ProjectDataTableProps) => {
   // Animation variants for table rows
   const rowVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -72,7 +75,7 @@ export const ProjectDataTable = ({ projects, visibleColumns }: ProjectDataTableP
       },
     }),
   };
-  
+
   const tableHeaders: { key: keyof Project; label: string }[] = [
     { key: "name", label: "Project" },
     { key: "repository", label: "Repository" },
@@ -84,8 +87,8 @@ export const ProjectDataTable = ({ projects, visibleColumns }: ProjectDataTableP
   ];
 
   return (
-    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-      <div className="relative w-full overflow-auto">
+    <div className='rounded-lg border bg-card text-card-foreground shadow-sm'>
+      <div className='relative w-full overflow-auto'>
         <Table>
           <TableHeader>
             <TableRow>
@@ -102,37 +105,57 @@ export const ProjectDataTable = ({ projects, visibleColumns }: ProjectDataTableP
                 <motion.tr
                   key={project.id}
                   custom={index}
-                  initial="hidden"
-                  animate="visible"
-                  className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                  initial='hidden'
+                  animate='visible'
+                  className='border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted'
                 >
-                  {visibleColumns.has("name") && <TableCell className="font-medium">{project.name}</TableCell>}
-                  
+                  {visibleColumns.has("name") && (
+                    <TableCell className='font-medium'>
+                      {project.name}
+                    </TableCell>
+                  )}
+
                   {visibleColumns.has("repository") && (
                     <TableCell>
                       <a
                         href={project.repository}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground'
                       >
-                        <span className="truncate max-w-xs">{project.repository.replace('https://', '')}</span>
-                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                        <span className='truncate max-w-xs'>
+                          {project.repository.replace("https://", "")}
+                        </span>
+                        <ExternalLink className='h-3 w-3 flex-shrink-0' />
                       </a>
                     </TableCell>
                   )}
-                  
-                  {visibleColumns.has("team") && <TableCell>{project.team}</TableCell>}
-                  {visibleColumns.has("tech") && <TableCell>{project.tech}</TableCell>}
-                  {visibleColumns.has("createdAt") && <TableCell>{project.createdAt}</TableCell>}
-                  
+
+                  {visibleColumns.has("team") && (
+                    <TableCell>{project.team}</TableCell>
+                  )}
+                  {visibleColumns.has("tech") && (
+                    <TableCell>{project.tech}</TableCell>
+                  )}
+                  {visibleColumns.has("createdAt") && (
+                    <TableCell>{project.createdAt}</TableCell>
+                  )}
+
                   {visibleColumns.has("contributors") && (
                     <TableCell>
-                      <div className="flex -space-x-2">
+                      <div className='flex -space-x-2'>
                         {project.contributors.map((contributor, idx) => (
-                          <Avatar key={idx} className="h-8 w-8 border-2 border-background">
-                            <AvatarImage src={contributor.src} alt={contributor.alt} />
-                            <AvatarFallback>{contributor.fallback}</AvatarFallback>
+                          <Avatar
+                            key={idx}
+                            className='h-8 w-8 border-2 border-background'
+                          >
+                            <AvatarImage
+                              src={contributor.src}
+                              alt={contributor.alt}
+                            />
+                            <AvatarFallback>
+                              {contributor.fallback}
+                            </AvatarFallback>
                           </Avatar>
                         ))}
                       </div>
@@ -141,7 +164,11 @@ export const ProjectDataTable = ({ projects, visibleColumns }: ProjectDataTableP
 
                   {visibleColumns.has("status") && (
                     <TableCell>
-                      <Badge className={cn(badgeVariants({ variant: project.status.variant }))}>
+                      <Badge
+                        className={cn(
+                          badgeVariants({ variant: project.status.variant }),
+                        )}
+                      >
                         {project.status.text}
                       </Badge>
                     </TableCell>
@@ -150,7 +177,10 @@ export const ProjectDataTable = ({ projects, visibleColumns }: ProjectDataTableP
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={visibleColumns.size} className="h-24 text-center">
+                <TableCell
+                  colSpan={visibleColumns.size}
+                  className='h-24 text-center'
+                >
                   No results.
                 </TableCell>
               </TableRow>

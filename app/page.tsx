@@ -53,8 +53,9 @@ export default function Home() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link href="http://localhost:3000/sign-in">
-                    <Button size='sm'>SignIn</Button></Link>
+                  <Link href='http://localhost:3000/sign-in'>
+                    <Button size='sm'>SignIn</Button>
+                  </Link>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Click to build and push to production</p>

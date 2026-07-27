@@ -1231,8 +1231,7 @@ export async function POST(req: Request) {
 ```typescript
 // ❌ broken
 corsair.github.db.repositories
-  .search({})
-  (
+  .search({})(
     // ✅ fixed
     corsair as any,
   )
