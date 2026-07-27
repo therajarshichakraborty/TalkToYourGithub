@@ -17,6 +17,7 @@ import {
   UserMenu,
   UserMenuWithSession,
 } from "@/features/auth/components/use-menu";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -52,7 +53,8 @@ export default function Home() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button size='sm'>Deploy App</Button>
+                  <Link href="http://localhost:3000/sign-in">
+                    <Button size='sm'>SignIn</Button></Link>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Click to build and push to production</p>

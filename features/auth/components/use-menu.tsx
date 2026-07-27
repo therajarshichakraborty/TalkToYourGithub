@@ -30,7 +30,7 @@ export type UserMenuTriggerVariant = "compact" | "profile";
 
 type UserMenuProps = {
   user: UserMenuUser;
-  /** `compact` — avatar-only trigger; `profile` — avatar + name in the trigger. */
+  /** `compact` - avatar-only trigger; `profile` - avatar + name in the trigger. */
   variant?: UserMenuTriggerVariant;
   plan?: string;
   className?: string;
@@ -93,6 +93,7 @@ export function UserMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(className)}
+        /**@ts-ignore */
         render={
           variant === "compact" ? (
             <Button

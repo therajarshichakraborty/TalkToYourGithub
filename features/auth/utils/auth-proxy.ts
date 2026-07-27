@@ -18,7 +18,6 @@ function getPostAuthRedirectPath(request: NextRequest): string {
 
 export async function handleAuthProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
   if (pathname === "/") {
     return NextResponse.next();
   }
