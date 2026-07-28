@@ -57,38 +57,42 @@ async function runTestForTenant(tenantId: string) {
       const owner = firstRepo.owner?.login || firstRepo.owner?.name || firstRepo.fullName?.split("/")[0];
       const repoName = firstRepo.name;
 
-      console.log(`\nTesting repo-specific queries on: '${owner}/${repoName}'`);
+      if (owner && repoName) {
+        console.log(`\nTesting repo-specific queries on: '${owner}/${repoName}'`);
 
-      console.log("2. Fetching Branches (tenant.github.api.repositories.listBranches)...");
-      try {
-        const branches = await tenant.github.api.repositories.listBranches({ owner, repo: repoName });
-        console.log(`   Found ${branches.length} branches.`);
-      } catch (err: unknown) {
-        console.warn(`   Branch fetch note: ${getErrorMessage(err)}`);
-      }
+        console.log("2. Fetching Branches (tenant.github.api.repositories.listBranches)...");
+        try {
+          const branches = await tenant.github.api.repositories.listBranches({ owner, repo: repoName });
+          console.log(`   Found ${branches.length} branches.`);
+        } catch (err: unknown) {
+          console.warn(`   Branch fetch note: ${getErrorMessage(err)}`);
+        }
 
-      console.log("3. Fetching Commits (tenant.github.api.repositories.listCommits)...");
-      try {
-        const commits = await tenant.github.api.repositories.listCommits({ owner, repo: repoName, perPage: 5 });
-        console.log(`   Found ${commits.length} commits.`);
-      } catch (err: unknown) {
-        console.warn(`   Commit fetch note: ${getErrorMessage(err)}`);
-      }
+        console.log("3. Fetching Commits (tenant.github.api.repositories.listCommits)...");
+        try {
+          const commits = await tenant.github.api.repositories.listCommits({ owner, repo: repoName, perPage: 5 });
+          console.log(`   Found ${commits.length} commits.`);
+        } catch (err: unknown) {
+          console.warn(`   Commit fetch note: ${getErrorMessage(err)}`);
+        }
 
-      console.log("4. Fetching Pull Requests (tenant.github.api.pullRequests.list)...");
-      try {
-        const prs = await tenant.github.api.pullRequests.list({ owner, repo: repoName, perPage: 5 });
-        console.log(`   Found ${prs.length} pull requests.`);
-      } catch (err: unknown) {
-        console.warn(`   PR fetch note: ${getErrorMessage(err)}`);
-      }
+        console.log("4. Fetching Pull Requests (tenant.github.api.pullRequests.list)...");
+        try {
+          const prs = await tenant.github.api.pullRequests.list({ owner, repo: repoName, perPage: 5 });
+          console.log(`   Found ${prs.length} pull requests.`);
+        } catch (err: unknown) {
+          console.warn(`   PR fetch note: ${getErrorMessage(err)}`);
+        }
 
-      console.log("5. Fetching Issues (tenant.github.api.issues.list)...");
-      try {
-        const issues = await tenant.github.api.issues.list({ owner, repo: repoName, perPage: 5 });
-        console.log(`   Found ${issues.length} issues.`);
-      } catch (err: unknown) {
-        console.warn(`   Issue fetch note: ${getErrorMessage(err)}`);
+        console.log("5. Fetching Issues (tenant.github.api.issues.list)...");
+        try {
+          const issues = await tenant.github.api.issues.list({ owner, repo: repoName, perPage: 5 });
+          console.log(`   Found ${issues.length} issues.`);
+        } catch (err: unknown) {
+          console.warn(`   Issue fetch note: ${getErrorMessage(err)}`);
+        }
+      } else {
+        console.warn("Could not determine owner or repoName from the repository object.");
       }
     }
 
