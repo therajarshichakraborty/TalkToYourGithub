@@ -1,11 +1,25 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Pacifico, Amatic_SC, Permanent_Marker } from "next/font/google";
 import "./globals.css";
-import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
-const inter = Inter({
-  variable: "--font-inter",
+const pacifico = Pacifico({
+  weight: "400",
   subsets: ["latin"],
+  variable: "--font-pacifico",
+  display: "swap",
+});
+
+const amaticSc = Amatic_SC({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-amatic-sc",
+  display: "swap",
+});
+
+const permanentMarker = Permanent_Marker({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-permanent-marker",
   display: "swap",
 });
 
@@ -20,11 +34,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang='en' className={`${inter.variable} h-full antialiased`}>
-      <body className='min-h-full flex flex-col font-[family-name:var(--font-inter)]'>
-        <div className='flex justify-end p-6'>
-          <AnimatedThemeToggler />
-        </div>
+    <html
+      lang="en"
+      className={`${pacifico.variable} ${amaticSc.variable} ${permanentMarker.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col font-sans">
         {children}
       </body>
     </html>

@@ -50,6 +50,7 @@ export async function getBranches(options: GetBranchesOptions) {
 
   // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.repositories.listBranches)
   try {
+    //@ts-no-error
     const branches = await tenant.github.api.repositories.listBranches({
       owner: options.owner,
       repo: options.repo,
