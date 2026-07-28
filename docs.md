@@ -129,6 +129,45 @@ Day 7 focused on verification and quality testing. We created test endpoints and
 
 ---
 
+## 📅 Day 8: Read Tools, Part 1 (Branches and Commits)
+
+### What was done
+1. **Branch Fetching Tool**: Created `lib/tools/get-branches.ts` to query GitHub repository branch details for a specified owner and repository.
+2. **Commit Fetching Tool**: Created `lib/tools/get-commits.ts` to retrieve commit histories for a repository.
+3. **Tenant Resolution Helper**: Created `lib/tools/helper.ts` to automatically resolve user tenant IDs from the database.
+
+### Files Added / Modified
+- `lib/tools/get-branches.ts` (Tool function returning branch names and commit hashes)
+- `lib/tools/get-commits.ts` (Tool function returning commit author, message, and timestamp details)
+- `lib/tools/helper.ts` (Utility helper resolving tenant ID from database user ID)
+
+### Beginner Explanation
+Day 8 builds two read-only tools that act like specific database query functions. One function retrieves all branch names (like main or feature branches), while the second function retrieves recent commit history for any project repository.
+
+---
+
+## 📅 Day 9: Read Tools, Part 2 (Pull Requests, Issues, Repositories)
+
+### What was done
+1. **Pull Requests Tool**: Created `lib/tools/get-pull-requests.ts` to fetch open, closed, or merged pull requests.
+2. **Issues Tool**: Created `lib/tools/get-issues.ts` to retrieve GitHub repository issues and status summaries.
+3. **Repositories Tool**: Created `lib/tools/get-repositories.ts` to list all connected GitHub repositories for a tenant.
+4. **Universal Test API Endpoint**: Created `app/api/user/tools-test/route.ts` to enable testing all 5 read tools directly from a web browser or RequestKit / Postman.
+5. **CLI Verification Tool**: Built `scripts/test-tools.ts` to test all 5 read tools via terminal command line.
+
+### Files Added / Modified
+- `lib/tools/get-pull-requests.ts` (Tool function fetching pull requests by state)
+- `lib/tools/get-issues.ts` (Tool function fetching repository issues)
+- `lib/tools/get-repositories.ts` (Tool function listing user repositories)
+- `lib/tools/index.ts` (Barrel export file exposing all 5 tool functions)
+- `app/api/user/tools-test/route.ts` (API test endpoint for browser and RequestKit testing)
+- `scripts/test-tools.ts` (CLI test script for validating all 5 tools)
+
+### Beginner Explanation
+Day 9 completes the set of 5 read tools. Now our application can ask GitHub for repositories, branches, commit logs, pull requests, and open issues. These tool functions operate as standalone TypeScript modules ready to be connected to the AI chat assistant.
+
+---
+
 ## 📊 Summary of Completed Milestones & Files
 
 | Day | Feature Summary | Added / Modified Files | Status |
@@ -140,3 +179,6 @@ Day 7 focused on verification and quality testing. We created test endpoints and
 | **Day 5** | Multi-Tenant Provisioning | `lib/auth.ts`, `app/api/user/tenant-status/route.ts` | Completed |
 | **Day 6** | Backfill API & GitHub Webhooks | `app/api/user/backfill/route.ts`, `app/api/webhooks/route.ts` | Completed |
 | **Day 7** | Sync Layer Testing & Verification | `app/api/user/test-sync/route.ts`, `scripts/test-sync.ts` | Completed |
+| **Day 8** | Read Tools, Part 1 (Branches, Commits) | `lib/tools/get-branches.ts`, `lib/tools/get-commits.ts`, `lib/tools/helper.ts` | Completed |
+| **Day 9** | Read Tools, Part 2 (PRs, Issues, Repos) | `lib/tools/get-pull-requests.ts`, `lib/tools/get-issues.ts`, `lib/tools/get-repositories.ts`, `app/api/user/tools-test/route.ts`, `scripts/test-tools.ts` | Completed |
+
