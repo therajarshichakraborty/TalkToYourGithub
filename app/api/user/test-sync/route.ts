@@ -61,7 +61,7 @@ export async function GET() {
 
       if (repositories.length > 0) {
         const firstRepo = repositories[0];
-        const owner = firstRepo.owner?.login || firstRepo.owner?.name || firstRepo.full_name?.split("/")[0];
+        const owner = firstRepo.owner?.login || firstRepo.owner?.name || firstRepo.fullName?.split("/")[0];
         const repoName = firstRepo.name;
 
         if (owner && repoName) {
@@ -86,7 +86,7 @@ export async function GET() {
     }
 
     // 2. Query Corsair local database entities table
-    let dbEntitiesCount: Record<string, number> = {};
+    const dbEntitiesCount: Record<string, number> = {};
     let totalDbEntities = 0;
     try {
       const dbRes = await pool.query(

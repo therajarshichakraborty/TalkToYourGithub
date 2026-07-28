@@ -20,7 +20,7 @@ async function main() {
       process.exit(1);
     }
 
-    const fallbackTenant = tenantRes.rows[0].tenant_id;
+    const fallbackTenant: string = tenantRes.rows[0].tenant_id;
     console.log(`Using existing tenant_id: '${fallbackTenant}'\n`);
     await runTestForTenant(fallbackTenant);
   } else {
@@ -28,6 +28,11 @@ async function main() {
   }
 
   await pool.end();
+}
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
 }
 
 async function runTestForTenant(tenantId: string) {
@@ -49,7 +54,7 @@ async function runTestForTenant(tenantId: string) {
 
     if (repos.length > 0) {
       const firstRepo = repos[0];
-      const owner = firstRepo.owner?.login || firstRepo.owner?.name || firstRepo.full_name?.split("/")[0];
+      const owner = firstRepo.owner?.login || firstRepo.owner?.name || firstRepo.fullName?.split("/")[0];
       const repoName = firstRepo.name;
 
       console.log(`\nTesting repo-specific queries on: '${owner}/${repoName}'`);
@@ -58,32 +63,32 @@ async function runTestForTenant(tenantId: string) {
       try {
         const branches = await tenant.github.api.repositories.listBranches({ owner, repo: repoName });
         console.log(`   Found ${branches.length} branches.`);
-      } catch (err: any) {
-        console.warn(`   Branch fetch note: ${err?.message || err}`);
+      } catch (err: unknown) {
+        console.warn(`   Branch fetch note: ${getErrorMessage(err)}`);
       }
 
       console.log("3. Fetching Commits (tenant.github.api.repositories.listCommits)...");
       try {
         const commits = await tenant.github.api.repositories.listCommits({ owner, repo: repoName, perPage: 5 });
         console.log(`   Found ${commits.length} commits.`);
-      } catch (err: any) {
-        console.warn(`   Commit fetch note: ${err?.message || err}`);
+      } catch (err: unknown) {
+        console.warn(`   Commit fetch note: ${getErrorMessage(err)}`);
       }
 
       console.log("4. Fetching Pull Requests (tenant.github.api.pullRequests.list)...");
       try {
         const prs = await tenant.github.api.pullRequests.list({ owner, repo: repoName, perPage: 5 });
         console.log(`   Found ${prs.length} pull requests.`);
-      } catch (err: any) {
-        console.warn(`   PR fetch note: ${err?.message || err}`);
+      } catch (err: unknown) {
+        console.warn(`   PR fetch note: ${getErrorMessage(err)}`);
       }
 
       console.log("5. Fetching Issues (tenant.github.api.issues.list)...");
       try {
         const issues = await tenant.github.api.issues.list({ owner, repo: repoName, perPage: 5 });
         console.log(`   Found ${issues.length} issues.`);
-      } catch (err: any) {
-        console.warn(`   Issue fetch note: ${err?.message || err}`);
+      } catch (err: unknown) {
+        console.warn(`   Issue fetch note: ${getErrorMessage(err)}`);
       }
     }
 
@@ -102,11 +107,11 @@ async function runTestForTenant(tenantId: string) {
       }
     }
   } catch (err: unknown) {
-    console.error("Error testing Corsair sync layer:", err);
+    console.error("Error testing Corsair sync layer:", getErrorMessage(err));
   }
 }
 
-main().catch((err) => {
-  console.error("Script execution failed:", err);
+main().catch((err: unknown) => {
+  console.error("Script execution failed:", getErrorMessage(err));
   process.exit(1);
 });
