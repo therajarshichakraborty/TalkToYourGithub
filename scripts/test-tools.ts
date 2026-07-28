@@ -8,6 +8,8 @@ import {
   getCommits,
   getPullRequests,
   getIssues,
+  getFileContent,
+  createIssue,
 } from "../lib/tools";
 
 async function main() {
@@ -24,7 +26,7 @@ async function main() {
   }
 
   console.log(`========================================`);
-  console.log(`Testing Day 8 & Day 9 Read Tools for Tenant: '${tenantId}'`);
+  console.log(`Testing All Tools (Read & Live/Write) for Tenant: '${tenantId}'`);
   console.log(`========================================\n`);
 
   // 1. Test getRepositories
@@ -33,15 +35,17 @@ async function main() {
   console.log(`   Success: ${reposRes.success}`);
   console.log(`   Count: ${reposRes.count}`);
 
-  if (!reposRes.success || reposRes.repositories.length === 0) {
+  if (!reposRes.success || !reposRes.repositories || reposRes.repositories.length === 0) {
     console.warn("   No repositories found to run repo-specific tool tests on.");
     await pool.end();
     return;
   }
 
   const firstRepo = reposRes.repositories[0];
-  const owner = firstRepo.owner?.login || firstRepo.owner?.name || firstRepo.fullName?.split("/")[0];
-  const repo = firstRepo.name;
+  const owner = (firstRepo as Record<string, unknown>).fullName
+    ? ((firstRepo as Record<string, unknown>).fullName as string).split("/")[0]
+    : "owner";
+  const repo = (firstRepo as Record<string, unknown>).name as string;
 
   if (!owner || !repo) {
     console.warn("   Could not determine owner/repo from first repository object.");
@@ -75,7 +79,39 @@ async function main() {
   console.log(`   Success: ${issuesRes.success}`);
   console.log(`   Issues count: ${issuesRes.count}`);
 
-  console.log("\nAll 5 read tools executed successfully!");
+  // 6. Test getFileContent (Live API)
+  console.log("6. Testing getFileContent() (Live API)...");
+  const fileRes = await getFileContent({ owner, repo, path: "README.md", tenantId });
+  console.log(`   Success: ${fileRes.success}`);
+  if (fileRes.success) {
+    console.log(`   File Type: ${fileRes.type}`);
+    console.log(`   File Size: ${fileRes.size} bytes`);
+  } else {
+    console.log(`   Note: ${fileRes.error}`);
+  }
+
+  // 7. Test createIssue (Live API Write - Optional dry run or live test)
+  console.log("7. Testing createIssue() (Live API Write)...");
+  const runWriteTest = process.argv.includes("--write");
+  if (runWriteTest) {
+    const issueRes = await createIssue({
+      owner,
+      repo,
+      title: `[Test] Automated Tool Test - ${new Date().toISOString()}`,
+      body: "This issue was automatically created by Day 10 live-write tool test.",
+      tenantId,
+    });
+    console.log(`   Success: ${issueRes.success}`);
+    if (issueRes.success) {
+      console.log(`   Created Issue #${issueRes.issue?.number}: ${issueRes.issue?.htmlUrl}`);
+    } else {
+      console.log(`   Note: ${issueRes.error}`);
+    }
+  } else {
+    console.log("   (Skipping live write test. Pass '--write' flag to run issue creation write test).");
+  }
+
+  console.log("\nAll tool functions tested!");
   await pool.end();
 }
 

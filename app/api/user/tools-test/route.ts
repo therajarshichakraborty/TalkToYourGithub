@@ -10,6 +10,8 @@ import {
   getCommits,
   getPullRequests,
   getIssues,
+  getFileContent,
+  createIssue,
 } from "@/lib/tools";
 
 export async function GET(req: NextRequest) {
@@ -100,10 +102,40 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ tool, ...result });
       }
 
+      case "file-content":
+      case "file": {
+        const filePath = searchParams.get("path");
+        const ref = searchParams.get("ref") || undefined;
+        if (!owner || !repo || !filePath) {
+          return NextResponse.json(
+            { error: "Query parameters 'owner', 'repo', and 'path' are required for 'file-content' tool." },
+            { status: 400 }
+          );
+        }
+        const result = await getFileContent({ owner, repo, path: filePath, ref, tenantId });
+        return NextResponse.json({ tool, ...result });
+      }
+
+      case "create-issue": {
+        const title = searchParams.get("title");
+        const body = searchParams.get("body") || undefined;
+        const labelsParam = searchParams.get("labels");
+        const labels = labelsParam ? labelsParam.split(",").map((l) => l.trim()) : undefined;
+
+        if (!owner || !repo || !title) {
+          return NextResponse.json(
+            { error: "Query parameters 'owner', 'repo', and 'title' are required for 'create-issue' tool." },
+            { status: 400 }
+          );
+        }
+        const result = await createIssue({ owner, repo, title, body, labels, tenantId });
+        return NextResponse.json({ tool, ...result });
+      }
+
       default:
         return NextResponse.json(
           {
-            error: `Unknown tool '${tool}'. Available tools: repositories, branches, commits, prs, issues.`,
+            error: `Unknown tool '${tool}'. Available tools: repositories, branches, commits, prs, issues, file-content, create-issue.`,
           },
           { status: 400 }
         );

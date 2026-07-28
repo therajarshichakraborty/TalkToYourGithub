@@ -168,6 +168,25 @@ Day 9 completes the set of 5 read tools. Now our application can ask GitHub for 
 
 ---
 
+## 📅 Day 10: Write/Live-API Tools (File Content and Create Issue)
+
+### What was done
+1. **Uncached Live File Content Tool**: Built `lib/tools/get-file-content.ts` to fetch real-time, uncached file contents directly via the live GitHub API proxy (`tenant.github.api.repositories.getContent`). Automatically decodes base64-encoded file payloads into UTF-8 strings.
+2. **Live Issue Creation Write Tool**: Built `lib/tools/create-issue.ts` to perform live write operations (`tenant.github.api.issues.create`), allowing creation of new repository issues with titles, descriptions, and labels.
+3. **Live Path Rate-Limit Safeguards**: Implemented explicit error handling and warning logs for 403 / 429 rate limits and secondary write rate limits on live API requests.
+4. **Tool Suite Export & Test Endpoint**: Updated `lib/tools/index.ts` and `app/api/user/tools-test/route.ts` to expose `getFileContent` and `createIssue` for testing via browser/RequestKit.
+
+### Files Added / Modified
+- `lib/tools/get-file-content.ts` (Tool function fetching raw file contents and decoding base64)
+- `lib/tools/create-issue.ts` (Tool function executing live issue creation writes)
+- `lib/tools/index.ts` (Updated barrel export file with all 7 tools)
+- `app/api/user/tools-test/route.ts` (Updated test endpoint with `file-content` and `create-issue` handlers)
+
+### Beginner Explanation
+Day 10 introduces live interaction tools. `get-file-content` lets the AI read the actual text of any file in a repository (like `README.md` or source code) directly from GitHub without relying on cached database copies. `create-issue` allows the AI (or user) to post a brand-new issue directly onto GitHub. Both tools include rate-limit safeguards to handle GitHub API limits gracefully.
+
+---
+
 ## 📊 Summary of Completed Milestones & Files
 
 | Day | Feature Summary | Added / Modified Files | Status |
@@ -181,4 +200,6 @@ Day 9 completes the set of 5 read tools. Now our application can ask GitHub for 
 | **Day 7** | Sync Layer Testing & Verification | `app/api/user/test-sync/route.ts`, `scripts/test-sync.ts` | Completed |
 | **Day 8** | Read Tools, Part 1 (Branches, Commits) | `lib/tools/get-branches.ts`, `lib/tools/get-commits.ts`, `lib/tools/helper.ts` | Completed |
 | **Day 9** | Read Tools, Part 2 (PRs, Issues, Repos) | `lib/tools/get-pull-requests.ts`, `lib/tools/get-issues.ts`, `lib/tools/get-repositories.ts`, `app/api/user/tools-test/route.ts`, `scripts/test-tools.ts` | Completed |
+| **Day 10** | Write/Live-API Tools (File Content, Create Issue) | `lib/tools/get-file-content.ts`, `lib/tools/create-issue.ts`, `lib/tools/index.ts`, `app/api/user/tools-test/route.ts` | Completed |
+
 
