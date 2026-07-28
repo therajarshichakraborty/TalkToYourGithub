@@ -15,7 +15,28 @@ export async function getIssues(options: GetIssuesOptions) {
   const { tenant } = await getCorsairTenantClient(options);
   const perPage = options.perPage || 30;
   const state = options.state || "all";
+  const targetFullName = `${options.owner}/${options.repo}`;
 
+  // 1. Primary: Local Synced Corsair Database (corsair.github.db.issues.search)
+  try {
+    if (tenant.github?.db?.issues?.search) {
+      const dbIssues = await tenant.github.db.issues.search({});
+      if (dbIssues && Array.isArray(dbIssues) && dbIssues.length > 0) {
+        return {
+          success: true,
+          source: "synced_db",
+          owner: options.owner,
+          repo: options.repo,
+          count: dbIssues.length,
+          issues: dbIssues,
+        };
+      }
+    }
+  } catch (dbErr: unknown) {
+    console.warn(`[getIssues] Local DB search note for ${targetFullName}:`, dbErr instanceof Error ? dbErr.message : dbErr);
+  }
+
+  // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.issues.list)
   try {
     const issues = await tenant.github.api.issues.list({
       owner: options.owner,
@@ -23,21 +44,25 @@ export async function getIssues(options: GetIssuesOptions) {
       state,
       perPage,
     });
-    return {
-      success: true,
-      owner: options.owner,
-      repo: options.repo,
-      count: issues.length,
-      issues,
-    };
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      success: false,
-      owner: options.owner,
-      repo: options.repo,
-      error: message,
-      issues: [],
-    };
+    if (issues && Array.isArray(issues)) {
+      return {
+        success: true,
+        source: "live_api",
+        owner: options.owner,
+        repo: options.repo,
+        count: issues.length,
+        issues,
+      };
+    }
+  } catch (apiErr: unknown) {
+    console.warn(`[getIssues] Live API call note for ${targetFullName}:`, apiErr instanceof Error ? apiErr.message : apiErr);
   }
+
+  return {
+    success: false,
+    owner: options.owner,
+    repo: options.repo,
+    error: `Could not find issues for '${targetFullName}' via Synced DB or Live API.`,
+    issues: [],
+  };
 }
