@@ -38,9 +38,9 @@ function getErrorMessage(err: unknown): string {
 }
 
 async function runTestForTenant(tenantId: string) {
-  console.log(`========================================`);
+  console.log(`\n---------------------------------------`);
   console.log(`Testing Corsair Integration for Tenant: ${tenantId}`);
-  console.log(`========================================\n`);
+  console.log(`---------------------------------------\n`);
 
   const tenant = corsair.withTenant(tenantId);
 
