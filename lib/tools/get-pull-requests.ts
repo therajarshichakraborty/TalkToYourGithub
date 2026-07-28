@@ -9,7 +9,9 @@ export interface GetPullRequestsOptions extends ToolContextOptions {
 
 export async function getPullRequests(options: GetPullRequestsOptions) {
   if (!options.owner || !options.repo) {
-    throw new Error("Both 'owner' and 'repo' are required to fetch pull requests.");
+    throw new Error(
+      "Both 'owner' and 'repo' are required to fetch pull requests.",
+    );
   }
 
   const { tenant } = await getCorsairTenantClient(options);
@@ -33,7 +35,10 @@ export async function getPullRequests(options: GetPullRequestsOptions) {
       }
     }
   } catch (dbErr: unknown) {
-    console.warn(`[getPullRequests] Local DB search note for ${targetFullName}:`, dbErr instanceof Error ? dbErr.message : dbErr);
+    console.warn(
+      `[getPullRequests] Local DB search note for ${targetFullName}:`,
+      dbErr instanceof Error ? dbErr.message : dbErr,
+    );
   }
 
   // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.pullRequests.list)
@@ -55,7 +60,10 @@ export async function getPullRequests(options: GetPullRequestsOptions) {
       };
     }
   } catch (apiErr: unknown) {
-    console.warn(`[getPullRequests] Live API call note for ${targetFullName}:`, apiErr instanceof Error ? apiErr.message : apiErr);
+    console.warn(
+      `[getPullRequests] Live API call note for ${targetFullName}:`,
+      apiErr instanceof Error ? apiErr.message : apiErr,
+    );
   }
 
   return {

@@ -16,17 +16,25 @@ async function main() {
   let tenantId = process.argv[2];
 
   if (!tenantId) {
-    console.log("No tenant ID provided as argument. Looking up first available tenant from corsair_accounts...");
-    const res = await pool.query(`SELECT tenant_id FROM corsair_accounts LIMIT 1`);
+    console.log(
+      "No tenant ID provided as argument. Looking up first available tenant from corsair_accounts...",
+    );
+    const res = await pool.query(
+      `SELECT tenant_id FROM corsair_accounts LIMIT 1`,
+    );
     if (res.rows.length === 0) {
-      console.error("Error: No tenants found in corsair_accounts database. Please provision a tenant first.");
+      console.error(
+        "Error: No tenants found in corsair_accounts database. Please provision a tenant first.",
+      );
       process.exit(1);
     }
     tenantId = res.rows[0].tenant_id;
   }
 
   console.log(`========================================`);
-  console.log(`Testing All Tools (Read & Live/Write) for Tenant: '${tenantId}'`);
+  console.log(
+    `Testing All Tools (Read & Live/Write) for Tenant: '${tenantId}'`,
+  );
   console.log(`========================================\n`);
 
   // 1. Test getRepositories
@@ -35,8 +43,14 @@ async function main() {
   console.log(`   Success: ${reposRes.success}`);
   console.log(`   Count: ${reposRes.count}`);
 
-  if (!reposRes.success || !reposRes.repositories || reposRes.repositories.length === 0) {
-    console.warn("   No repositories found to run repo-specific tool tests on.");
+  if (
+    !reposRes.success ||
+    !reposRes.repositories ||
+    reposRes.repositories.length === 0
+  ) {
+    console.warn(
+      "   No repositories found to run repo-specific tool tests on.",
+    );
     await pool.end();
     return;
   }
@@ -48,7 +62,9 @@ async function main() {
   const repo = (firstRepo as Record<string, unknown>).name as string;
 
   if (!owner || !repo) {
-    console.warn("   Could not determine owner/repo from first repository object.");
+    console.warn(
+      "   Could not determine owner/repo from first repository object.",
+    );
     await pool.end();
     return;
   }
@@ -69,19 +85,36 @@ async function main() {
 
   // 4. Test getPullRequests
   console.log("4. Testing getPullRequests()...");
-  const prsRes = await getPullRequests({ owner, repo, state: "all", perPage: 5, tenantId });
+  const prsRes = await getPullRequests({
+    owner,
+    repo,
+    state: "all",
+    perPage: 5,
+    tenantId,
+  });
   console.log(`   Success: ${prsRes.success}`);
   console.log(`   PRs count: ${prsRes.count}`);
 
   // 5. Test getIssues
   console.log("5. Testing getIssues()...");
-  const issuesRes = await getIssues({ owner, repo, state: "all", perPage: 5, tenantId });
+  const issuesRes = await getIssues({
+    owner,
+    repo,
+    state: "all",
+    perPage: 5,
+    tenantId,
+  });
   console.log(`   Success: ${issuesRes.success}`);
   console.log(`   Issues count: ${issuesRes.count}`);
 
   // 6. Test getFileContent (Live API)
   console.log("6. Testing getFileContent() (Live API)...");
-  const fileRes = await getFileContent({ owner, repo, path: "README.md", tenantId });
+  const fileRes = await getFileContent({
+    owner,
+    repo,
+    path: "README.md",
+    tenantId,
+  });
   console.log(`   Success: ${fileRes.success}`);
   if (fileRes.success) {
     console.log(`   File Type: ${fileRes.type}`);
@@ -103,12 +136,16 @@ async function main() {
     });
     console.log(`   Success: ${issueRes.success}`);
     if (issueRes.success) {
-      console.log(`   Created Issue #${issueRes.issue?.number}: ${issueRes.issue?.htmlUrl}`);
+      console.log(
+        `   Created Issue #${issueRes.issue?.number}: ${issueRes.issue?.htmlUrl}`,
+      );
     } else {
       console.log(`   Note: ${issueRes.error}`);
     }
   } else {
-    console.log("   (Skipping live write test. Pass '--write' flag to run issue creation write test).");
+    console.log(
+      "   (Skipping live write test. Pass '--write' flag to run issue creation write test).",
+    );
   }
 
   console.log("\nAll tool functions tested!");

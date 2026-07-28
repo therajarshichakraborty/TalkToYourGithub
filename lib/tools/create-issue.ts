@@ -11,7 +11,9 @@ export interface CreateIssueOptions extends ToolContextOptions {
 
 export async function createIssue(options: CreateIssueOptions) {
   if (!options.owner || !options.repo || !options.title) {
-    throw new Error("Parameters 'owner', 'repo', and 'title' are required to create an issue.");
+    throw new Error(
+      "Parameters 'owner', 'repo', and 'title' are required to create an issue.",
+    );
   }
 
   const { tenant } = await getCorsairTenantClient(options);
@@ -51,12 +53,15 @@ export async function createIssue(options: CreateIssueOptions) {
     }
   } catch (apiErr: unknown) {
     const errMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
-    const isRateLimited = errMsg.toLowerCase().includes("rate limit") || errMsg.includes("403") || errMsg.includes("429");
+    const isRateLimited =
+      errMsg.toLowerCase().includes("rate limit") ||
+      errMsg.includes("403") ||
+      errMsg.includes("429");
 
     console.warn(
       `[createIssue] Live API write call note for ${targetFullName}:`,
       errMsg,
-      isRateLimited ? "(Rate Limit / Secondary Limit Detected)" : ""
+      isRateLimited ? "(Rate Limit / Secondary Limit Detected)" : "",
     );
 
     return {

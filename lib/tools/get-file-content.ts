@@ -9,7 +9,9 @@ export interface GetFileContentOptions extends ToolContextOptions {
 
 export async function getFileContent(options: GetFileContentOptions) {
   if (!options.owner || !options.repo || !options.path) {
-    throw new Error("Parameters 'owner', 'repo', and 'path' are required to fetch file content.");
+    throw new Error(
+      "Parameters 'owner', 'repo', and 'path' are required to fetch file content.",
+    );
   }
 
   const { tenant } = await getCorsairTenantClient(options);
@@ -76,12 +78,15 @@ export async function getFileContent(options: GetFileContentOptions) {
     }
   } catch (apiErr: unknown) {
     const errMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
-    const isRateLimited = errMsg.toLowerCase().includes("rate limit") || errMsg.includes("403") || errMsg.includes("429");
+    const isRateLimited =
+      errMsg.toLowerCase().includes("rate limit") ||
+      errMsg.includes("403") ||
+      errMsg.includes("429");
 
     console.warn(
       `[getFileContent] Live API call note for ${targetFullName}:`,
       errMsg,
-      isRateLimited ? "(Rate Limit Detected)" : ""
+      isRateLimited ? "(Rate Limit Detected)" : "",
     );
 
     return {

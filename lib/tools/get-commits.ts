@@ -33,7 +33,10 @@ export async function getCommits(options: GetCommitsOptions) {
       };
     }
   } catch (apiErr: unknown) {
-    console.warn(`[getCommits] Live API call note for ${targetFullName}:`, apiErr instanceof Error ? apiErr.message : apiErr);
+    console.warn(
+      `[getCommits] Live API call note for ${targetFullName}:`,
+      apiErr instanceof Error ? apiErr.message : apiErr,
+    );
   }
 
   return {

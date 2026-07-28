@@ -20,12 +20,16 @@ export async function getCorsairTenantClient(options: ToolContextOptions) {
   }
 
   if (!targetTenantId) {
-    throw new Error("Tenant ID or User ID with valid corsairTenantId must be provided.");
+    throw new Error(
+      "Tenant ID or User ID with valid corsairTenantId must be provided.",
+    );
   }
 
   const tenant = corsair.withTenant(targetTenantId);
   if (!tenant?.github?.api) {
-    throw new Error(`Corsair GitHub API client is not initialized for tenant '${targetTenantId}'.`);
+    throw new Error(
+      `Corsair GitHub API client is not initialized for tenant '${targetTenantId}'.`,
+    );
   }
 
   return { tenant, tenantId: targetTenantId };

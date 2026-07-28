@@ -21,8 +21,11 @@ export async function GET(req: NextRequest) {
     const overrideTenantId = searchParams.get("tenantId") || undefined;
     const owner = searchParams.get("owner") || undefined;
     const repo = searchParams.get("repo") || undefined;
-    const perPage = searchParams.get("perPage") ? parseInt(searchParams.get("perPage")!, 10) : undefined;
-    const state = (searchParams.get("state") as "open" | "closed" | "all") || "all";
+    const perPage = searchParams.get("perPage")
+      ? parseInt(searchParams.get("perPage")!, 10)
+      : undefined;
+    const state =
+      (searchParams.get("state") as "open" | "closed" | "all") || "all";
 
     let tenantId = overrideTenantId;
 
@@ -44,9 +47,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         {
           error: "Unauthorized or missing tenant ID.",
-          message: "Please log in via GitHub OAuth or provide a 'tenantId' query parameter in browser / RequestKit.",
+          message:
+            "Please log in via GitHub OAuth or provide a 'tenantId' query parameter in browser / RequestKit.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -60,8 +64,11 @@ export async function GET(req: NextRequest) {
       case "branches": {
         if (!owner || !repo) {
           return NextResponse.json(
-            { error: "Query parameters 'owner' and 'repo' are required for 'branches' tool." },
-            { status: 400 }
+            {
+              error:
+                "Query parameters 'owner' and 'repo' are required for 'branches' tool.",
+            },
+            { status: 400 },
           );
         }
         const result = await getBranches({ owner, repo, tenantId });
@@ -71,8 +78,11 @@ export async function GET(req: NextRequest) {
       case "commits": {
         if (!owner || !repo) {
           return NextResponse.json(
-            { error: "Query parameters 'owner' and 'repo' are required for 'commits' tool." },
-            { status: 400 }
+            {
+              error:
+                "Query parameters 'owner' and 'repo' are required for 'commits' tool.",
+            },
+            { status: 400 },
           );
         }
         const result = await getCommits({ owner, repo, perPage, tenantId });
@@ -83,22 +93,40 @@ export async function GET(req: NextRequest) {
       case "pull-requests": {
         if (!owner || !repo) {
           return NextResponse.json(
-            { error: "Query parameters 'owner' and 'repo' are required for 'prs' tool." },
-            { status: 400 }
+            {
+              error:
+                "Query parameters 'owner' and 'repo' are required for 'prs' tool.",
+            },
+            { status: 400 },
           );
         }
-        const result = await getPullRequests({ owner, repo, state, perPage, tenantId });
+        const result = await getPullRequests({
+          owner,
+          repo,
+          state,
+          perPage,
+          tenantId,
+        });
         return NextResponse.json({ tool, ...result });
       }
 
       case "issues": {
         if (!owner || !repo) {
           return NextResponse.json(
-            { error: "Query parameters 'owner' and 'repo' are required for 'issues' tool." },
-            { status: 400 }
+            {
+              error:
+                "Query parameters 'owner' and 'repo' are required for 'issues' tool.",
+            },
+            { status: 400 },
           );
         }
-        const result = await getIssues({ owner, repo, state, perPage, tenantId });
+        const result = await getIssues({
+          owner,
+          repo,
+          state,
+          perPage,
+          tenantId,
+        });
         return NextResponse.json({ tool, ...result });
       }
 
@@ -108,11 +136,20 @@ export async function GET(req: NextRequest) {
         const ref = searchParams.get("ref") || undefined;
         if (!owner || !repo || !filePath) {
           return NextResponse.json(
-            { error: "Query parameters 'owner', 'repo', and 'path' are required for 'file-content' tool." },
-            { status: 400 }
+            {
+              error:
+                "Query parameters 'owner', 'repo', and 'path' are required for 'file-content' tool.",
+            },
+            { status: 400 },
           );
         }
-        const result = await getFileContent({ owner, repo, path: filePath, ref, tenantId });
+        const result = await getFileContent({
+          owner,
+          repo,
+          path: filePath,
+          ref,
+          tenantId,
+        });
         return NextResponse.json({ tool, ...result });
       }
 
@@ -120,15 +157,27 @@ export async function GET(req: NextRequest) {
         const title = searchParams.get("title");
         const body = searchParams.get("body") || undefined;
         const labelsParam = searchParams.get("labels");
-        const labels = labelsParam ? labelsParam.split(",").map((l) => l.trim()) : undefined;
+        const labels = labelsParam
+          ? labelsParam.split(",").map((l) => l.trim())
+          : undefined;
 
         if (!owner || !repo || !title) {
           return NextResponse.json(
-            { error: "Query parameters 'owner', 'repo', and 'title' are required for 'create-issue' tool." },
-            { status: 400 }
+            {
+              error:
+                "Query parameters 'owner', 'repo', and 'title' are required for 'create-issue' tool.",
+            },
+            { status: 400 },
           );
         }
-        const result = await createIssue({ owner, repo, title, body, labels, tenantId });
+        const result = await createIssue({
+          owner,
+          repo,
+          title,
+          body,
+          labels,
+          tenantId,
+        });
         return NextResponse.json({ tool, ...result });
       }
 
@@ -137,7 +186,7 @@ export async function GET(req: NextRequest) {
           {
             error: `Unknown tool '${tool}'. Available tools: repositories, branches, commits, prs, issues, file-content, create-issue.`,
           },
-          { status: 400 }
+          { status: 400 },
         );
     }
   } catch (error: unknown) {

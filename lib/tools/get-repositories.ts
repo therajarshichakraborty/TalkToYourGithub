@@ -11,7 +11,9 @@ export async function getRepositories(options: GetRepositoriesOptions = {}) {
   // 1. Primary: Local Synced Corsair Database (corsair.github.db.repositories.search)
   try {
     if (tenant.github?.db?.repositories?.search) {
-      const dbRepos = await tenant.github.db.repositories.search({ limit: perPage });
+      const dbRepos = await tenant.github.db.repositories.search({
+        limit: perPage,
+      });
       if (dbRepos && Array.isArray(dbRepos) && dbRepos.length > 0) {
         return {
           success: true,
@@ -22,7 +24,10 @@ export async function getRepositories(options: GetRepositoriesOptions = {}) {
       }
     }
   } catch (dbErr: unknown) {
-    console.warn(`[getRepositories] Local DB search note:`, dbErr instanceof Error ? dbErr.message : dbErr);
+    console.warn(
+      `[getRepositories] Local DB search note:`,
+      dbErr instanceof Error ? dbErr.message : dbErr,
+    );
   }
 
   // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.repositories.list)
@@ -37,7 +42,10 @@ export async function getRepositories(options: GetRepositoriesOptions = {}) {
       };
     }
   } catch (apiErr: unknown) {
-    console.warn(`[getRepositories] Live API call note:`, apiErr instanceof Error ? apiErr.message : apiErr);
+    console.warn(
+      `[getRepositories] Live API call note:`,
+      apiErr instanceof Error ? apiErr.message : apiErr,
+    );
   }
 
   return {

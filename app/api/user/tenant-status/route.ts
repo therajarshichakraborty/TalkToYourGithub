@@ -15,7 +15,7 @@ export async function GET() {
     if (!session || !session.user) {
       return NextResponse.json(
         { error: "Unauthorized", authenticated: false },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -59,9 +59,10 @@ export async function GET() {
     });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
+      { status: 500 },
     );
   }
 }
-

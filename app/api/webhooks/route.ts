@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       corsair,
       headersObj,
       body as Record<string, unknown> | string,
-      tenantId ? { tenantId } : undefined
+      tenantId ? { tenantId } : undefined,
     );
 
     return NextResponse.json(
@@ -39,13 +39,15 @@ export async function POST(req: NextRequest) {
       {
         status: 200,
         headers: result.responseHeaders,
-      }
+      },
     );
   } catch (error: unknown) {
     console.error("[Webhook Error]:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
+      { status: 500 },
     );
   }
 }

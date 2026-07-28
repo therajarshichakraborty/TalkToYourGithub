@@ -42,7 +42,10 @@ export async function getBranches(options: GetBranchesOptions) {
       }
     }
   } catch (dbErr: unknown) {
-    console.warn(`[getBranches] Local DB search note for ${targetFullName}:`, dbErr instanceof Error ? dbErr.message : dbErr);
+    console.warn(
+      `[getBranches] Local DB search note for ${targetFullName}:`,
+      dbErr instanceof Error ? dbErr.message : dbErr,
+    );
   }
 
   // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.repositories.listBranches)
@@ -62,7 +65,10 @@ export async function getBranches(options: GetBranchesOptions) {
       };
     }
   } catch (apiErr: unknown) {
-    console.warn(`[getBranches] Live API call note for ${targetFullName}:`, apiErr instanceof Error ? apiErr.message : apiErr);
+    console.warn(
+      `[getBranches] Live API call note for ${targetFullName}:`,
+      apiErr instanceof Error ? apiErr.message : apiErr,
+    );
   }
 
   return {

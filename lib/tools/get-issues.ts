@@ -33,7 +33,10 @@ export async function getIssues(options: GetIssuesOptions) {
       }
     }
   } catch (dbErr: unknown) {
-    console.warn(`[getIssues] Local DB search note for ${targetFullName}:`, dbErr instanceof Error ? dbErr.message : dbErr);
+    console.warn(
+      `[getIssues] Local DB search note for ${targetFullName}:`,
+      dbErr instanceof Error ? dbErr.message : dbErr,
+    );
   }
 
   // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.issues.list)
@@ -55,7 +58,10 @@ export async function getIssues(options: GetIssuesOptions) {
       };
     }
   } catch (apiErr: unknown) {
-    console.warn(`[getIssues] Live API call note for ${targetFullName}:`, apiErr instanceof Error ? apiErr.message : apiErr);
+    console.warn(
+      `[getIssues] Live API call note for ${targetFullName}:`,
+      apiErr instanceof Error ? apiErr.message : apiErr,
+    );
   }
 
   return {

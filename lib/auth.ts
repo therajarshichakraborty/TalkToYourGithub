@@ -35,9 +35,14 @@ async function provisionCorsairTenant({
       },
       backfill: true,
     });
-    console.log(`[Corsair] Account provisioned & backfill completed for tenant '${tenantId}'`);
+    console.log(
+      `[Corsair] Account provisioned & backfill completed for tenant '${tenantId}'`,
+    );
   } catch (corsairErr) {
-    console.error(`[Corsair] Setup/backfill warning for tenant '${tenantId}':`, corsairErr);
+    console.error(
+      `[Corsair] Setup/backfill warning for tenant '${tenantId}':`,
+      corsairErr,
+    );
 
     // Fallback: try setting api_key directly on tenant client if account row exists
     try {
@@ -79,7 +84,7 @@ async function provisionCorsairTenant({
     .onConflictDoNothing();
 
   console.log(
-    `[Corsair] Provisioned tenant '${tenantId}' for user '${userId}' (GitHub login: ${githubLogin})`
+    `[Corsair] Provisioned tenant '${tenantId}' for user '${userId}' (GitHub login: ${githubLogin})`,
   );
 }
 
@@ -123,4 +128,3 @@ export const auth = betterAuth({
   },
   plugins: [nextCookies()],
 });
-

@@ -15,10 +15,7 @@ export async function POST() {
     });
 
     if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const [userRecord] = await db
@@ -28,8 +25,11 @@ export async function POST() {
 
     if (!userRecord || !userRecord.corsairTenantId) {
       return NextResponse.json(
-        { error: "No corsairTenantId found for user. Please authenticate via GitHub first." },
-        { status: 400 }
+        {
+          error:
+            "No corsairTenantId found for user. Please authenticate via GitHub first.",
+        },
+        { status: 400 },
       );
     }
 
@@ -44,7 +44,7 @@ export async function POST() {
     // Check count of populated entities in corsair_entities for this tenant
     const res = await pool.query(
       `SELECT entity_type, COUNT(*)::int as count FROM corsair_entities WHERE account_id IN (SELECT id FROM corsair_accounts WHERE tenant_id = $1) GROUP BY entity_type`,
-      [tenantId]
+      [tenantId],
     );
 
     return NextResponse.json({
@@ -56,8 +56,10 @@ export async function POST() {
   } catch (error: unknown) {
     console.error("[Backfill Error]:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
+      { status: 500 },
     );
   }
 }
@@ -69,10 +71,7 @@ export async function GET() {
     });
 
     if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const [userRecord] = await db
@@ -90,7 +89,7 @@ export async function GET() {
 
     const res = await pool.query(
       `SELECT entity_type, COUNT(*)::int as count FROM corsair_entities WHERE account_id IN (SELECT id FROM corsair_accounts WHERE tenant_id = $1) GROUP BY entity_type`,
-      [userRecord.corsairTenantId]
+      [userRecord.corsairTenantId],
     );
 
     return NextResponse.json({
@@ -101,8 +100,10 @@ export async function GET() {
     });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
+      { status: 500 },
     );
   }
 }
