@@ -15,26 +15,7 @@ export async function getCommits(options: GetCommitsOptions) {
   const perPage = options.perPage || 30;
   const targetFullName = `${options.owner}/${options.repo}`;
 
-  // 1. Primary: Local Synced Events/DB (corsair.github.db.events.search)
-  try {
-    if (tenant.github?.db?.events?.search) {
-      const dbEvents = await tenant.github.db.events.search({});
-      if (dbEvents && Array.isArray(dbEvents) && dbEvents.length > 0) {
-        return {
-          success: true,
-          source: "synced_db_events",
-          owner: options.owner,
-          repo: options.repo,
-          count: dbEvents.length,
-          commits: dbEvents,
-        };
-      }
-    }
-  } catch (dbErr: unknown) {
-    console.warn(`[getCommits] Local DB events search note for ${targetFullName}:`, dbErr instanceof Error ? dbErr.message : dbErr);
-  }
-
-  // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.repositories.listCommits)
+  // Fetch commits via Corsair Live GitHub API Proxy (corsair.github.api.repositories.listCommits)
   try {
     const commits = await tenant.github.api.repositories.listCommits({
       owner: options.owner,
@@ -59,7 +40,7 @@ export async function getCommits(options: GetCommitsOptions) {
     success: false,
     owner: options.owner,
     repo: options.repo,
-    error: `Could not find commits for '${targetFullName}' via Synced DB or Live API.`,
+    error: `Could not find commits for '${targetFullName}' via Live API.`,
     commits: [],
   };
 }
