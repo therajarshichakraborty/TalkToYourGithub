@@ -24,18 +24,30 @@ async function provisionCorsairTenant({
     .set({ corsairTenantId: tenantId })
     .where(eq(schema.user.id, userId));
 
-  // 2. Provision Corsair tenant vault with GitHub OAuth access token
-  const tenant = corsair.withTenant(tenantId);
-  if (tenant?.github?.keys?.set_api_key) {
-    await tenant.github.keys.set_api_key(accessToken);
-  }
-
-  // 3. Trigger initial backfill for Corsair entities
+  // 2. Provision Corsair tenant account, credentials, and trigger initial backfill
   try {
-    await setupCorsair(corsair, { tenantId, backfill: true });
-    console.log(`[Corsair] Initial backfill complete for tenant '${tenantId}'`);
-  } catch (backfillErr) {
-    console.error(`[Corsair] Backfill warning for tenant '${tenantId}':`, backfillErr);
+    await setupCorsair(corsair, {
+      tenantId,
+      credentials: {
+        github: {
+          api_key: accessToken,
+        },
+      },
+      backfill: true,
+    });
+    console.log(`[Corsair] Account provisioned & backfill completed for tenant '${tenantId}'`);
+  } catch (corsairErr) {
+    console.error(`[Corsair] Setup/backfill warning for tenant '${tenantId}':`, corsairErr);
+
+    // Fallback: try setting api_key directly on tenant client if account row exists
+    try {
+      const tenant = corsair.withTenant(tenantId);
+      if (tenant?.github?.keys?.set_api_key) {
+        await tenant.github.keys.set_api_key(accessToken);
+      }
+    } catch (fallbackErr) {
+      console.error(`[Corsair] Fallback set_api_key error:`, fallbackErr);
+    }
   }
 
   // 4. Upsert githubConnections record
