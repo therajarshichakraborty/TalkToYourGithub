@@ -28,6 +28,10 @@ export async function createIssue(options: CreateIssueOptions) {
     });
 
     if (issue) {
+      const publicUrl =
+        issue.htmlUrl ||
+        `https://github.com/${options.owner}/${options.repo}/issues/${issue.number}`;
+
       return {
         success: true,
         action: "created_issue",
@@ -40,6 +44,7 @@ export async function createIssue(options: CreateIssueOptions) {
           body: issue.body ?? null,
           state: issue.state,
           htmlUrl: issue.htmlUrl ?? null,
+          publicUrl,
           createdAt: issue.createdAt ?? null,
         },
       };

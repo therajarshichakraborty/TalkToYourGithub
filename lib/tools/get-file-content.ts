@@ -30,6 +30,10 @@ export async function getFileContent(options: GetFileContentOptions) {
           contentStr = Buffer.from(contentStr, "base64").toString("utf-8");
         }
 
+        const publicUrl =
+          res.htmlUrl ||
+          `https://github.com/${options.owner}/${options.repo}/blob/${options.ref || "main"}/${options.path}`;
+
         return {
           success: true,
           source: "live_api",
@@ -44,6 +48,7 @@ export async function getFileContent(options: GetFileContentOptions) {
           encoding: res.encoding,
           downloadUrl: res.downloadUrl ?? null,
           htmlUrl: res.htmlUrl ?? null,
+          publicUrl,
           content: contentStr,
         };
       }
