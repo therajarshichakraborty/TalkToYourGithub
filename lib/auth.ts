@@ -4,6 +4,7 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { nextCookies } from "better-auth/next-js";
 import { corsair } from "@/server/corsair";
+import { setupCorsair } from "corsair";
 import { eq } from "drizzle-orm";
 
 async function provisionCorsairTenant({
@@ -29,7 +30,15 @@ async function provisionCorsairTenant({
     await tenant.github.keys.set_api_key(accessToken);
   }
 
-  // 3. Upsert githubConnections record
+  // 3. Trigger initial backfill for Corsair entities
+  try {
+    await setupCorsair(corsair, { tenantId, backfill: true });
+    console.log(`[Corsair] Initial backfill complete for tenant '${tenantId}'`);
+  } catch (backfillErr) {
+    console.error(`[Corsair] Backfill warning for tenant '${tenantId}':`, backfillErr);
+  }
+
+  // 4. Upsert githubConnections record
   let githubLogin = githubUserId;
   try {
     const res = await fetch("https://api.github.com/user", {
