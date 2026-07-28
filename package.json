@@ -1,9 +1,13 @@
 {
   "name": "talk-to-your-github",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "description": "Talk to your GitHub is a AI-powered tool that allows you to chat with your GitHub repositories, ask questions about your code, and get intelligent responses.",
+  "author": "Rajarshi Chakraborty",
+  "license": "MIT",
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -14,7 +18,7 @@
     "db:studio": "bun run drizzle-kit studio",
     "db:check": "bun run drizzle-kit check",
     "db:generate": "bun run drizzle-kit generate",
-    "db:reset": ""
+    "db:reset": "bun run drizzle-kit drop && bun run drizzle-kit push"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

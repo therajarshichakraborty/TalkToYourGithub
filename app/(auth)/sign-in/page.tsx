@@ -19,7 +19,7 @@ const SignInPage = async ({ searchParams }: SignInPageProps) => {
       <div className='flex flex-col items-center gap-3'>
         <svg
           viewBox='0 0 24 24'
-          className='size-8'
+          className='size-10'
           aria-hidden='true'
           fill='currentColor'
         >

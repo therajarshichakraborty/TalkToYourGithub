@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
+
 import { createCorsair } from "corsair";
 import { github } from "@corsair-dev/github";
 import { pool } from "@/lib/pool";
