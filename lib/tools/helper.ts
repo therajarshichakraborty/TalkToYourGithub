@@ -14,13 +14,19 @@ export async function getCorsairTenantClient(options: ToolContextOptions) {
 
   if (targetTenantId) {
     const [u] = await db
-      .select({ id: schema.user.id, corsairTenantId: schema.user.corsairTenantId })
+      .select({
+        id: schema.user.id,
+        corsairTenantId: schema.user.corsairTenantId,
+      })
       .from(schema.user)
       .where(eq(schema.user.corsairTenantId, targetTenantId));
     userObj = u;
   } else if (options.userId) {
     const [u] = await db
-      .select({ id: schema.user.id, corsairTenantId: schema.user.corsairTenantId })
+      .select({
+        id: schema.user.id,
+        corsairTenantId: schema.user.corsairTenantId,
+      })
       .from(schema.user)
       .where(eq(schema.user.id, options.userId));
     userObj = u;

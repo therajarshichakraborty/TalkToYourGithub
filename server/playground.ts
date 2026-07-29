@@ -3,7 +3,6 @@ import { corsair } from "./corsair";
 // With multiTenancy: true, all plugin access must go through withTenant()
 // corsair.github is undefined - that's correct and expected
 
-
 const tenant = corsair.withTenant("test_user") as any;
 await tenant.github.keys.set_api_key(process.env.GITHUB_TOKEN!);
 

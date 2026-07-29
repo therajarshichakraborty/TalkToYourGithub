@@ -99,7 +99,10 @@ export const generateContinueWorking = inngest.createFunction(
             }));
           }
         } catch (e) {
-          console.warn("[generateContinueWorking] Fallback commit fetch note:", e);
+          console.warn(
+            "[generateContinueWorking] Fallback commit fetch note:",
+            e,
+          );
         }
       }
 

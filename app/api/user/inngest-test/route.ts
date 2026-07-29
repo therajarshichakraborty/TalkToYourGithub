@@ -50,7 +50,8 @@ export async function GET(req: NextRequest) {
       let pineconeError: string | null = null;
       let availableIndexes: string[] = [];
       try {
-        const { getPineconeIndex, getPineconeClient } = await import("@/lib/pinecone");
+        const { getPineconeIndex, getPineconeClient } =
+          await import("@/lib/pinecone");
         const client = getPineconeClient();
         try {
           const indexList = await client.listIndexes();

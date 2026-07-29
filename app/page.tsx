@@ -336,7 +336,9 @@ function CtaBand() {
                 href='/sign-in'
                 className='flex items-center justify-center gap-2'
               >
-                {session?.user ? "Re-authorize GitHub" : "Connect GitHub Repository"}
+                {session?.user
+                  ? "Re-authorize GitHub"
+                  : "Connect GitHub Repository"}
                 <ArrowRight className='h-4 w-4' />
               </Link>
             </Button>

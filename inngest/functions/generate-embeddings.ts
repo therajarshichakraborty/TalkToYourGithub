@@ -196,7 +196,11 @@ export const generateEmbeddings = inngest.createFunction(
             const CHUNK_SIZE = 1000;
             const CHUNK_OVERLAP = 200;
 
-            for (let i = 0; i < readmeText.length; i += CHUNK_SIZE - CHUNK_OVERLAP) {
+            for (
+              let i = 0;
+              i < readmeText.length;
+              i += CHUNK_SIZE - CHUNK_OVERLAP
+            ) {
               const snippet = readmeText.slice(i, i + CHUNK_SIZE);
               if (snippet.trim().length > 50) {
                 extracted.push({
