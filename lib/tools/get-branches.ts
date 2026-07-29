@@ -60,7 +60,7 @@ export async function getBranches(options: GetBranchesOptions) {
     ).github?.api?.repositories?.listBranches({
       owner: options.owner,
       repo: options.repo,
-      ...(perPage ? { perPage } : {}),
+      ...(perPage ? { per_page: perPage, perPage } : {}),
     });
     if (branches && Array.isArray(branches)) {
       const resultBranches =

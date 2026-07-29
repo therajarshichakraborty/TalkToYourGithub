@@ -46,6 +46,7 @@ export async function getIssues(options: GetIssuesOptions) {
       owner: options.owner,
       repo: options.repo,
       state,
+      per_page: perPage,
       perPage,
     });
     if (issues && Array.isArray(issues)) {

@@ -22,6 +22,7 @@ export async function getCommits(options: GetCommitsOptions) {
     ).github?.api?.repositories?.listCommits({
       owner: options.owner,
       repo: options.repo,
+      per_page: perPage,
       perPage,
     });
     if (commits && Array.isArray(commits)) {

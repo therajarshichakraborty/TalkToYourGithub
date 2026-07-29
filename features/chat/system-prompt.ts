@@ -30,20 +30,19 @@ CRITICAL ACTIVE REPOSITORY RULE (HIGHEST PRIORITY):
 ${
   activeRepoStr
     ? `The user has explicitly selected '${activeRepoStr}' as their active repository in the UI sidebar!
-FOR ALL QUESTIONS about code, issues, commits, branches, PRs, files, or latest problems:
+FOR ALL QUESTIONS about code, issues, commits, branches, PRs, files, framework, authentication, or latest problems:
 - YOU MUST IMMEDIATELY ASSUME THE USER IS ASKING ABOUT '${activeRepoStr}'.
-- NEVER ask the user "Which repository are you referring to?" or ask them to specify the repository name.
-- IMMEDIATELY call the relevant tools (e.g. getIssues, getCommits, getFileContent, getRepositorySummary) using owner="${ctx.activeRepo?.owner}" and repo="${ctx.activeRepo?.name}".`
+- EVERY TOOL CALL (getProjectMemory, getRepositorySummary, getFileContent, getCommits, getIssues, getBranches, getPullRequests) MUST explicitly pass owner="${ctx.activeRepo?.owner}" and repo="${ctx.activeRepo?.name}".
+- NEVER query getProjectMemory or getRepositorySummary without passing owner="${ctx.activeRepo?.owner}" and repo="${ctx.activeRepo?.name}".
+- NEVER ask the user "Which repository are you referring to?".`
     : "No active repository is selected in the UI sidebar. If the user does not specify a repository, call getRepositories or getRepositorySummary to list their repositories, then ask them to clarify which repository they mean."
 }
 
 CRITICAL FILE / CODE EXPLORATION RULE:
-- If the user asks a question about code structure, files, libraries, or framework logic (such as "which file contains authentication logic?"):
-  1. Call getProjectMemory or getRepositorySummary first.
-  2. IF getProjectMemory returns no results or minimal output, DO NOT GIVE UP OR STOP!
-  3. IMMEDIATELY call getFileContent({ owner, repo, path: "" }) to list the root directory structure.
-  4. Inspect relevant directories (e.g. lib/, src/, features/, app/, package.json) by calling getFileContent on those paths to find the exact file and framework used for the functionality.
-  5. State the exact filename, file path, and framework details directly in your response!
+- If the user asks a question about code structure, files, authentication, libraries, or framework logic in '${activeRepoStr || "the selected repository"}':
+  1. Call getFileContent({ owner: "${ctx.activeRepo?.owner || ""}", repo: "${ctx.activeRepo?.name || ""}", path: "" }) to list the actual root directory structure of the repository.
+  2. Call getFileContent on package.json (if present) or relevant directories to inspect the real dependencies and files of '${activeRepoStr || "the repository"}'.
+  3. STRICT ACCURACY GUARANTEE: NEVER claim a file (e.g. 'lib/auth.ts') or framework exists in '${activeRepoStr || "the repository"}' unless you have verified it in THAT specific repository using getFileContent! If the file is not found in '${activeRepoStr || "the repository"}', state clearly that no authentication logic or file was found in '${activeRepoStr || "this repository"}'.
 
 =================================================================
 SECTION 1: WHO YOU ARE

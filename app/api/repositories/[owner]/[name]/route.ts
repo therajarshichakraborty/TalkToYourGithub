@@ -70,10 +70,10 @@ export async function GET(
      */
     const [commitsRes, branchesRes, prsRes, issuesRes, readmeRes] =
       await Promise.allSettled([
-        getCommits({ userId, owner, repo: name, perPage: 10 }),
-        getBranches({ userId, owner, repo: name, perPage: 10 }),
-        getPullRequests({ userId, owner, repo: name, state: "all", perPage: 10 }),
-        getIssues({ userId, owner, repo: name, state: "all", perPage: 10 }),
+        getCommits({ userId, owner, repo: name, perPage: 100 }),
+        getBranches({ userId, owner, repo: name, perPage: 100 }),
+        getPullRequests({ userId, owner, repo: name, state: "all", perPage: 100 }),
+        getIssues({ userId, owner, repo: name, state: "all", perPage: 100 }),
         getFileContent({ userId, owner, repo: name, path: "README.md" }),
       ]);
 
