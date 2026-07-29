@@ -63,9 +63,16 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
         repo: z
           .string()
           .describe("Repository name (without the owner prefix)."),
+        perPage: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Number of branches to return (default 30)."),
       }),
-      execute: async ({ owner, repo }) => {
-        return getBranches({ userId: ctx.userId, owner, repo });
+      execute: async ({ owner, repo, perPage }) => {
+        return getBranches({ userId: ctx.userId, owner, repo, perPage });
       },
     }),
 

@@ -3,6 +3,7 @@ import { getCorsairTenantClient, ToolContextOptions } from "./helper";
 export interface GetBranchesOptions extends ToolContextOptions {
   owner: string;
   repo: string;
+  perPage?: number;
 }
 
 export async function getBranches(options: GetBranchesOptions) {
@@ -12,6 +13,7 @@ export async function getBranches(options: GetBranchesOptions) {
 
   const { tenant } = await getCorsairTenantClient(options);
   const targetFullName = `${options.owner}/${options.repo}`;
+  const perPage = options.perPage;
 
   // 1. Primary: Local Synced Corsair Database (corsair.github.db.branches.search)
   try {
@@ -31,13 +33,15 @@ export async function getBranches(options: GetBranchesOptions) {
       }
 
       if (dbBranches && dbBranches.length > 0) {
+        const resultBranches =
+          perPage && perPage > 0 ? dbBranches.slice(0, perPage) : dbBranches;
         return {
           success: true,
           source: "synced_db",
           owner: options.owner,
           repo: options.repo,
-          count: dbBranches.length,
-          branches: dbBranches,
+          count: resultBranches.length,
+          branches: resultBranches,
         };
       }
     }
@@ -50,19 +54,22 @@ export async function getBranches(options: GetBranchesOptions) {
 
   // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.repositories.listBranches)
   try {
-    //@ts-no-error
-    const branches = await tenant.github.api.repositories.listBranches({
+    // @ts-ignore
+    const branches = await (tenant as any).github?.api?.repositories?.listBranches({
       owner: options.owner,
       repo: options.repo,
+      ...(perPage ? { perPage } : {}),
     });
     if (branches && Array.isArray(branches)) {
+      const resultBranches =
+        perPage && perPage > 0 ? branches.slice(0, perPage) : branches;
       return {
         success: true,
         source: "live_api",
         owner: options.owner,
         repo: options.repo,
-        count: branches.length,
-        branches,
+        count: resultBranches.length,
+        branches: resultBranches,
       };
     }
   } catch (apiErr: unknown) {

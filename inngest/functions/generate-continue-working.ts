@@ -20,8 +20,8 @@ export const generateContinueWorking = inngest.createFunction(
     { event: "github.connected" },
   ],
   async ({ event, step }) => {
-    let { userId, corsairTenantId, repositoryOwner, repositoryName } =
-      event.data;
+    const { corsairTenantId, repositoryOwner, repositoryName } = event.data;
+    let userId = event.data.userId;
 
     // Resolve userId if needed
     if (!userId && corsairTenantId) {

@@ -116,12 +116,14 @@ export const generateRepoSummary = inngest.createFunction(
             description,
             defaultBranch,
             language,
-            recentCommits: commits.slice(0, 5).map((c) => ({
-              message: c.commit?.message || c.message || "",
-              author: c.commit?.author?.name || c.author || "",
-              date: c.commit?.author?.date || c.date || "",
-            })),
-            branches: branches.slice(0, 5).map((b) => b.name),
+            recentCommits: (commits.slice(0, 5) as any[]).map((c) => ({
+              message: String(c.commit?.message || c.message || ""),
+              author: String(c.commit?.author?.name || c.author || ""),
+              date: String(c.commit?.author?.date || c.date || ""),
+            })) as Array<{ message: string; author: string; date: string }>,
+            branches: (branches.slice(0, 5))
+              .map((b: any) => (typeof b === "string" ? b : b?.name || ""))
+              .filter(Boolean) as string[],
             pullRequestCount: pullRequests.length,
             issueCount: issues.length,
             readmeSnippet: readme ? readme.slice(0, 1500) : "No README.md available.",

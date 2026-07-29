@@ -41,8 +41,8 @@ export async function getIssues(options: GetIssuesOptions) {
 
   // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.issues.list)
   try {
-    //@ts-no-error
-    const issues = await tenant.github.api.issues.list({
+    // @ts-ignore
+    const issues = await (tenant as any).github?.api?.issues?.list({
       owner: options.owner,
       repo: options.repo,
       state,

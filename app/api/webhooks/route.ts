@@ -41,8 +41,8 @@ export async function POST(req: NextRequest) {
         name: "github.webhook",
         data: {
           corsairTenantId: tenantId,
-          plugin: result.plugin,
-          action: result.action,
+          plugin: result.plugin ?? undefined,
+          action: result.action ?? undefined,
         },
       })
       .catch((inngestErr) => {

@@ -34,8 +34,8 @@ export type GithubWebhookEvent = {
   data: {
     userId?: string;
     corsairTenantId?: string;
-    action?: string;
-    plugin?: string;
+    action?: string | null;
+    plugin?: string | null;
     repositoryOwner?: string;
     repositoryName?: string;
     payload?: Record<string, unknown>;

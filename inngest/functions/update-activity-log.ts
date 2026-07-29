@@ -20,7 +20,7 @@ export interface FormatActivityItem {
   title: string;
   description: string;
   metadata: Record<string, unknown>;
-  occurredAt: Date;
+  occurredAt: string;
 }
 
 /**
@@ -101,10 +101,12 @@ export const updateActivityLog = inngest.createFunction(
         });
 
         if (repositoryOwner && repositoryName) {
+          const targetOwner = repositoryOwner.toLowerCase();
+          const targetName = repositoryName.toLowerCase();
           targetRepos = targetRepos.filter(
             (r) =>
-              r.owner.toLowerCase() === repositoryOwner.toLowerCase() &&
-              r.name.toLowerCase() === repositoryName.toLowerCase(),
+              r.owner.toLowerCase() === targetOwner &&
+              r.name.toLowerCase() === targetName,
           );
         }
 
@@ -150,7 +152,9 @@ export const updateActivityLog = inngest.createFunction(
                 c.commit?.author?.name || c.author?.login || "Developer";
               const dateStr =
                 c.commit?.author?.date || c.commit?.committer?.date;
-              const occurredAt = dateStr ? new Date(dateStr) : new Date();
+              const occurredAt = (
+                dateStr ? new Date(dateStr) : new Date()
+              ).toISOString();
 
               if (title && sha) {
                 items.push({
@@ -181,7 +185,9 @@ export const updateActivityLog = inngest.createFunction(
               const state = pr.state || "open";
               const author = pr.user?.login || "Developer";
               const dateStr = pr.created_at || pr.updated_at;
-              const occurredAt = dateStr ? new Date(dateStr) : new Date();
+              const occurredAt = (
+                dateStr ? new Date(dateStr) : new Date()
+              ).toISOString();
 
               if (title && number) {
                 items.push({
@@ -213,7 +219,9 @@ export const updateActivityLog = inngest.createFunction(
               const state = issue.state || "open";
               const author = issue.user?.login || "Developer";
               const dateStr = issue.created_at || issue.updated_at;
-              const occurredAt = dateStr ? new Date(dateStr) : new Date();
+              const occurredAt = (
+                dateStr ? new Date(dateStr) : new Date()
+              ).toISOString();
 
               if (title && number) {
                 items.push({
@@ -279,7 +287,7 @@ export const updateActivityLog = inngest.createFunction(
             title: item.title,
             description: item.description,
             metadata: item.metadata,
-            occurredAt: item.occurredAt,
+            occurredAt: new Date(item.occurredAt),
           });
           count++;
         }
@@ -294,7 +302,7 @@ export const updateActivityLog = inngest.createFunction(
       await inngest.send({
         name: "activity.continue_working",
         data: {
-          userId,
+          userId: userId!,
           corsairTenantId,
           repositoryOwner,
           repositoryName,
