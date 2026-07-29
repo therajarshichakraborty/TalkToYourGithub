@@ -27,11 +27,56 @@ export type GenerateEmbeddingsEvent = {
 };
 
 /**
+ * Event schema payload for github.webhook trigger.
+ */
+export type GithubWebhookEvent = {
+  name: "github.webhook";
+  data: {
+    userId?: string;
+    corsairTenantId?: string;
+    action?: string;
+    plugin?: string;
+    repositoryOwner?: string;
+    repositoryName?: string;
+    payload?: Record<string, unknown>;
+  };
+};
+
+/**
+ * Event schema payload for activity.update trigger.
+ */
+export type UpdateActivityLogEvent = {
+  name: "activity.update";
+  data: {
+    userId: string;
+    corsairTenantId?: string;
+    repositoryOwner?: string;
+    repositoryName?: string;
+  };
+};
+
+/**
+ * Event schema payload for activity.continue_working trigger.
+ */
+export type GenerateContinueWorkingEvent = {
+  name: "activity.continue_working";
+  data: {
+    userId: string;
+    corsairTenantId?: string;
+    repositoryOwner?: string;
+    repositoryName?: string;
+  };
+};
+
+/**
  * Type map for all supported Inngest events.
  */
 type Events = {
   "github.connected": GithubConnectedEvent;
   "embeddings.generate": GenerateEmbeddingsEvent;
+  "github.webhook": GithubWebhookEvent;
+  "activity.update": UpdateActivityLogEvent;
+  "activity.continue_working": GenerateContinueWorkingEvent;
 };
 
 /**

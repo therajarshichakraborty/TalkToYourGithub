@@ -2,7 +2,13 @@ import { corsair } from "@/server/corsair";
 import { processWebhook } from "corsair";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { inngest } from "@/inngest";
 
+/**
+ * Route handler: POST /api/webhooks
+ * Receives external webhooks from GitHub, processes them via Corsair engine,
+ * and dispatches background activity logging events to Inngest.
+ */
 export async function POST(req: NextRequest) {
   try {
     const headerList = await headers();
@@ -29,6 +35,23 @@ export async function POST(req: NextRequest) {
       tenantId ? { tenantId } : undefined,
     );
 
+    // Dispatch background event to Inngest to update developer activity log
+    await inngest
+      .send({
+        name: "github.webhook",
+        data: {
+          corsairTenantId: tenantId,
+          plugin: result.plugin,
+          action: result.action,
+        },
+      })
+      .catch((inngestErr) => {
+        console.warn(
+          "[Webhook Route] Failed to dispatch Inngest event:",
+          inngestErr,
+        );
+      });
+
     return NextResponse.json(
       {
         success: true,
@@ -52,6 +75,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/**
+ * Route handler: GET /api/webhooks
+ * Health check endpoint for testing webhook server availability.
+ */
 export async function GET() {
   return NextResponse.json({
     status: "online",
