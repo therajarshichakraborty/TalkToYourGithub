@@ -99,7 +99,10 @@ async function provisionCorsairTenant({
     });
     console.log(`[Inngest] Sent 'github.connected' event for user '${userId}'`);
   } catch (inngestErr) {
-    console.error("[Inngest] Error sending 'github.connected' event:", inngestErr);
+    console.error(
+      "[Inngest] Error sending 'github.connected' event:",
+      inngestErr,
+    );
   }
 }
 

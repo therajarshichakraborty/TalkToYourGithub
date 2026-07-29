@@ -58,10 +58,7 @@ async function readStream(res: Response): Promise<string> {
   return full;
 }
 
-async function post(
-  body: unknown,
-  cookie?: string,
-): Promise<Response> {
+async function post(body: unknown, cookie?: string): Promise<Response> {
   return fetch(ENDPOINT, {
     method: "POST",
     headers: {
@@ -91,7 +88,11 @@ async function checkAuthGuard() {
 async function checkBodyValidation() {
   const checkName = "Body validation (missing messages → 400)";
   if (!SESSION_TOKEN) {
-    results.push({ name: checkName, passed: false, detail: "Skipped — no TEST_SESSION_TOKEN set" });
+    results.push({
+      name: checkName,
+      passed: false,
+      detail: "Skipped — no TEST_SESSION_TOKEN set",
+    });
     return;
   }
   try {
@@ -109,7 +110,11 @@ async function checkBodyValidation() {
 async function checkStreaming() {
   const checkName = "Streaming (text chunks received)";
   if (!SESSION_TOKEN) {
-    results.push({ name: checkName, passed: false, detail: "Skipped — no TEST_SESSION_TOKEN set" });
+    results.push({
+      name: checkName,
+      passed: false,
+      detail: "Skipped — no TEST_SESSION_TOKEN set",
+    });
     return;
   }
   try {
@@ -125,7 +130,10 @@ async function checkStreaming() {
     }
 
     if (!res.headers.get("content-type")?.includes("text/plain")) {
-      fail(checkName, `Expected text/plain data-stream, got ${res.headers.get("content-type")}`);
+      fail(
+        checkName,
+        `Expected text/plain data-stream, got ${res.headers.get("content-type")}`,
+      );
       return;
     }
 
@@ -140,14 +148,24 @@ async function checkStreaming() {
       .split("\n")
       .filter((l) => l.startsWith("0:"))
       .map((l) => {
-        try { return JSON.parse(l.slice(2)); } catch { return l.slice(2); }
+        try {
+          return JSON.parse(l.slice(2));
+        } catch {
+          return l.slice(2);
+        }
       })
       .join("");
 
     if (textChunks.length > 0) {
-      pass(checkName, `Received text: "${textChunks.slice(0, 80)}${textChunks.length > 80 ? "…" : ""}"`);
+      pass(
+        checkName,
+        `Received text: "${textChunks.slice(0, 80)}${textChunks.length > 80 ? "…" : ""}"`,
+      );
     } else {
-      fail(checkName, `No text chunks (type 0:) in response.\nFull stream:\n${raw.slice(0, 500)}`);
+      fail(
+        checkName,
+        `No text chunks (type 0:) in response.\nFull stream:\n${raw.slice(0, 500)}`,
+      );
     }
   } catch (e) {
     fail(checkName, `Error: ${String(e)}`);
@@ -157,7 +175,11 @@ async function checkStreaming() {
 async function checkToolCall() {
   const checkName = "Tool call (getRepositories executes + returns data)";
   if (!SESSION_TOKEN) {
-    results.push({ name: checkName, passed: false, detail: "Skipped — no TEST_SESSION_TOKEN set" });
+    results.push({
+      name: checkName,
+      passed: false,
+      detail: "Skipped — no TEST_SESSION_TOKEN set",
+    });
     return;
   }
   try {
@@ -191,12 +213,18 @@ async function checkToolCall() {
     const toolResultLines = lines.filter((l) => l.startsWith("a:"));
 
     if (toolCallLines.length === 0) {
-      fail(checkName, `No tool-call event (9:) found in stream.\nLines: ${lines.slice(0, 20).join("\n")}`);
+      fail(
+        checkName,
+        `No tool-call event (9:) found in stream.\nLines: ${lines.slice(0, 20).join("\n")}`,
+      );
       return;
     }
 
     if (toolResultLines.length === 0) {
-      fail(checkName, `Tool was called but no tool-result event (a:) received — maxSteps may not be working.\nTool-call lines: ${toolCallLines.join("\n")}`);
+      fail(
+        checkName,
+        `Tool was called but no tool-result event (a:) received — maxSteps may not be working.\nTool-call lines: ${toolCallLines.join("\n")}`,
+      );
       return;
     }
 
@@ -222,7 +250,11 @@ async function checkToolCall() {
 async function checkTenantScope() {
   const checkName = "Tenant scoping (result repos are owned by session user)";
   if (!SESSION_TOKEN) {
-    results.push({ name: checkName, passed: false, detail: "Skipped — no TEST_SESSION_TOKEN set" });
+    results.push({
+      name: checkName,
+      passed: false,
+      detail: "Skipped — no TEST_SESSION_TOKEN set",
+    });
     return;
   }
   const expectedGithubLogin = process.env.TEST_GITHUB_LOGIN;
@@ -230,7 +262,8 @@ async function checkTenantScope() {
     results.push({
       name: checkName,
       passed: false,
-      detail: "Skipped — set TEST_GITHUB_LOGIN=<your-github-username> to enable this check",
+      detail:
+        "Skipped — set TEST_GITHUB_LOGIN=<your-github-username> to enable this check",
     });
     return;
   }
@@ -283,7 +316,10 @@ async function checkTenantScope() {
     }
 
     if (!leaksOtherUser) {
-      pass(checkName, `All repo owners match "${expectedGithubLogin}" — tenant isolation holds.`);
+      pass(
+        checkName,
+        `All repo owners match "${expectedGithubLogin}" — tenant isolation holds.`,
+      );
     }
   } catch (e) {
     fail(checkName, `Error: ${String(e)}`);
@@ -309,11 +345,17 @@ async function run() {
 
   const passed = results.filter((r) => r.passed).length;
   const failed = results.filter((r) => !r.passed).length;
-  const skipped = results.filter((r) => !r.passed && r.detail.startsWith("Skipped")).length;
+  const skipped = results.filter(
+    (r) => !r.passed && r.detail.startsWith("Skipped"),
+  ).length;
 
   for (const r of results) {
     const icon = r.passed ? "✓" : r.detail.startsWith("Skipped") ? "–" : "✗";
-    const label = r.passed ? "\x1b[32m" : r.detail.startsWith("Skipped") ? "\x1b[33m" : "\x1b[31m";
+    const label = r.passed
+      ? "\x1b[32m"
+      : r.detail.startsWith("Skipped")
+        ? "\x1b[33m"
+        : "\x1b[31m";
     console.log(`${label}[${icon}]\x1b[0m ${r.name}`);
     console.log(`     ${r.detail.replace(/\n/g, "\n     ")}\n`);
   }

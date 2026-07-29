@@ -34,7 +34,9 @@ async function main() {
   console.log("Summary Result:", JSON.stringify(summaryResult, null, 2));
 
   // 3. Dispatch 'embeddings.generate' event to Inngest
-  console.log("\n🚀 Dispatching 'embeddings.generate' event via Inngest client...");
+  console.log(
+    "\n🚀 Dispatching 'embeddings.generate' event via Inngest client...",
+  );
   try {
     const sendResult = await inngest.send({
       name: "embeddings.generate",

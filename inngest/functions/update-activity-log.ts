@@ -167,7 +167,9 @@ export const updateActivityLog = inngest.createFunction(
                   metadata: {
                     sha,
                     author,
-                    url: c.html_url || `https://github.com/${owner}/${name}/commit/${sha}`,
+                    url:
+                      c.html_url ||
+                      `https://github.com/${owner}/${name}/commit/${sha}`,
                   },
                   occurredAt,
                 });
@@ -201,7 +203,9 @@ export const updateActivityLog = inngest.createFunction(
                     number,
                     state,
                     author,
-                    url: pr.html_url || `https://github.com/${owner}/${name}/pull/${number}`,
+                    url:
+                      pr.html_url ||
+                      `https://github.com/${owner}/${name}/pull/${number}`,
                   },
                   occurredAt,
                 });
@@ -235,7 +239,9 @@ export const updateActivityLog = inngest.createFunction(
                     number,
                     state,
                     author,
-                    url: issue.html_url || `https://github.com/${owner}/${name}/issues/${number}`,
+                    url:
+                      issue.html_url ||
+                      `https://github.com/${owner}/${name}/issues/${number}`,
                   },
                   occurredAt,
                 });
@@ -259,40 +265,37 @@ export const updateActivityLog = inngest.createFunction(
     /**
      * Step 2: Persist activity logs into database table.
      */
-    const insertedCount = await step.run(
-      "write-activity-logs",
-      async () => {
-        let count = 0;
-        for (const item of activitiesToSave) {
-          // Remove existing record with same activityId to update
-          await db
-            .delete(schema.activityLogs)
-            .where(
-              and(
-                eq(schema.activityLogs.userId, item.userId),
-                eq(schema.activityLogs.activityId, item.activityId),
-              ),
-            )
-            .catch(() => {
-              // Ignore if record does not exist
-            });
-
-          await db.insert(schema.activityLogs).values({
-            userId: item.userId,
-            repositoryOwner: item.repositoryOwner,
-            repositoryName: item.repositoryName,
-            activityType: item.activityType,
-            activityId: item.activityId,
-            title: item.title,
-            description: item.description,
-            metadata: item.metadata,
-            occurredAt: new Date(item.occurredAt),
+    const insertedCount = await step.run("write-activity-logs", async () => {
+      let count = 0;
+      for (const item of activitiesToSave) {
+        // Remove existing record with same activityId to update
+        await db
+          .delete(schema.activityLogs)
+          .where(
+            and(
+              eq(schema.activityLogs.userId, item.userId),
+              eq(schema.activityLogs.activityId, item.activityId),
+            ),
+          )
+          .catch(() => {
+            // Ignore if record does not exist
           });
-          count++;
-        }
-        return count;
-      },
-    );
+
+        await db.insert(schema.activityLogs).values({
+          userId: item.userId,
+          repositoryOwner: item.repositoryOwner,
+          repositoryName: item.repositoryName,
+          activityType: item.activityType,
+          activityId: item.activityId,
+          title: item.title,
+          description: item.description,
+          metadata: item.metadata,
+          occurredAt: new Date(item.occurredAt),
+        });
+        count++;
+      }
+      return count;
+    });
 
     /**
      * Step 3: Send trigger to generate Continue Working summary dashboard card.

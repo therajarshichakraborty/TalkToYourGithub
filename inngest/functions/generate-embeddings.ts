@@ -46,49 +46,52 @@ export const generateEmbeddings = inngest.createFunction(
     /**
      * Step 1: Fetch target repositories from Corsair.
      */
-    const targetRepos = await step.run("fetch-target-repositories", async () => {
-      const { tenantId } = await getCorsairTenantClient({
-        userId,
-        tenantId: corsairTenantId,
-      });
+    const targetRepos = await step.run(
+      "fetch-target-repositories",
+      async () => {
+        const { tenantId } = await getCorsairTenantClient({
+          userId,
+          tenantId: corsairTenantId,
+        });
 
-      const repoResult = await getRepositories({
-        userId,
-        tenantId,
-        perPage: 20,
-      });
+        const repoResult = await getRepositories({
+          userId,
+          tenantId,
+          perPage: 20,
+        });
 
-      if (!repoResult.success || !repoResult.repositories?.length) {
-        console.warn(
-          `[generateEmbeddings] No repositories found for tenant '${tenantId}'`,
-        );
-        return [];
-      }
+        if (!repoResult.success || !repoResult.repositories?.length) {
+          console.warn(
+            `[generateEmbeddings] No repositories found for tenant '${tenantId}'`,
+          );
+          return [];
+        }
 
-      let repos = repoResult.repositories.map((r) => {
-        const full_name = r.full_name || r.fullName || "";
-        const parts = full_name.split("/");
-        return {
-          owner: r.owner?.login || r.owner || parts[0] || "",
-          name: r.name || parts[1] || "",
-          description: r.description || "",
-          defaultBranch: r.default_branch || r.defaultBranch || "main",
-          language: r.language || "Unknown",
-          isPrivate: r.private ?? false,
-          stars: r.stargazers_count ?? 0,
-        };
-      });
+        let repos = repoResult.repositories.map((r) => {
+          const full_name = r.full_name || r.fullName || "";
+          const parts = full_name.split("/");
+          return {
+            owner: r.owner?.login || r.owner || parts[0] || "",
+            name: r.name || parts[1] || "",
+            description: r.description || "",
+            defaultBranch: r.default_branch || r.defaultBranch || "main",
+            language: r.language || "Unknown",
+            isPrivate: r.private ?? false,
+            stars: r.stargazers_count ?? 0,
+          };
+        });
 
-      if (repositoryOwner && repositoryName) {
-        repos = repos.filter(
-          (r) =>
-            r.owner.toLowerCase() === repositoryOwner.toLowerCase() &&
-            r.name.toLowerCase() === repositoryName.toLowerCase(),
-        );
-      }
+        if (repositoryOwner && repositoryName) {
+          repos = repos.filter(
+            (r) =>
+              r.owner.toLowerCase() === repositoryOwner.toLowerCase() &&
+              r.name.toLowerCase() === repositoryName.toLowerCase(),
+          );
+        }
 
-      return repos;
-    });
+        return repos;
+      },
+    );
 
     if (!targetRepos.length) {
       return {
@@ -288,10 +291,11 @@ export const generateEmbeddings = inngest.createFunction(
               .map((chunk, i) => {
                 const vector = generatedEmbeddings[i];
                 if (!vector || !vector.length) return null;
-                const safeId = `${userId}_${chunk.sourceType}_${chunk.sourceId}`.replace(
-                  /[^a-zA-Z0-9_\-]/g,
-                  "_",
-                );
+                const safeId =
+                  `${userId}_${chunk.sourceType}_${chunk.sourceId}`.replace(
+                    /[^a-zA-Z0-9_\-]/g,
+                    "_",
+                  );
                 return {
                   id: safeId,
                   values: vector,

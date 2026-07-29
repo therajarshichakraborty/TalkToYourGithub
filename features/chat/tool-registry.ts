@@ -59,7 +59,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z
           .string()
           .describe("Repository name (without the owner prefix)."),
@@ -83,7 +85,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z.string().describe("Repository name."),
         perPage: z
           .number()
@@ -106,7 +110,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z.string().describe("Repository name."),
         state: z
           .enum(["open", "closed", "all"])
@@ -123,7 +129,13 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           .describe("Number of pull requests to return (default 30)."),
       }),
       execute: async ({ owner, repo, state, perPage }) => {
-        return getPullRequests({ userId: ctx.userId, owner, repo, state, perPage });
+        return getPullRequests({
+          userId: ctx.userId,
+          owner,
+          repo,
+          state,
+          perPage,
+        });
       },
     }),
 
@@ -135,7 +147,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z.string().describe("Repository name."),
         state: z
           .enum(["open", "closed", "all"])
@@ -162,7 +176,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z.string().describe("Repository name."),
         path: z
           .string()
@@ -188,7 +204,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z.string().describe("Repository name."),
         title: z.string().describe("The title of the issue to create."),
         body: z
@@ -232,10 +250,7 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           .string()
           .optional()
           .describe("Optional GitHub username or organisation owner."),
-        repo: z
-          .string()
-          .optional()
-          .describe("Optional repository name."),
+        repo: z.string().optional().describe("Optional repository name."),
       }),
       execute: async ({ owner, repo }) => {
         return getRepositorySummary({
@@ -253,7 +268,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         query: z
           .string()
-          .describe("Search query string or question to match against project vector memory."),
+          .describe(
+            "Search query string or question to match against project vector memory.",
+          ),
         owner: z
           .string()
           .optional()
@@ -268,7 +285,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           .min(1)
           .max(20)
           .optional()
-          .describe("Maximum number of vector memory items to return (default 5)."),
+          .describe(
+            "Maximum number of vector memory items to return (default 5).",
+          ),
       }),
       execute: async ({ query, owner, repo, limit }) => {
         return getProjectMemory({

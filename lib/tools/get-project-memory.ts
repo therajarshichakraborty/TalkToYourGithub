@@ -57,14 +57,10 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
  */
 export async function getProjectMemory(options: GetProjectMemoryOptions) {
   if (!options.userId) {
-    throw new Error(
-      "[getProjectMemory] Missing required parameter 'userId'.",
-    );
+    throw new Error("[getProjectMemory] Missing required parameter 'userId'.");
   }
   if (!options.query || !options.query.trim()) {
-    throw new Error(
-      "[getProjectMemory] Missing required parameter 'query'.",
-    );
+    throw new Error("[getProjectMemory] Missing required parameter 'query'.");
   }
 
   const limit = options.limit || 5;
@@ -100,7 +96,8 @@ export async function getProjectMemory(options: GetProjectMemoryOptions) {
           const recordOwner = (meta.repositoryOwner as string)?.toLowerCase();
           const recordRepo = (meta.repositoryName as string)?.toLowerCase();
 
-          if (targetOwner && recordOwner && targetOwner !== recordOwner) continue;
+          if (targetOwner && recordOwner && targetOwner !== recordOwner)
+            continue;
           if (targetRepo && recordRepo && targetRepo !== recordRepo) continue;
 
           pineconeMemories.push({

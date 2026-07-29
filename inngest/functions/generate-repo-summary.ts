@@ -29,50 +29,53 @@ export const generateRepoSummary = inngest.createFunction(
     }
 
     // Step 1: Fetch user repositories and verify tenant connection
-    const targetRepos = await step.run("fetch-target-repositories", async () => {
-      const { tenantId } = await getCorsairTenantClient({
-        userId,
-        tenantId: corsairTenantId,
-      });
+    const targetRepos = await step.run(
+      "fetch-target-repositories",
+      async () => {
+        const { tenantId } = await getCorsairTenantClient({
+          userId,
+          tenantId: corsairTenantId,
+        });
 
-      const repoResult = await getRepositories({
-        userId,
-        tenantId,
-        perPage: 20,
-      });
+        const repoResult = await getRepositories({
+          userId,
+          tenantId,
+          perPage: 20,
+        });
 
-      if (!repoResult.success || !repoResult.repositories?.length) {
-        console.warn(
-          `[generateRepoSummary] No repositories found for tenant '${tenantId}'`,
-        );
-        return [];
-      }
+        if (!repoResult.success || !repoResult.repositories?.length) {
+          console.warn(
+            `[generateRepoSummary] No repositories found for tenant '${tenantId}'`,
+          );
+          return [];
+        }
 
-      let repos = repoResult.repositories.map((r) => {
-        const full_name = r.full_name || r.fullName || "";
-        const parts = full_name.split("/");
-        return {
-          owner: r.owner?.login || r.owner || parts[0] || "",
-          name: r.name || parts[1] || "",
-          description: r.description || "",
-          defaultBranch: r.default_branch || r.defaultBranch || "main",
-          language: r.language || "Unknown",
-          isPrivate: r.private ?? false,
-          stars: r.stargazers_count ?? 0,
-        };
-      });
+        let repos = repoResult.repositories.map((r) => {
+          const full_name = r.full_name || r.fullName || "";
+          const parts = full_name.split("/");
+          return {
+            owner: r.owner?.login || r.owner || parts[0] || "",
+            name: r.name || parts[1] || "",
+            description: r.description || "",
+            defaultBranch: r.default_branch || r.defaultBranch || "main",
+            language: r.language || "Unknown",
+            isPrivate: r.private ?? false,
+            stars: r.stargazers_count ?? 0,
+          };
+        });
 
-      // Filter if specific repo requested
-      if (repositoryOwner && repositoryName) {
-        repos = repos.filter(
-          (r) =>
-            r.owner.toLowerCase() === repositoryOwner.toLowerCase() &&
-            r.name.toLowerCase() === repositoryName.toLowerCase(),
-        );
-      }
+        // Filter if specific repo requested
+        if (repositoryOwner && repositoryName) {
+          repos = repos.filter(
+            (r) =>
+              r.owner.toLowerCase() === repositoryOwner.toLowerCase() &&
+              r.name.toLowerCase() === repositoryName.toLowerCase(),
+          );
+        }
 
-      return repos;
-    });
+        return repos;
+      },
+    );
 
     if (!targetRepos.length) {
       return {
@@ -97,18 +100,65 @@ export const generateRepoSummary = inngest.createFunction(
         async () => {
           const [commitsRes, branchesRes, prsRes, issuesRes, readmeRes] =
             await Promise.allSettled([
-              getCommits({ userId, tenantId: corsairTenantId, owner, repo: name, perPage: 10 }),
-              getBranches({ userId, tenantId: corsairTenantId, owner, repo: name, perPage: 10 }),
-              getPullRequests({ userId, tenantId: corsairTenantId, owner, repo: name, state: "all", perPage: 10 }),
-              getIssues({ userId, tenantId: corsairTenantId, owner, repo: name, state: "all", perPage: 10 }),
-              getFileContent({ userId, tenantId: corsairTenantId, owner, repo: name, path: "README.md" }),
+              getCommits({
+                userId,
+                tenantId: corsairTenantId,
+                owner,
+                repo: name,
+                perPage: 10,
+              }),
+              getBranches({
+                userId,
+                tenantId: corsairTenantId,
+                owner,
+                repo: name,
+                perPage: 10,
+              }),
+              getPullRequests({
+                userId,
+                tenantId: corsairTenantId,
+                owner,
+                repo: name,
+                state: "all",
+                perPage: 10,
+              }),
+              getIssues({
+                userId,
+                tenantId: corsairTenantId,
+                owner,
+                repo: name,
+                state: "all",
+                perPage: 10,
+              }),
+              getFileContent({
+                userId,
+                tenantId: corsairTenantId,
+                owner,
+                repo: name,
+                path: "README.md",
+              }),
             ]);
 
-          const commits = commitsRes.status === "fulfilled" && commitsRes.value.success ? commitsRes.value.commits : [];
-          const branches = branchesRes.status === "fulfilled" && branchesRes.value.success ? branchesRes.value.branches : [];
-          const pullRequests = prsRes.status === "fulfilled" && prsRes.value.success ? prsRes.value.pullRequests : [];
-          const issues = issuesRes.status === "fulfilled" && issuesRes.value.success ? issuesRes.value.issues : [];
-          const readme = readmeRes.status === "fulfilled" && readmeRes.value.success ? readmeRes.value.content : null;
+          const commits =
+            commitsRes.status === "fulfilled" && commitsRes.value.success
+              ? commitsRes.value.commits
+              : [];
+          const branches =
+            branchesRes.status === "fulfilled" && branchesRes.value.success
+              ? branchesRes.value.branches
+              : [];
+          const pullRequests =
+            prsRes.status === "fulfilled" && prsRes.value.success
+              ? prsRes.value.pullRequests
+              : [];
+          const issues =
+            issuesRes.status === "fulfilled" && issuesRes.value.success
+              ? issuesRes.value.issues
+              : [];
+          const readme =
+            readmeRes.status === "fulfilled" && readmeRes.value.success
+              ? readmeRes.value.content
+              : null;
 
           return {
             owner,
@@ -121,12 +171,15 @@ export const generateRepoSummary = inngest.createFunction(
               author: String(c.commit?.author?.name || c.author || ""),
               date: String(c.commit?.author?.date || c.date || ""),
             })) as Array<{ message: string; author: string; date: string }>,
-            branches: (branches.slice(0, 5))
+            branches: branches
+              .slice(0, 5)
               .map((b: any) => (typeof b === "string" ? b : b?.name || ""))
               .filter(Boolean) as string[],
             pullRequestCount: pullRequests.length,
             issueCount: issues.length,
-            readmeSnippet: readme ? readme.slice(0, 1500) : "No README.md available.",
+            readmeSnippet: readme
+              ? readme.slice(0, 1500)
+              : "No README.md available.",
           };
         },
       );

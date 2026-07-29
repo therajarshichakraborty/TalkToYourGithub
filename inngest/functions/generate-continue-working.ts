@@ -15,10 +15,7 @@ export const generateContinueWorking = inngest.createFunction(
     id: "generate-continue-working",
     name: "Generate Continue Working Dashboard Summary",
   },
-  [
-    { event: "activity.continue_working" },
-    { event: "github.connected" },
-  ],
+  [{ event: "activity.continue_working" }, { event: "github.connected" }],
   async ({ event, step }) => {
     const { corsairTenantId, repositoryOwner, repositoryName } = event.data;
     let userId = event.data.userId;
