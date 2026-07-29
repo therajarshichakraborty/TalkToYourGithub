@@ -1,10 +1,10 @@
+"use client";
 /*
  * Component: ChatUI
  * Description: Interactive AI Chat Interface powered by useChat() from AI SDK.
  * Handles streaming responses, tool invocation status display, and repository context integration.
  */
 
-"use client";
 
 import React, { useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
@@ -204,7 +204,7 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
         )}
 
         {/* Rendered Messages */}
-        {messages.map((message) => {
+        {messages.map((message:any) => {
           const isUser = message.role === "user";
           return (
             <div

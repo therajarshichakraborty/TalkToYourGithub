@@ -1,7 +1,8 @@
 /*
  * Page: /dashboard
- * Description: Minimal UI shell for Day 16 of TalkToYourGithub.
- * Integrates shadcn Sidebar, repository list selection, and interactive AI chat using useChat().
+ * Description: Main protected dashboard layout for Day 17 of TalkToYourGithub.
+ * Displays the Continue Working dashboard cards populated from activity_logs and repository_summaries,
+ * alongside the interactive AI Chat Assistant view.
  */
 
 "use client";
@@ -11,17 +12,31 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { RepositoryItem } from "@/components/sidebar/repo-list";
 import { ChatUI } from "@/components/chat/chat-ui";
+import { ContinueWorkingCards } from "@/components/dashboard/continue-working-cards";
 import { authClient } from "@/lib/auth-client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { FolderGit2, MessageSquare, Sparkles } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FolderGit2, MessageSquare, LayoutDashboard, Sparkles } from "lucide-react";
 
 export default function DashboardPage() {
-  /* Active repository state selected from sidebar */
+  /* Active repository state selected from sidebar or dashboard cards */
   const [selectedRepo, setSelectedRepo] = useState<RepositoryItem | null>(null);
+
+  /* Active dashboard view mode: 'dashboard' or 'chat' */
+  const [activeTab, setActiveTab] = useState<"dashboard" | "chat">("dashboard");
 
   /* Retrieve current authenticated user session */
   const { data: session } = authClient.useSession();
+
+  /*
+   * Handle selecting a repository card from Continue Working dashboard to launch chat
+   */
+  const handleSelectRepoForChat = (repo: RepositoryItem) => {
+    setSelectedRepo(repo);
+    setActiveTab("chat");
+  };
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -29,44 +44,68 @@ export default function DashboardPage() {
         {/* Navigation Sidebar housing Repository list */}
         <AppSidebar
           selectedRepo={selectedRepo}
-          onSelectRepo={setSelectedRepo}
+          onSelectRepo={(repo) => {
+            setSelectedRepo(repo);
+            if (repo) setActiveTab("chat");
+          }}
           user={session?.user}
         />
 
         {/* Main Interface Content Area */}
         <SidebarInset className="flex flex-col flex-1 h-full min-w-0 overflow-hidden">
-          {/* Top Control Bar */}
+          {/* Top Control Header */}
           <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mr-1 h-4" />
-              <div className="flex items-center gap-2 text-xs font-medium">
-                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>Chat Workspace</span>
-                {selectedRepo ? (
-                  <Badge variant="outline" className="text-[11px] font-mono gap-1">
-                    <FolderGit2 className="h-3 w-3 text-primary" />
-                    {selectedRepo.fullName}
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="text-[11px] text-muted-foreground">
-                    All Repositories
-                  </Badge>
-                )}
-              </div>
+
+              {/* View Switcher Tabs */}
+              <Tabs
+                value={activeTab}
+                onValueChange={(val) => setActiveTab(val as "dashboard" | "chat")}
+                className="w-auto"
+              >
+                <TabsList className="h-8 p-0.5 bg-muted/60">
+                  <TabsTrigger
+                    value="dashboard"
+                    className="text-xs h-7 gap-1.5 px-2.5 data-[state=active]:bg-background"
+                  >
+                    <LayoutDashboard className="h-3.5 w-3.5" />
+                    Dashboard
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="chat"
+                    className="text-xs h-7 gap-1.5 px-2.5 data-[state=active]:bg-background"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    AI Chat
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {selectedRepo && (
+                <Badge variant="outline" className="text-[11px] font-mono gap-1 ml-2 hidden sm:inline-flex">
+                  <FolderGit2 className="h-3 w-3 text-primary" />
+                  {selectedRepo.fullName}
+                </Badge>
+              )}
             </div>
 
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="hidden sm:inline flex items-center gap-1 text-[11px]">
+              <span className="hidden md:inline-flex items-center gap-1 text-[11px]">
                 <Sparkles className="h-3 w-3 text-amber-500" />
-                Wired with AI SDK useChat()
+                Live Sync & Activity Logging
               </span>
             </div>
           </header>
 
-          {/* Main AI Chat Interface Pane */}
-          <main className="flex-1 h-[calc(100vh-3rem)] overflow-hidden">
-            <ChatUI activeRepo={selectedRepo} />
+          {/* Main View Pane */}
+          <main className="flex-1 h-[calc(100vh-3rem)] overflow-y-auto">
+            {activeTab === "dashboard" ? (
+              <ContinueWorkingCards onSelectRepoForChat={handleSelectRepoForChat} />
+            ) : (
+              <ChatUI activeRepo={selectedRepo} />
+            )}
           </main>
         </SidebarInset>
       </div>
