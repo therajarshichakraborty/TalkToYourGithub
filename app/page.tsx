@@ -16,9 +16,25 @@ import {
   Terminal,
   Zap,
 } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 function Nav() {
+  const router = useRouter();
+  const { data: session } = authClient.useSession();
+
+  const handleSignOut = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/sign-in");
+          router.refresh();
+        },
+      },
+    });
+  };
+
   return (
     <header className='sticky top-6 z-50 mx-auto w-full max-w-5xl px-4 sm:px-6'>
       <div className='flex items-center justify-between rounded-2xl border border-border/80 bg-white/80 dark:bg-black/80 p-2 pl-5 pr-2 shadow-sm backdrop-blur-md transition-all duration-300 hover:border-border'>
@@ -57,13 +73,24 @@ function Nav() {
             variant='circle'
             className='flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
           />
-          <Button
-            size='sm'
-            className='h-8 rounded-full px-5 text-base font-bold tracking-wider shadow-none transition-transform active:scale-95 font-[family-name:var(--font-amatic-sc)]'
-            asChild
-          >
-            <Link href='/sign-in'>Sign in</Link>
-          </Button>
+          {session?.user ? (
+            <Button
+              size='sm'
+              variant='outline'
+              onClick={handleSignOut}
+              className='h-8 rounded-full px-5 text-base font-bold tracking-wider border-border/80 transition-transform active:scale-95 font-[family-name:var(--font-amatic-sc)]'
+            >
+              Sign out
+            </Button>
+          ) : (
+            <Button
+              size='sm'
+              className='h-8 rounded-full px-5 text-base font-bold tracking-wider shadow-none transition-transform active:scale-95 font-[family-name:var(--font-amatic-sc)]'
+              asChild
+            >
+              <Link href='/sign-in'>Sign in</Link>
+            </Button>
+          )}
         </div>
       </div>
     </header>
@@ -256,6 +283,20 @@ function Features() {
 }
 
 function CtaBand() {
+  const router = useRouter();
+  const { data: session } = authClient.useSession();
+
+  const handleSignOut = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/sign-in");
+          router.refresh();
+        },
+      },
+    });
+  };
+
   return (
     <section id='how-it-works' className='mx-auto max-w-5xl px-6 py-16'>
       <div className='rounded-2xl border border-border/80 bg-muted/20 p-8 sm:p-12 transition-all duration-300 hover:border-foreground/30'>
@@ -275,7 +316,17 @@ function CtaBand() {
               seamlessly with private and public repos.
             </p>
           </div>
-          <div className='flex sm:justify-end'>
+          <div className='flex flex-col sm:flex-row gap-3 sm:justify-end'>
+            {session?.user && (
+              <Button
+                size='lg'
+                variant='outline'
+                onClick={handleSignOut}
+                className='w-full sm:w-auto rounded-full px-6 text-sm font-normal border-border/80 transition-transform active:scale-95 font-[family-name:var(--font-permanent-marker)]'
+              >
+                Sign out
+              </Button>
+            )}
             <Button
               size='lg'
               className='w-full sm:w-auto rounded-full px-7 text-sm font-normal shadow-md transition-transform active:scale-95 font-[family-name:var(--font-permanent-marker)]'
@@ -285,7 +336,7 @@ function CtaBand() {
                 href='/sign-in'
                 className='flex items-center justify-center gap-2'
               >
-                Connect GitHub Repository
+                {session?.user ? "Re-authorize GitHub" : "Connect GitHub Repository"}
                 <ArrowRight className='h-4 w-4' />
               </Link>
             </Button>

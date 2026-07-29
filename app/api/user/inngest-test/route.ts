@@ -14,11 +14,36 @@ export async function GET(req: NextRequest) {
     const userId = searchParams.get("userId");
     const debug = searchParams.get("debug");
 
-    // Debug mode: show users + tenant info so you know what values to use
+    // Debug mode: show users + tenant info + OAuth scopes so you know what values to use
     if (debug === "true") {
       const users = await db.select().from(schema.user);
       const summaries = await db.select().from(schema.repositorySummaries);
       const activityLogs = await db.select().from(schema.activityLogs);
+      const accounts = await db.select().from(schema.account);
+
+      let tokenScopes = "Unknown";
+      let ghUserLogin = "Unknown";
+
+      if (accounts.length > 0 && accounts[0].accessToken) {
+        try {
+          const ghRes = await fetch("https://api.github.com/user", {
+            headers: {
+              Authorization: `Bearer ${accounts[0].accessToken}`,
+              "User-Agent": "TalkToYourGithubApp",
+            },
+          });
+          tokenScopes = ghRes.headers.get("x-oauth-scopes") || "None";
+          if (ghRes.ok) {
+            const ghData = await ghRes.json();
+            ghUserLogin = ghData.login;
+          }
+        } catch (e) {
+          tokenScopes = "Error checking token";
+        }
+      }
+
+      const hasRepoScope = tokenScopes.includes("repo");
+
       return NextResponse.json({
         success: true,
         userCount: users.length,
@@ -28,17 +53,21 @@ export async function GET(req: NextRequest) {
           email: u.email,
           corsairTenantId: u.corsairTenantId,
         })),
+        githubAccount: {
+          login: ghUserLogin,
+          scopes: tokenScopes,
+          hasPrivateRepoAccess: hasRepoScope,
+        },
         summaryCount: summaries.length,
         activityLogCount: activityLogs.length,
-        hint: users.length === 0
-          ? "⚠️ No users found! Sign in at http://localhost:3000 with GitHub first."
-          : `✅ Use corsairTenantId "${users[0].corsairTenantId}" in your Inngest event payload.`,
+        hint: !hasRepoScope
+          ? "⚠️ Your GitHub token is missing 'repo' scope for private repositories! Please Sign Out and Sign In again at http://localhost:3000."
+          : `✅ Token has full repo access. Use corsairTenantId "${users[0]?.corsairTenantId}" in your Inngest payload.`,
       });
     }
 
     let query = db.select().from(schema.repositorySummaries);
     if (userId) {
-      // @ts-ignore
       query = query.where(eq(schema.repositorySummaries.userId, userId));
     }
 

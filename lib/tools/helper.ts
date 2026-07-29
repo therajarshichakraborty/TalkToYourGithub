@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { corsair } from "@/server/corsair";
 
 export interface ToolContextOptions {
@@ -10,13 +10,21 @@ export interface ToolContextOptions {
 
 export async function getCorsairTenantClient(options: ToolContextOptions) {
   let targetTenantId = options.tenantId;
+  let userObj: { id: string; corsairTenantId: string | null } | undefined;
 
-  if (!targetTenantId && options.userId) {
-    const [userRecord] = await db
-      .select()
+  if (targetTenantId) {
+    const [u] = await db
+      .select({ id: schema.user.id, corsairTenantId: schema.user.corsairTenantId })
+      .from(schema.user)
+      .where(eq(schema.user.corsairTenantId, targetTenantId));
+    userObj = u;
+  } else if (options.userId) {
+    const [u] = await db
+      .select({ id: schema.user.id, corsairTenantId: schema.user.corsairTenantId })
       .from(schema.user)
       .where(eq(schema.user.id, options.userId));
-    targetTenantId = userRecord?.corsairTenantId || undefined;
+    userObj = u;
+    targetTenantId = userObj?.corsairTenantId || undefined;
   }
 
   if (!targetTenantId) {
@@ -30,6 +38,21 @@ export async function getCorsairTenantClient(options: ToolContextOptions) {
     throw new Error(
       `Corsair GitHub API client is not initialized for tenant '${targetTenantId}'.`,
     );
+  }
+
+  if (userObj?.id) {
+    const [acc] = await db
+      .select({ accessToken: schema.account.accessToken })
+      .from(schema.account)
+      .where(
+        and(
+          eq(schema.account.userId, userObj.id),
+          eq(schema.account.providerId, "github"),
+        ),
+      );
+    if (acc?.accessToken && tenant?.github?.keys?.set_api_key) {
+      await tenant.github.keys.set_api_key(acc.accessToken).catch(() => {});
+    }
   }
 
   return { tenant, tenantId: targetTenantId };
