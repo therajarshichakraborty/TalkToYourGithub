@@ -26,11 +26,19 @@ export function getPineconeClient(): Pinecone {
  */
 export function getPineconeIndex(indexName?: string) {
   const client = getPineconeClient();
-  const targetIndex =
+  const targetIndex = (
     indexName ||
     process.env.PINECONE_INDEX ||
     process.env.PINECONE_INDEX_NAME ||
-    "talk-to-your-github";
-  const host = process.env.PINECONE_HOST_NAME;
+    "talk-to-your-github"
+  ).trim();
+  let host = (
+    process.env.PINECONE_HOST ||
+    process.env.PINECONE_HOST_NAME ||
+    ""
+  ).trim();
+  if (host && !host.startsWith("http://") && !host.startsWith("https://")) {
+    host = `https://${host}`;
+  }
   return host ? client.index(targetIndex, host) : client.index(targetIndex);
 }
