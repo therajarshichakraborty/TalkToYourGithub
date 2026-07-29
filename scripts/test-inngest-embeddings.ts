@@ -1,3 +1,4 @@
+import "../lib/zod-polyfill";
 import dotenv from "dotenv";
 dotenv.config();
 
