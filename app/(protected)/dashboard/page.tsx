@@ -1,344 +1,140 @@
+/*
+ * Page: /dashboard
+ * Description: Main protected dashboard layout for Day 17 of TalkToYourGithub.
+ * Displays the Continue Working dashboard cards populated from activity_logs and repository_summaries,
+ * alongside the interactive AI Chat Assistant view.
+ */
+
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { ProjectDataTable, Project } from "@/components/dashboard";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import React, { useState } from "react";
+import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/sidebar/app-sidebar";
+import { RepositoryItem } from "@/components/sidebar/repo-list";
+import { ChatUI } from "@/components/chat/chat-ui";
+import { ContinueWorkingCards } from "@/components/dashboard/continue-working-cards";
+import { authClient } from "@/lib/auth-client";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ListFilter, Columns } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FolderGit2, MessageSquare, LayoutDashboard, Sparkles } from "lucide-react";
 
-const mockProjects: Project[] = [
-  {
-    id: "proj-01",
-    name: "ShadCN Clone",
-    repository: "https://github.com/ruixenui/ruixen-buttons",
-    team: "UI Guild",
-    tech: "Next.js",
-    createdAt: "2024-06-01",
-    contributors: [
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026704d",
-        alt: "User 1",
-        fallback: "U1",
-      },
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026705d",
-        alt: "User 2",
-        fallback: "U2",
-      },
-    ],
-    status: { text: "Active", variant: "active" },
-  },
-  {
-    id: "proj-02",
-    name: "RUIXEN Components",
-    repository: "https://github.com/ruixenui/ruixen-buttons",
-    team: "Component Devs",
-    tech: "React",
-    createdAt: "2024-05-22",
-    contributors: [
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026706d",
-        alt: "User 3",
-        fallback: "U3",
-      },
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026707d",
-        alt: "User 4",
-        fallback: "U4",
-      },
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026708d",
-        alt: "User 5",
-        fallback: "U5",
-      },
-    ],
-    status: { text: "Progress", variant: "inProgress" },
-  },
-  {
-    id: "proj-03",
-    name: "CV Jobs Platform",
-    repository: "https://github.com/ruixenui/ruixen-buttons",
-    team: "CV Core",
-    tech: "Spring Boot",
-    createdAt: "2024-06-05",
-    contributors: [
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026709d",
-        alt: "User 6",
-        fallback: "U6",
-      },
-    ],
-    status: { text: "Active", variant: "active" },
-  },
-  {
-    id: "proj-04",
-    name: "Ruixen UI Docs",
-    repository: "https://github.com/ruixenui/ruixen-buttons",
-    team: "Tech Writers",
-    tech: "Markdown",
-    createdAt: "2024-04-19",
-    contributors: [
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026710d",
-        alt: "User 7",
-        fallback: "U7",
-      },
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026711d",
-        alt: "User 8",
-        fallback: "U8",
-      },
-    ],
-    status: { text: "Active", variant: "active" },
-  },
-  {
-    id: "proj-05",
-    name: "Job Portal Analytics",
-    repository: "https://github.com/ruixenui/ruixen-buttons",
-    team: "Data Squad",
-    tech: "Python",
-    createdAt: "2024-03-30",
-    contributors: [
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026712d",
-        alt: "User 9",
-        fallback: "U9",
-      },
-    ],
-    status: { text: "Active", variant: "active" },
-  },
-  {
-    id: "proj-06",
-    name: "Ui Ux Design",
-    repository: "https://github.com/ruixenui/ruixen-buttons",
-    team: "Infra",
-    tech: "Socket.io",
-    createdAt: "2024-06-03",
-    contributors: [
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026713d",
-        alt: "User 10",
-        fallback: "U10",
-      },
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026714d",
-        alt: "User 11",
-        fallback: "U11",
-      },
-    ],
-    status: { text: "Active", variant: "active" },
-  },
-  {
-    id: "proj-01",
-    name: "ShadCN Clone",
-    repository: "https://github.com/ruixenui/ruixen-buttons",
-    team: "UI Guild",
-    tech: "Next.js",
-    createdAt: "2024-06-01",
-    contributors: [
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026704d",
-        alt: "User 1",
-        fallback: "U1",
-      },
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026705d",
-        alt: "User 2",
-        fallback: "U2",
-      },
-    ],
-    status: { text: "Active", variant: "active" },
-  },
-  {
-    id: "proj-02",
-    name: "RUIXEN Components",
-    repository: "https://github.com/ruixenui/ruixen-buttons",
-    team: "Component Devs",
-    tech: "React",
-    createdAt: "2024-05-22",
-    contributors: [
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026706d",
-        alt: "User 3",
-        fallback: "U3",
-      },
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026707d",
-        alt: "User 4",
-        fallback: "U4",
-      },
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026708d",
-        alt: "User 5",
-        fallback: "U5",
-      },
-    ],
-    status: { text: "Progress", variant: "inProgress" },
-  },
-  {
-    id: "proj-03",
-    name: "CV Jobs Platform",
-    repository: "https://github.com/ruixenui/ruixen-buttons",
-    team: "CV Core",
-    tech: "Spring Boot",
-    createdAt: "2024-06-05",
-    contributors: [
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026709d",
-        alt: "User 6",
-        fallback: "U6",
-      },
-    ],
-    status: { text: "Active", variant: "active" },
-  },
-  {
-    id: "proj-04",
-    name: "Ruixen UI Docs",
-    repository: "https://github.com/ruixenui/ruixen-buttons",
-    team: "Tech Writers",
-    tech: "Markdown",
-    createdAt: "2024-04-19",
-    contributors: [
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026710d",
-        alt: "User 7",
-        fallback: "U7",
-      },
-      {
-        src: "https://i.pravatar.cc/150?u=a042581f4e29026711d",
-        alt: "User 8",
-        fallback: "U8",
-      },
-    ],
-    status: { text: "Active", variant: "active" },
-  },
-];
+export default function DashboardPage() {
+  /* Active repository state selected from sidebar or dashboard cards */
+  const [selectedRepo, setSelectedRepo] = useState<RepositoryItem | null>(null);
 
-const allColumns: (keyof Project)[] = [
-  "name",
-  "repository",
-  "team",
-  "tech",
-  "createdAt",
-  "contributors",
-  "status",
-];
+  /* Active dashboard view mode: 'dashboard' or 'chat' */
+  const [activeTab, setActiveTab] = useState<"dashboard" | "chat">("dashboard");
 
-const Demo = () => {
-  const [techFilter, setTechFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [visibleColumns, setVisibleColumns] = useState<Set<keyof Project>>(
-    new Set(allColumns),
-  );
+  /* Retrieve current authenticated user session */
+  const { data: session } = authClient.useSession();
 
-  const filteredProjects = useMemo(() => {
-    return mockProjects.filter((project) => {
-      const techMatch =
-        techFilter === "" ||
-        project.tech.toLowerCase().includes(techFilter.toLowerCase());
-      const statusMatch =
-        statusFilter === "all" || project.status.variant === statusFilter;
-      return techMatch && statusMatch;
-    });
-  }, [techFilter, statusFilter]);
-
-  const toggleColumn = (column: keyof Project) => {
-    setVisibleColumns((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(column)) {
-        newSet.delete(column);
-      } else {
-        newSet.add(column);
-      }
-      return newSet;
-    });
+  /*
+   * Handle selecting a repository card from Continue Working dashboard to launch chat
+   */
+  const handleSelectRepoForChat = (repo: RepositoryItem) => {
+    setSelectedRepo(repo);
+    setActiveTab("chat");
   };
 
   return (
-    <div className='container mx-auto p-4 md:p-6'>
-      <div className='flex flex-col gap-4 mb-6 sm:flex-row sm:items-center'>
-        <div className='flex flex-1 gap-4'>
-          <Input
-            placeholder='Filter by technology...'
-            value={techFilter}
-            onChange={(e) => setTechFilter(e.target.value)}
-            className='max-w-xs'
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant='outline' className='flex items-center gap-2'>
-                <ListFilter className='h-4 w-4' />
-                <span>Status</span>
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+        {/* Navigation Sidebar housing Repository list */}
+        <AppSidebar
+          selectedRepo={selectedRepo}
+          onSelectRepo={(repo) => {
+            setSelectedRepo(repo);
+            if (repo) setActiveTab("chat");
+          }}
+          user={session?.user}
+        />
+
+        {/* Main Interface Content Area */}
+        <SidebarInset className="flex flex-col flex-1 h-full min-w-0 overflow-hidden">
+          {/* Top Control Header */}
+          <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex items-center gap-2">
+              <SidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="mr-1 h-4" />
+
+              {/* View Switcher Tabs */}
+              <Tabs
+                value={activeTab}
+                onValueChange={(val) => setActiveTab(val as "dashboard" | "chat")}
+                className="w-auto"
+              >
+                <TabsList className="h-8 p-0.5 bg-muted/60">
+                  <TabsTrigger
+                    value="dashboard"
+                    className="text-xs h-7 gap-1.5 px-2.5 data-[state=active]:bg-background"
+                  >
+                    <LayoutDashboard className="h-3.5 w-3.5" />
+                    Dashboard
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="chat"
+                    className="text-xs h-7 gap-1.5 px-2.5 data-[state=active]:bg-background"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    AI Chat
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {selectedRepo && (
+                <Badge variant="outline" className="text-[11px] font-mono gap-1 ml-2 hidden sm:inline-flex">
+                  <FolderGit2 className="h-3 w-3 text-primary" />
+                  {selectedRepo.fullName}
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/inngest/trigger", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        eventName: "github.connected",
+                        repositoryOwner: selectedRepo?.owner,
+                        repositoryName: selectedRepo?.name,
+                      }),
+                    });
+                    const d = await res.json();
+                    if (d.success) {
+                      alert(`Inngest Sync Triggered! Event: ${d.eventName}. Check your Inngest Dev Server terminal for live execution.`);
+                    } else {
+                      alert(`Inngest trigger error: ${d.error}`);
+                    }
+                  } catch (e) {
+                    alert("Failed to trigger Inngest event.");
+                  }
+                }}
+                className="h-7 text-[11px] gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                title="Trigger Inngest background jobs manually"
+              >
+                <Sparkles className="h-3 w-3 text-amber-500" />
+                Run Inngest Sync
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={statusFilter === "all"}
-                onCheckedChange={() => setStatusFilter("all")}
-              >
-                All
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={statusFilter === "active"}
-                onCheckedChange={() => setStatusFilter("active")}
-              >
-                Active
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={statusFilter === "inProgress"}
-                onCheckedChange={() => setStatusFilter("inProgress")}
-              >
-                In Progress
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={statusFilter === "onHold"}
-                onCheckedChange={() => setStatusFilter("onHold")}
-              >
-                On Hold
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant='outline' className='flex items-center gap-2'>
-              <Columns className='h-4 w-4' />
-              <span>Columns</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {allColumns.map((column) => (
-              <DropdownMenuCheckboxItem
-                key={column}
-                className='capitalize'
-                checked={visibleColumns.has(column)}
-                onCheckedChange={() => toggleColumn(column)}
-              >
-                {column}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </div>
+          </header>
+
+          {/* Main View Pane */}
+          <main className="flex-1 h-[calc(100vh-3rem)] overflow-y-auto">
+            {activeTab === "dashboard" ? (
+              <ContinueWorkingCards onSelectRepoForChat={handleSelectRepoForChat} />
+            ) : (
+              <ChatUI activeRepo={selectedRepo} />
+            )}
+          </main>
+        </SidebarInset>
       </div>
-
-      <ProjectDataTable
-        projects={filteredProjects}
-        visibleColumns={visibleColumns}
-      />
-    </div>
+    </SidebarProvider>
   );
-};
-
-export default Demo;
+}

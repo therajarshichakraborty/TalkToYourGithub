@@ -48,6 +48,7 @@ export async function getPullRequests(options: GetPullRequestsOptions) {
       owner: options.owner,
       repo: options.repo,
       state,
+      per_page: perPage,
       perPage,
     });
     if (prs && Array.isArray(prs)) {

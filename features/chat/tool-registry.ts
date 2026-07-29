@@ -1,6 +1,6 @@
 /**
  * tool-registry.ts
- * Wraps every raw tool function (Days 8-10, Day 14) in an AI SDK `tool()` definition.
+ * Wraps every raw tool function in an AI SDK `tool()` definition.
  * Each entry declares the Zod input schema and an execute function that
  * passes the authenticated userId through to the underlying helper.
  *
@@ -21,6 +21,7 @@ import { getFileContent } from "@/lib/tools/get-file-content";
 import { createIssue } from "@/lib/tools/create-issue";
 import { getRepositorySummary } from "@/lib/tools/get-repository-summary";
 import { getProjectMemory } from "@/lib/tools/get-project-memory";
+import { reviewPullRequest } from "@/lib/tools/review-pull-request";
 
 /**
  * Context required to build tool registry for authenticated session.
@@ -44,7 +45,7 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           .int()
           .min(1)
           .max(100)
-          .optional()
+          .default(30)
           .describe("Maximum number of repositories to return (default 30)."),
       }),
       execute: async ({ perPage }) => {
@@ -70,7 +71,7 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           .int()
           .min(1)
           .max(100)
-          .optional()
+          .default(30)
           .describe("Number of branches to return (default 30)."),
       }),
       execute: async ({ owner, repo, perPage }) => {
@@ -94,7 +95,7 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           .int()
           .min(1)
           .max(100)
-          .optional()
+          .default(30)
           .describe("Number of commits to fetch (default 30)."),
       }),
       execute: async ({ owner, repo, perPage }) => {
@@ -116,7 +117,7 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
         repo: z.string().describe("Repository name."),
         state: z
           .enum(["open", "closed", "all"])
-          .optional()
+          .default("all")
           .describe(
             "Filter by pull request state. Defaults to 'all' if omitted.",
           ),
@@ -125,7 +126,7 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           .int()
           .min(1)
           .max(100)
-          .optional()
+          .default(30)
           .describe("Number of pull requests to return (default 30)."),
       }),
       execute: async ({ owner, repo, state, perPage }) => {
@@ -135,6 +136,29 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           repo,
           state,
           perPage,
+        });
+      },
+    }),
+
+    reviewPullRequest: tool({
+      description:
+        "Perform an AI-powered code review on a specific Pull Request by PR number. " +
+        "Analyzes PR description and file diffs, returning structured review sections (summary, positives, potential bugs, security flags, recommendations).",
+      parameters: z.object({
+        owner: z.string().describe("GitHub owner or organization."),
+        repo: z.string().describe("Repository name."),
+        pullNumber: z
+          .number()
+          .int()
+          .positive()
+          .describe("Pull request number to review (e.g. 1, 42)."),
+      }),
+      execute: async ({ owner, repo, pullNumber }) => {
+        return reviewPullRequest({
+          userId: ctx.userId,
+          owner,
+          repo,
+          pullNumber,
         });
       },
     }),
@@ -153,14 +177,14 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
         repo: z.string().describe("Repository name."),
         state: z
           .enum(["open", "closed", "all"])
-          .optional()
+          .default("all")
           .describe("Filter by issue state. Defaults to 'all' if omitted."),
         perPage: z
           .number()
           .int()
           .min(1)
           .max(100)
-          .optional()
+          .default(30)
           .describe("Number of issues to return (default 30)."),
       }),
       execute: async ({ owner, repo, state, perPage }) => {
@@ -182,14 +206,15 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
         repo: z.string().describe("Repository name."),
         path: z
           .string()
+          .default("")
           .describe(
-            "File or directory path relative to the repository root (e.g. 'src/index.ts' or 'src/').",
+            "File or directory path relative to repository root. Pass '' or omit to list root directory, or pass 'src/' / 'lib/auth.ts'.",
           ),
         ref: z
           .string()
-          .optional()
+          .default("main")
           .describe(
-            "Branch name, tag, or commit SHA to read from (defaults to the repository's default branch).",
+            "Branch name, tag, or commit SHA to read from (defaults to main).",
           ),
       }),
       execute: async ({ owner, repo, path, ref }) => {
@@ -211,19 +236,19 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
         title: z.string().describe("The title of the issue to create."),
         body: z
           .string()
-          .optional()
+          .default("")
           .describe(
             "Optional markdown body text that describes the issue in detail.",
           ),
         labels: z
           .array(z.string())
-          .optional()
+          .default([])
           .describe(
             "Optional list of label names to attach to the issue (e.g. ['bug', 'help wanted']).",
           ),
         assignees: z
           .array(z.string())
-          .optional()
+          .default([])
           .describe(
             "Optional list of GitHub usernames to assign the issue to.",
           ),
@@ -248,9 +273,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .optional()
+          .default("")
           .describe("Optional GitHub username or organisation owner."),
-        repo: z.string().optional().describe("Optional repository name."),
+        repo: z.string().default("").describe("Optional repository name."),
       }),
       execute: async ({ owner, repo }) => {
         return getRepositorySummary({
@@ -273,18 +298,18 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           ),
         owner: z
           .string()
-          .optional()
+          .default("")
           .describe("Optional repository owner to scope the search."),
         repo: z
           .string()
-          .optional()
+          .default("")
           .describe("Optional repository name to scope the search."),
         limit: z
           .number()
           .int()
           .min(1)
           .max(20)
-          .optional()
+          .default(5)
           .describe(
             "Maximum number of vector memory items to return (default 5).",
           ),

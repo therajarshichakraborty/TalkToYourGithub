@@ -8,20 +8,21 @@ export interface GetFileContentOptions extends ToolContextOptions {
 }
 
 export async function getFileContent(options: GetFileContentOptions) {
-  if (!options.owner || !options.repo || !options.path) {
+  const targetPath = options.path !== undefined && options.path !== null ? options.path : "";
+  if (!options.owner || !options.repo) {
     throw new Error(
-      "Parameters 'owner', 'repo', and 'path' are required to fetch file content.",
+      "Parameters 'owner' and 'repo' are required to fetch file content.",
     );
   }
 
   const { tenant } = await getCorsairTenantClient(options);
-  const targetFullName = `${options.owner}/${options.repo}/${options.path}`;
+  const targetFullName = `${options.owner}/${options.repo}/${targetPath}`;
 
   try {
     const res = await tenant.github.api.repositories.getContent({
       owner: options.owner,
       repo: options.repo,
-      path: options.path,
+      path: targetPath,
       ref: options.ref,
     });
 
