@@ -21,10 +21,9 @@ export async function POST(req: Request) {
   }
 
   /*
-   * Destructure `messages` (CoreMessage[]) — the AI SDK data-stream protocol
-   * expects an array; a single object will cause streamText to throw.
+   * Destructure `messages` (CoreMessage[]) and optional `activeRepo` context object.
    */
-  const { messages } = await req.json();
+  const { messages, activeRepo } = await req.json();
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return Response.json(
@@ -46,6 +45,7 @@ export async function POST(req: Request) {
   const systemPrompt = buildSystemPrompt({
     githubLogin: conn?.githubLogin ?? session.user.name ?? "unknown",
     connectedAt: conn?.connectedAt?.toISOString(),
+    activeRepo: activeRepo?.owner && activeRepo?.name ? { owner: activeRepo.owner, name: activeRepo.name } : null,
   });
 
   /*

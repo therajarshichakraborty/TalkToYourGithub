@@ -203,8 +203,10 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
         repo: z.string().describe("Repository name."),
         path: z
           .string()
+          .optional()
+          .default("")
           .describe(
-            "File or directory path relative to the repository root (e.g. 'src/index.ts' or 'src/').",
+            "File or directory path relative to repository root. Pass '' or omit to list root directory, or pass 'src/' / 'lib/auth.ts'.",
           ),
         ref: z
           .string()

@@ -92,10 +92,36 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="hidden md:inline-flex items-center gap-1 text-[11px]">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/inngest/trigger", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        eventName: "github.connected",
+                        repositoryOwner: selectedRepo?.owner,
+                        repositoryName: selectedRepo?.name,
+                      }),
+                    });
+                    const d = await res.json();
+                    if (d.success) {
+                      alert(`Inngest Sync Triggered! Event: ${d.eventName}. Check your Inngest Dev Server terminal for live execution.`);
+                    } else {
+                      alert(`Inngest trigger error: ${d.error}`);
+                    }
+                  } catch (e) {
+                    alert("Failed to trigger Inngest event.");
+                  }
+                }}
+                className="h-7 text-[11px] gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                title="Trigger Inngest background jobs manually"
+              >
                 <Sparkles className="h-3 w-3 text-amber-500" />
-                Live Sync & Activity Logging
-              </span>
+                Run Inngest Sync
+              </Button>
             </div>
           </header>
 

@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ owner: string; name: string }> }
+  props: { params: Promise<{ owner: string; name: string }> }
 ) {
   /* Authenticate user session */
   const session = await auth.api.getSession({ headers: await headers() });
@@ -30,7 +30,7 @@ export async function GET(
     );
   }
 
-  const { owner, name } = await params;
+  const { owner, name } = await props.params;
   const userId = session.user.id;
 
   try {

@@ -36,25 +36,56 @@ export async function GET() {
     }
 
     /* Standardize repository objects for UI consumption */
-    const repositories = (result.repositories || []).map((repo: any) => {
-      const fullName = repo.full_name || repo.fullName || "";
-      const parts = fullName.split("/");
-      const owner = repo.owner?.login || repo.owner || parts[0] || "";
-      const name = repo.name || parts[1] || "";
+    const repositories = (result.repositories || [])
+      .map((repoItem: any) => {
+        /* Corsair entity objects encapsulate fields inside data or payload */
+        const r = repoItem?.data || repoItem?.payload || repoItem || {};
 
-      return {
-        id: repo.id ? String(repo.id) : `${owner}/${name}`,
-        owner,
-        name,
-        fullName: fullName || `${owner}/${name}`,
-        description: repo.description || "",
-        defaultBranch: repo.default_branch || repo.defaultBranch || "main",
-        language: repo.language || "Unknown",
-        isPrivate: repo.private ?? false,
-        stars: repo.stargazers_count ?? repo.stars ?? 0,
-        updatedAt: repo.updated_at || repo.updatedAt || null,
-      };
-    });
+        const fullName =
+          r.full_name ||
+          r.fullName ||
+          r.repositoryFullName ||
+          r.repository_full_name ||
+          (r.owner && r.name ? `${typeof r.owner === "string" ? r.owner : r.owner.login}/${r.name}` : "") ||
+          "";
+
+        const parts = fullName.split("/");
+
+        const owner =
+          r.owner?.login ||
+          (typeof r.owner === "string" ? r.owner : "") ||
+          r.repositoryOwner ||
+          r.repository_owner ||
+          parts[0] ||
+          "";
+
+        const name =
+          r.name ||
+          r.repositoryName ||
+          r.repository_name ||
+          parts[1] ||
+          "";
+
+        const formattedFullName = fullName || (owner && name ? `${owner}/${name}` : name);
+
+        if (!name && !formattedFullName) {
+          return null;
+        }
+
+        return {
+          id: repoItem.id ? String(repoItem.id) : formattedFullName,
+          owner: owner || "github",
+          name: name || formattedFullName || "repository",
+          fullName: formattedFullName,
+          description: r.description || "",
+          defaultBranch: r.default_branch || r.defaultBranch || r.default_branch_name || "main",
+          language: r.language || "TypeScript",
+          isPrivate: r.private ?? false,
+          stars: r.stargazers_count ?? r.stars ?? 0,
+          updatedAt: r.updated_at || r.updatedAt || null,
+        };
+      })
+      .filter(Boolean);
 
     return Response.json({
       success: true,

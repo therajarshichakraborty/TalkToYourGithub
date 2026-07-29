@@ -54,6 +54,9 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
     setMessages,
   } = useChat({
     api: "/api/chat",
+    body: {
+      activeRepo: activeRepo ? { owner: activeRepo.owner, name: activeRepo.name } : null,
+    },
     onError: (err) => {
       console.error("[ChatUI] useChat error:", err);
     },
@@ -218,17 +221,19 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
 
               {/* Message Content Bubble */}
               <div className="space-y-1 max-w-[85%]">
-                <div
-                  className={`rounded-2xl px-4 py-2.5 text-sm shadow-xs leading-relaxed ${
-                    isUser
-                      ? "bg-primary text-primary-foreground rounded-tr-xs"
-                      : "bg-muted/60 text-foreground border rounded-tl-xs"
-                  }`}
-                >
-                  <div className="whitespace-pre-wrap break-words">
-                    {message.content}
+                {(message.content || isUser) && (
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 text-sm shadow-xs leading-relaxed ${
+                      isUser
+                        ? "bg-primary text-primary-foreground rounded-tr-xs"
+                        : "bg-muted/60 text-foreground border rounded-tl-xs"
+                    }`}
+                  >
+                    <div className="whitespace-pre-wrap break-words">
+                      {message.content}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Render Tool Invocations if Assistant executed tools */}
                 {!isUser && renderToolInvocations((message as any).toolInvocations)}

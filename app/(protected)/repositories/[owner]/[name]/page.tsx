@@ -65,13 +65,11 @@ interface RepoDetailsData {
   readmeSnippet: string | null;
 }
 
-export default function RepositoryDetailPage({
-  params,
-}: {
+export default function RepositoryDetailPage(props: {
   params: Promise<{ owner: string; name: string }>;
 }) {
   /* Unwrap async route parameters in Next.js App Router */
-  const resolvedParams = use(params);
+  const resolvedParams = React.use(props.params);
   const { owner, name } = resolvedParams;
 
   /* State storage */
