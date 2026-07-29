@@ -155,14 +155,14 @@ export const generateEmbeddings = inngest.createFunction(
           const [commitsRes, prsRes, issuesRes, readmeRes] =
             await Promise.allSettled([
               getCommits({
-                userId,
+                userId: resolvedUserId,
                 tenantId: corsairTenantId,
                 owner,
                 repo: name,
                 perPage: 15,
               }),
               getPullRequests({
-                userId,
+                userId: resolvedUserId,
                 tenantId: corsairTenantId,
                 owner,
                 repo: name,
@@ -170,7 +170,7 @@ export const generateEmbeddings = inngest.createFunction(
                 perPage: 15,
               }),
               getIssues({
-                userId,
+                userId: resolvedUserId,
                 tenantId: corsairTenantId,
                 owner,
                 repo: name,
@@ -178,7 +178,7 @@ export const generateEmbeddings = inngest.createFunction(
                 perPage: 15,
               }),
               getFileContent({
-                userId,
+                userId: resolvedUserId,
                 tenantId: corsairTenantId,
                 owner,
                 repo: name,
@@ -186,23 +186,32 @@ export const generateEmbeddings = inngest.createFunction(
               }),
             ]);
 
-          // Process Readme
+          // Process Readme with multi-chunking for rich embeddings
           if (
             readmeRes.status === "fulfilled" &&
             readmeRes.value.success &&
             readmeRes.value.content
           ) {
-            const readmeText = readmeRes.value.content.slice(0, 3000);
-            extracted.push({
-              sourceType: "readme",
-              sourceId: `${owner}/${name}/README.md`,
-              content: `README for ${owner}/${name}:\n${readmeText}`,
-              metadata: {
-                repositoryOwner: owner,
-                repositoryName: name,
-                path: "README.md",
-              },
-            });
+            const readmeText = readmeRes.value.content;
+            const CHUNK_SIZE = 1000;
+            const CHUNK_OVERLAP = 200;
+
+            for (let i = 0; i < readmeText.length; i += CHUNK_SIZE - CHUNK_OVERLAP) {
+              const snippet = readmeText.slice(i, i + CHUNK_SIZE);
+              if (snippet.trim().length > 50) {
+                extracted.push({
+                  sourceType: "readme",
+                  sourceId: `${owner}/${name}/README.md#chunk-${extracted.length}`,
+                  content: `README snippet for ${owner}/${name}:\n${snippet}`,
+                  metadata: {
+                    repositoryOwner: owner,
+                    repositoryName: name,
+                    path: "README.md",
+                    chunkIndex: extracted.length,
+                  },
+                });
+              }
+            }
           }
 
           // Process Commits
@@ -355,7 +364,7 @@ export const generateEmbeddings = inngest.createFunction(
             await db
               .insert(schema.embeddings)
               .values({
-                userId,
+                userId: resolvedUserId,
                 sourceType: chunk.sourceType,
                 sourceId: chunk.sourceId,
                 content: chunk.content,
@@ -365,7 +374,7 @@ export const generateEmbeddings = inngest.createFunction(
               .catch(() => {
                 // Ignore DB duplicate key error if already exists
               });
-            if (inserted === 0) inserted++;
+            inserted++;
           }
 
           return inserted;
