@@ -97,11 +97,11 @@ export const generateRepoSummary = inngest.createFunction(
         async () => {
           const [commitsRes, branchesRes, prsRes, issuesRes, readmeRes] =
             await Promise.allSettled([
-              getCommits({ userId, tenantId: corsairTenantId, repositoryOwner: owner, repositoryName: name, perPage: 10 }),
-              getBranches({ userId, tenantId: corsairTenantId, repositoryOwner: owner, repositoryName: name, perPage: 10 }),
-              getPullRequests({ userId, tenantId: corsairTenantId, repositoryOwner: owner, repositoryName: name, state: "all", perPage: 10 }),
-              getIssues({ userId, tenantId: corsairTenantId, repositoryOwner: owner, repositoryName: name, state: "all", perPage: 10 }),
-              getFileContent({ userId, tenantId: corsairTenantId, repositoryOwner: owner, repositoryName: name, path: "README.md" }),
+              getCommits({ userId, tenantId: corsairTenantId, owner, repo: name, perPage: 10 }),
+              getBranches({ userId, tenantId: corsairTenantId, owner, repo: name, perPage: 10 }),
+              getPullRequests({ userId, tenantId: corsairTenantId, owner, repo: name, state: "all", perPage: 10 }),
+              getIssues({ userId, tenantId: corsairTenantId, owner, repo: name, state: "all", perPage: 10 }),
+              getFileContent({ userId, tenantId: corsairTenantId, owner, repo: name, path: "README.md" }),
             ]);
 
           const commits: any[] = commitsRes.status === "fulfilled" && commitsRes.value.success ? (commitsRes.value.commits as any[]) : [];

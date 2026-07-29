@@ -65,22 +65,22 @@ async function main() {
     console.log(`📦 Found ${reposResult.repositories.length} repository(ies)`);
 
     for (const rawRepo of reposResult.repositories.slice(0, 2)) {
-      const full_name = (rawRepo as any).full_name || (rawRepo as any).fullName || "";
+      const full_name = rawRepo.full_name || rawRepo.fullName || "";
       const parts = full_name.split("/");
-      const owner = (rawRepo as any).owner?.login || (rawRepo as any).owner || parts[0] || "";
-      const name = (rawRepo as any).name || parts[1] || "";
-      const description = (rawRepo as any).description || "";
-      const language = (rawRepo as any).language || "TypeScript/JavaScript";
+      const owner = rawRepo.owner?.login || rawRepo.owner || parts[0] || "";
+      const name = rawRepo.name || parts[1] || "";
+      const description = rawRepo.description || "";
+      const language = rawRepo.language || "TypeScript/JavaScript";
 
       console.log(`\n🔍 Gathering details for ${owner}/${name}...`);
 
       const [commitsRes, branchesRes, prsRes, issuesRes, readmeRes] =
         await Promise.allSettled([
-          getCommits({ userId, tenantId, repositoryOwner: owner, repositoryName: name, perPage: 5 }),
-          getBranches({ userId, tenantId, repositoryOwner: owner, repositoryName: name, perPage: 5 }),
-          getPullRequests({ userId, tenantId, repositoryOwner: owner, repositoryName: name, state: "all", perPage: 5 }),
-          getIssues({ userId, tenantId, repositoryOwner: owner, repositoryName: name, state: "all", perPage: 5 }),
-          getFileContent({ userId, tenantId, repositoryOwner: owner, repositoryName: name, path: "README.md" }),
+          getCommits({ userId, tenantId, owner, repo: name, perPage: 5 }),
+          getBranches({ userId, tenantId, owner, repo: name, perPage: 5 }),
+          getPullRequests({ userId, tenantId, owner, repo: name, state: "all", perPage: 5 }),
+          getIssues({ userId, tenantId, owner, repo: name, state: "all", perPage: 5 }),
+          getFileContent({ userId, tenantId, owner, repo: name, path: "README.md" }),
         ]);
 
       const commits = commitsRes.status === "fulfilled" && commitsRes.value.success ? commitsRes.value.commits : [];
@@ -97,11 +97,11 @@ Generate a clear, 2-3 paragraph summary of the following GitHub repository:
 Repository: ${owner}/${name}
 Description: ${description || "N/A"}
 Primary Language: ${language}
-Branches: ${branches.map((b: any) => b.name).join(", ") || "main"}
+Branches: ${branches.map((b) => b.name).join(", ") || "main"}
 Open Issues: ${issues.length}
 Pull Requests: ${prs.length}
 Recent Commits:
-${commits.slice(0, 3).map((c: any) => `- ${c.commit?.message || c.message}`).join("\n") || "None"}
+${commits.slice(0, 3).map((c) => `- ${c.commit?.message || c.message}`).join("\n") || "None"}
 
 README Snippet:
 ${readme ? readme.slice(0, 1000) : "No README"}
