@@ -23,8 +23,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-// ─── Nav ─────────────────────────────────────────────────────────────────────
-
 function Nav() {
   return (
     <header className="sticky top-6 z-50 mx-auto w-full max-w-5xl px-4 sm:px-6">
@@ -72,8 +70,6 @@ function Nav() {
     </header>
   );
 }
-
-// ─── Hero ─────────────────────────────────────────────────────────────────────
 
 function Hero() {
   return (
@@ -162,7 +158,6 @@ function Hero() {
   );
 }
 
-// ─── Features ─────────────────────────────────────────────────────────────────
 
 const features = [
   {
@@ -247,7 +242,6 @@ function Features() {
   );
 }
 
-// ─── CTA Band ─────────────────────────────────────────────────────────────────
 
 function CtaBand() {
   return (
@@ -282,7 +276,6 @@ function CtaBand() {
   );
 }
 
-// ─── Footer ───────────────────────────────────────────────────────────────────
 
 function Footer() {
   return (

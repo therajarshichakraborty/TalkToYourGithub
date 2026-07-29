@@ -316,6 +316,35 @@ tools include rate-limit safeguards to handle GitHub API limits gracefully.
 
 ---
 
+## 📅 Day 13: Inngest Client and Repository Summary Background Jobs
+
+### What was done
+
+1. **Inngest Client Setup**: Initialized Inngest event client (`inngest/client.ts`) with typed support for the `"github.connected"` event.
+2. **Background Summary Generator**: Created `inngest/functions/generate-repo-summary.ts`, an asynchronous background job triggered whenever a user connects their GitHub account (`github.connected`).
+3. **Multi-Source Context Extraction**: Gathered repository metadata, commit histories, branch lists, pull requests, issue counts, and README snippets from `corsair.github.db.*` and the sync tools layer.
+4. **AI Summary Synthesis**: Used OpenRouter/Vercel AI SDK to generate structured repository summaries covering repository purpose, architecture, key features, and activity state.
+5. **Database Storage**: Saved/updated generated summaries directly into the Drizzle `repository_summaries` application table.
+6. **Inngest Serve Endpoint**: Exposed the background functions at `app/api/inngest/route.ts` via `serve({ client: inngest, functions })`.
+7. **Authentication Event Integration**: Connected `lib/auth.ts` to dispatch `inngest.send({ name: "github.connected", ... })` automatically after tenant provisioning and initial backfill completion.
+8. **Testing Tools**: Created test script `scripts/test-inngest-summary.ts` and API test route `app/api/user/inngest-test/route.ts`.
+
+### Files Added / Modified
+
+- `inngest/client.ts` (Initialized Inngest client with typed `github.connected` event schema)
+- `inngest/functions/generate-repo-summary.ts` (Background step function fetching repo data, calling AI SDK, and writing to `repository_summaries`)
+- `inngest/index.ts` (Barrel export file exporting `inngest` client and `functions` array)
+- `app/api/inngest/route.ts` (Next.js App Router API route serving Inngest functions)
+- `lib/auth.ts` (Updated `provisionCorsairTenant` to trigger `github.connected` event on Inngest)
+- `app/api/user/inngest-test/route.ts` (Test API route for inspecting stored summaries and triggering `github.connected`)
+- `scripts/test-inngest-summary.ts` (CLI test script for testing summary generation workflow)
+
+### Beginner Explanation
+
+Day 13 introduces event-driven background processing using Inngest. When a user connects GitHub, rather than making the user wait while we summarize their code, an event named `github.connected` is sent to Inngest. Inngest receives the event, reads the user's synced repository data in the background, asks the AI model to generate a clear repository summary, and stores that summary in our database for instant loading later on.
+
+---
+
 ## 📊 Summary of Completed Milestones & Files
 
 | Day        | Feature Summary                                   | Added / Modified Files                                                                                                                                    | Status    |
@@ -330,3 +359,5 @@ tools include rate-limit safeguards to handle GitHub API limits gracefully.
 | **Day 8**  | Read Tools, Part 1 (Branches, Commits)            | `lib/tools/get-branches.ts`, `lib/tools/get-commits.ts`, `lib/tools/helper.ts`                                                                            | Completed |
 | **Day 9**  | Read Tools, Part 2 (PRs, Issues, Repos)           | `lib/tools/get-pull-requests.ts`, `lib/tools/get-issues.ts`, `lib/tools/get-repositories.ts`, `app/api/user/tools-test/route.ts`, `scripts/test-tools.ts` | Completed |
 | **Day 10** | Write/Live-API Tools (File Content, Create Issue) | `lib/tools/get-file-content.ts`, `lib/tools/create-issue.ts`, `lib/tools/index.ts`, `app/api/user/tools-test/route.ts`                                    | Completed |
+| **Day 13** | Inngest Client & Repository Summaries             | `inngest/client.ts`, `inngest/functions/generate-repo-summary.ts`, `inngest/index.ts`, `app/api/inngest/route.ts`, `lib/auth.ts`, `app/api/user/inngest-test/route.ts`, `scripts/test-inngest-summary.ts` | Completed |
+

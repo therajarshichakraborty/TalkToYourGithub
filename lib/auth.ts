@@ -6,6 +6,7 @@ import { nextCookies } from "better-auth/next-js";
 import { corsair } from "@/server/corsair";
 import { setupCorsair } from "corsair";
 import { eq } from "drizzle-orm";
+import { inngest } from "@/inngest";
 
 async function provisionCorsairTenant({
   userId,
@@ -86,6 +87,20 @@ async function provisionCorsairTenant({
   console.log(
     `[Corsair] Provisioned tenant '${tenantId}' for user '${userId}' (GitHub login: ${githubLogin})`,
   );
+
+  // 5. Trigger Inngest github.connected event to generate repo summary
+  try {
+    await inngest.send({
+      name: "github.connected",
+      data: {
+        userId,
+        corsairTenantId: tenantId,
+      },
+    });
+    console.log(`[Inngest] Sent 'github.connected' event for user '${userId}'`);
+  } catch (inngestErr) {
+    console.error("[Inngest] Error sending 'github.connected' event:", inngestErr);
+  }
 }
 
 export const auth = betterAuth({
