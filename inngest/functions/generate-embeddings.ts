@@ -76,7 +76,7 @@ export const generateEmbeddings = inngest.createFunction(
           perPage: 100,
         });
 
-        let repos = (repoResult.repositories || []).map((r: any) => {
+        let repos = (repoResult.repositories || []).map((r) => {
           const full_name = r.full_name || r.fullName || "";
           const parts = full_name.split("/");
           return {

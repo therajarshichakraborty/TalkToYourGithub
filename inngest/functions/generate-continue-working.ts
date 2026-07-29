@@ -90,7 +90,7 @@ export const generateContinueWorking = inngest.createFunction(
             perPage: 10,
           });
           if (commitsRes.success && commitsRes.commits?.length) {
-            return commitsRes.commits.map((c: any) => ({
+            return commitsRes.commits.map((c) => ({
               repo: `${repositoryOwner}/${repositoryName}`,
               type: "commit",
               title: c.commit?.message || "Commit",

@@ -115,7 +115,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    let query = db.select().from(schema.repositorySummaries);
+    let query = db
+      .select()
+      .from(schema.repositorySummaries)
+      .$dynamic();
     if (userId) {
       query = query.where(eq(schema.repositorySummaries.userId, userId));
     }

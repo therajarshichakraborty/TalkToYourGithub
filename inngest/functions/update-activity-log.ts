@@ -39,8 +39,8 @@ export const updateActivityLog = inngest.createFunction(
     { event: "activity.update" },
   ],
   async ({ event, step }) => {
-    let { userId, corsairTenantId, repositoryOwner, repositoryName } =
-      event.data;
+    let { userId, corsairTenantId} = event.data;
+    const {repositoryOwner, repositoryName } = event.data;
     // Resolve userId if not provided directly
     if (!userId && corsairTenantId) {
       const [foundUser] = await db
@@ -86,7 +86,7 @@ export const updateActivityLog = inngest.createFunction(
           perPage: 100,
         });
 
-        let targetRepos = (repoResult.repositories || []).map((r: any) => {
+        let targetRepos = (repoResult.repositories || []).map((r) => {
           const full_name = r.full_name || r.fullName || "";
           const parts = full_name.split("/");
           return {
