@@ -12,6 +12,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { RepositoryItem } from "@/components/sidebar/repo-list";
 import { ChatUI } from "@/components/chat/chat-ui";
+import { SummaryDisplay } from "@/components/dashboard/summary-display";
 import { authClient } from "@/lib/auth-client";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -270,29 +271,13 @@ export default function RepositoryDetailPage({
                       </Card>
                     </div>
 
-                    {/* AI Generated Repository Summary Card */}
-                    <Card className="border-primary/20 bg-muted/20 shadow-xs">
-                      <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                          <Sparkles className="h-4 w-4 text-amber-500" />
-                          AI Repository Summary
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          Synthesized overview generated from repository metadata, commit logs, and README preview.
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-2">
-                        {data.summary ? (
-                          <div className="text-xs leading-relaxed whitespace-pre-wrap space-y-2 text-foreground/90">
-                            {data.summary}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground italic">
-                            Summary generation is in progress. Check back shortly as Inngest background jobs complete.
-                          </p>
-                        )}
-                      </CardContent>
-                    </Card>
+                    {/* AI Generated Repository Summary */}
+                    <SummaryDisplay
+                      owner={owner}
+                      repo={name}
+                      summary={data.summary}
+                      generatedAt={data.summaryGeneratedAt}
+                    />
 
                     {/* Recent Commits */}
                     {data.commits.length > 0 && (

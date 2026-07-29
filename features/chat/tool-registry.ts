@@ -22,6 +22,8 @@ import { createIssue } from "@/lib/tools/create-issue";
 import { getRepositorySummary } from "@/lib/tools/get-repository-summary";
 import { getProjectMemory } from "@/lib/tools/get-project-memory";
 
+import { reviewPullRequest } from "@/lib/tools/review-pull-request";
+
 /**
  * Context required to build tool registry for authenticated session.
  */
@@ -135,6 +137,25 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           repo,
           state,
           perPage,
+        });
+      },
+    }),
+
+    reviewPullRequest: tool({
+      description:
+        "Perform an AI-powered code review on a specific Pull Request by PR number. " +
+        "Analyzes PR description and file diffs, returning structured review sections (summary, positives, potential bugs, security flags, recommendations).",
+      parameters: z.object({
+        owner: z.string().describe("GitHub owner or organization."),
+        repo: z.string().describe("Repository name."),
+        pullNumber: z.number().int().positive().describe("Pull request number to review (e.g. 1, 42)."),
+      }),
+      execute: async ({ owner, repo, pullNumber }) => {
+        return reviewPullRequest({
+          userId: ctx.userId,
+          owner,
+          repo,
+          pullNumber,
         });
       },
     }),

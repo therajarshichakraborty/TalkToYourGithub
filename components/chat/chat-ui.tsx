@@ -33,6 +33,8 @@ import {
   Lightbulb,
 } from "lucide-react";
 
+import { ToolCallCard } from "./tool-call-card";
+
 interface ChatUIProps {
   activeRepo: RepositoryItem | null;
 }
@@ -70,9 +72,9 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
    */
   const samplePrompts = activeRepo
     ? [
+        `Review PR #1 in ${activeRepo.fullName}.`,
         `What are the recent commits in ${activeRepo.fullName}?`,
         `List all active branches for ${activeRepo.fullName}.`,
-        `Are there any open pull requests or issues in ${activeRepo.name}?`,
         `Summarize the repository structure and purpose of ${activeRepo.name}.`,
       ]
     : [
@@ -93,38 +95,26 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
   };
 
   /*
-   * Render helper for AI tool invocation steps (e.g. getCommits, getBranches, etc.)
+   * Render helper for AI tool invocation steps (e.g. reviewPullRequest, getCommits, getBranches, etc.)
    */
   const renderToolInvocations = (toolInvocations: any[]) => {
     if (!toolInvocations || toolInvocations.length === 0) return null;
 
     return (
-      <div className="my-2 space-y-1.5 border-l-2 border-primary/30 pl-3 text-xs">
-        <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
+      <div className="my-2 space-y-2">
+        <div className="flex items-center gap-1.5 font-medium text-muted-foreground text-xs">
           <Wrench className="h-3.5 w-3.5 text-primary" />
-          <span>Executed Tool Calls ({toolInvocations.length})</span>
+          <span>Executed AI Tools ({toolInvocations.length})</span>
         </div>
-        {toolInvocations.map((tool, idx) => {
-          const isDone = tool.state === "result";
-          return (
-            <div
-              key={tool.toolCallId || idx}
-              className="flex items-center gap-2 py-1 px-2 rounded bg-muted/50 font-mono text-[11px]"
-            >
-              {isDone ? (
-                <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-              ) : (
-                <Loader2 className="h-3 w-3 text-primary animate-spin shrink-0" />
-              )}
-              <span className="font-semibold text-foreground">
-                {tool.toolName}
-              </span>
-              <span className="text-muted-foreground truncate max-w-[200px]">
-                {JSON.stringify(tool.args || {})}
-              </span>
-            </div>
-          );
-        })}
+        {toolInvocations.map((tool, idx) => (
+          <ToolCallCard
+            key={tool.toolCallId || idx}
+            toolName={tool.toolName}
+            args={tool.args}
+            result={tool.result}
+            state={tool.state}
+          />
+        ))}
       </div>
     );
   };
