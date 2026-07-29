@@ -1,3 +1,4 @@
+import "@/lib/zod-polyfill";
 import { serve } from "inngest/next";
 import { inngest, functions } from "@/inngest";
 

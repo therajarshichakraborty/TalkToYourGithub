@@ -1,3 +1,4 @@
+import "../lib/zod-polyfill";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -34,7 +35,9 @@ async function main() {
   const tenantId = targetUser.corsairTenantId || undefined;
 
   // 2. Dispatch event to Inngest
-  console.log("\n🚀 Dispatching 'github.connected' event via Inngest client...");
+  console.log(
+    "\n🚀 Dispatching 'github.connected' event via Inngest client...",
+  );
   try {
     const sendResult = await inngest.send({
       name: "github.connected",
@@ -45,7 +48,10 @@ async function main() {
     });
     console.log(`✅ Event sent successfully! Event IDs:`, sendResult.ids);
   } catch (err) {
-    console.warn(`⚠️ Inngest event dispatch note:`, err instanceof Error ? err.message : err);
+    console.warn(
+      `⚠️ Inngest event dispatch note:`,
+      err instanceof Error ? err.message : err,
+    );
   }
 
   // 3. Perform summary generation directly for CLI testing
@@ -53,9 +59,15 @@ async function main() {
 
   try {
     const tenantInfo = await getCorsairTenantClient({ userId, tenantId });
-    console.log(`✅ Corsair tenant client initialized for '${tenantInfo.tenantId}'`);
+    console.log(
+      `✅ Corsair tenant client initialized for '${tenantInfo.tenantId}'`,
+    );
 
-    const reposResult = await getRepositories({ userId, tenantId: tenantInfo.tenantId, perPage: 5 });
+    const reposResult = await getRepositories({
+      userId,
+      tenantId: tenantInfo.tenantId,
+      perPage: 5,
+    });
 
     if (!reposResult.success || !reposResult.repositories.length) {
       console.error("❌ No repositories found for tenant.");
@@ -78,18 +90,55 @@ async function main() {
         await Promise.allSettled([
           getCommits({ userId, tenantId, owner, repo: name, perPage: 5 }),
           getBranches({ userId, tenantId, owner, repo: name, perPage: 5 }),
-          getPullRequests({ userId, tenantId, owner, repo: name, state: "all", perPage: 5 }),
-          getIssues({ userId, tenantId, owner, repo: name, state: "all", perPage: 5 }),
-          getFileContent({ userId, tenantId, owner, repo: name, path: "README.md" }),
+          getPullRequests({
+            userId,
+            tenantId,
+            owner,
+            repo: name,
+            state: "all",
+            perPage: 5,
+          }),
+          getIssues({
+            userId,
+            tenantId,
+            owner,
+            repo: name,
+            state: "all",
+            perPage: 5,
+          }),
+          getFileContent({
+            userId,
+            tenantId,
+            owner,
+            repo: name,
+            path: "README.md",
+          }),
         ]);
 
-      const commits = commitsRes.status === "fulfilled" && commitsRes.value.success ? commitsRes.value.commits : [];
-      const branches = branchesRes.status === "fulfilled" && branchesRes.value.success ? branchesRes.value.branches : [];
-      const prs = prsRes.status === "fulfilled" && prsRes.value.success ? prsRes.value.pullRequests : [];
-      const issues = issuesRes.status === "fulfilled" && issuesRes.value.success ? issuesRes.value.issues : [];
-      const readme = readmeRes.status === "fulfilled" && readmeRes.value.success ? readmeRes.value.content : "";
+      const commits =
+        commitsRes.status === "fulfilled" && commitsRes.value.success
+          ? commitsRes.value.commits
+          : [];
+      const branches =
+        branchesRes.status === "fulfilled" && branchesRes.value.success
+          ? branchesRes.value.branches
+          : [];
+      const prs =
+        prsRes.status === "fulfilled" && prsRes.value.success
+          ? prsRes.value.pullRequests
+          : [];
+      const issues =
+        issuesRes.status === "fulfilled" && issuesRes.value.success
+          ? issuesRes.value.issues
+          : [];
+      const readme =
+        readmeRes.status === "fulfilled" && readmeRes.value.success
+          ? readmeRes.value.content
+          : "";
 
-      console.log(`  - Commits: ${commits.length}, Branches: ${branches.length}, PRs: ${prs.length}, Issues: ${issues.length}`);
+      console.log(
+        `  - Commits: ${commits.length}, Branches: ${branches.length}, PRs: ${prs.length}, Issues: ${issues.length}`,
+      );
 
       const prompt = `
 Generate a clear, 2-3 paragraph summary of the following GitHub repository:
@@ -101,16 +150,24 @@ Branches: ${branches.map((b) => b.name).join(", ") || "main"}
 Open Issues: ${issues.length}
 Pull Requests: ${prs.length}
 Recent Commits:
-${commits.slice(0, 3).map((c) => `- ${c.commit?.message || c.message}`).join("\n") || "None"}
+${
+  commits
+    .slice(0, 3)
+    .map((c) => `- ${c.commit?.message || c.message}`)
+    .join("\n") || "None"
+}
 
 README Snippet:
 ${readme ? readme.slice(0, 1000) : "No README"}
       `.trim();
 
-      console.log(` ✨ Requesting AI summary generation via OpenRouter/chatModel...`);
+      console.log(
+        ` ✨ Requesting AI summary generation via OpenRouter/chatModel...`,
+      );
       const { text: summary } = await generateText({
         model: chatModel,
-        system: "You are an expert technical documentation assistant. Generate a concise repository summary.",
+        system:
+          "You are an expert technical documentation assistant. Generate a concise repository summary.",
         prompt,
       });
 
@@ -138,7 +195,9 @@ ${readme ? readme.slice(0, 1000) : "No README"}
             generatedAt: now,
           })
           .where(eq(schema.repositorySummaries.id, existing[0].id));
-        console.log(`💾 Updated repository_summaries record ID: ${existing[0].id}`);
+        console.log(
+          `💾 Updated repository_summaries record ID: ${existing[0].id}`,
+        );
       } else {
         const [inserted] = await db
           .insert(schema.repositorySummaries)
@@ -150,7 +209,9 @@ ${readme ? readme.slice(0, 1000) : "No README"}
             generatedAt: now,
           })
           .returning({ id: schema.repositorySummaries.id });
-        console.log(`💾 Created repository_summaries record ID: ${inserted.id}`);
+        console.log(
+          `💾 Created repository_summaries record ID: ${inserted.id}`,
+        );
       }
     }
 
@@ -160,12 +221,18 @@ ${readme ? readme.slice(0, 1000) : "No README"}
       .from(schema.repositorySummaries)
       .where(eq(schema.repositorySummaries.userId, userId));
 
-    console.log(`\n📊 Total repository_summaries in DB for user: ${allSummaries.length}`);
+    console.log(
+      `\n📊 Total repository_summaries in DB for user: ${allSummaries.length}`,
+    );
     allSummaries.forEach((s, idx) => {
-      console.log(`  [${idx + 1}] ${s.repositoryOwner}/${s.repositoryName} (Generated: ${s.generatedAt})`);
+      console.log(
+        `  [${idx + 1}] ${s.repositoryOwner}/${s.repositoryName} (Generated: ${s.generatedAt})`,
+      );
     });
 
-    console.log("\n🎉 Day 13 Inngest summary generation test completed successfully!");
+    console.log(
+      "\n🎉 Day 13 Inngest summary generation test completed successfully!",
+    );
   } catch (err) {
     console.error("❌ Test error:", err);
     process.exit(1);

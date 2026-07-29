@@ -17,8 +17,10 @@ export async function getCommits(options: GetCommitsOptions) {
 
   // Fetch commits via Corsair Live GitHub API Proxy (corsair.github.api.repositories.listCommits)
   try {
-    //@ts-no-error
-    const commits = await tenant.github.api.repositories.listCommits({
+    // @ts-ignore
+    const commits = await (
+      tenant as any
+    ).github?.api?.repositories?.listCommits({
       owner: options.owner,
       repo: options.repo,
       perPage,

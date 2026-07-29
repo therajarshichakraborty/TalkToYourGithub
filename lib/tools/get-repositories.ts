@@ -32,7 +32,11 @@ export async function getRepositories(options: GetRepositoriesOptions = {}) {
 
   // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.repositories.list)
   try {
-    const repos = await tenant.github.api.repositories.list({ perPage });
+    const repos = await tenant.github.api.repositories.list({
+      perPage,
+      visibility: "all",
+      affiliation: "owner,collaborator,organization_member",
+    });
     if (repos && Array.isArray(repos)) {
       return {
         success: true,

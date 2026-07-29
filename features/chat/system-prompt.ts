@@ -1,4 +1,4 @@
-/** 
+/**
  * system-prompt.ts
  * Builds the system prompt injected into every chat session.
  * The prompt is parameterised by the authenticated user's GitHub login so

@@ -43,8 +43,8 @@ export async function getPullRequests(options: GetPullRequestsOptions) {
 
   // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.pullRequests.list)
   try {
-    //@ts-no-error
-    const prs = await tenant.github.api.pullRequests.list({
+    // @ts-ignore
+    const prs = await (tenant as any).github?.api?.pullRequests?.list({
       owner: options.owner,
       repo: options.repo,
       state,

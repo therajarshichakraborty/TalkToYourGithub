@@ -1,8 +1,8 @@
 /**
  * tool-registry.ts
- * Wraps every raw tool function (Days 8-10) in an AI SDK `tool()` definition.
+ * Wraps every raw tool function (Days 8-10, Day 14) in an AI SDK `tool()` definition.
  * Each entry declares the Zod input schema and an execute function that
- * passes the authenticated userId through to the underlying Corsair helper.
+ * passes the authenticated userId through to the underlying helper.
  *
  * Usage:
  *   import { buildToolRegistry } from "@/features/chat/tool-registry";
@@ -19,11 +19,19 @@ import { getPullRequests } from "@/lib/tools/get-pull-requests";
 import { getIssues } from "@/lib/tools/get-issues";
 import { getFileContent } from "@/lib/tools/get-file-content";
 import { createIssue } from "@/lib/tools/create-issue";
+import { getRepositorySummary } from "@/lib/tools/get-repository-summary";
+import { getProjectMemory } from "@/lib/tools/get-project-memory";
 
+/**
+ * Context required to build tool registry for authenticated session.
+ */
 export interface ToolRegistryContext {
   userId: string;
 }
 
+/**
+ * Builds AI SDK tool registry bound to current authenticated user.
+ */
 export function buildToolRegistry(ctx: ToolRegistryContext) {
   return {
     getRepositories: tool({
@@ -51,13 +59,22 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z
           .string()
           .describe("Repository name (without the owner prefix)."),
+        perPage: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Number of branches to return (default 30)."),
       }),
-      execute: async ({ owner, repo }) => {
-        return getBranches({ userId: ctx.userId, owner, repo });
+      execute: async ({ owner, repo, perPage }) => {
+        return getBranches({ userId: ctx.userId, owner, repo, perPage });
       },
     }),
 
@@ -68,7 +85,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z.string().describe("Repository name."),
         perPage: z
           .number()
@@ -91,7 +110,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z.string().describe("Repository name."),
         state: z
           .enum(["open", "closed", "all"])
@@ -108,7 +129,13 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           .describe("Number of pull requests to return (default 30)."),
       }),
       execute: async ({ owner, repo, state, perPage }) => {
-        return getPullRequests({ userId: ctx.userId, owner, repo, state, perPage });
+        return getPullRequests({
+          userId: ctx.userId,
+          owner,
+          repo,
+          state,
+          perPage,
+        });
       },
     }),
 
@@ -120,7 +147,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z.string().describe("Repository name."),
         state: z
           .enum(["open", "closed", "all"])
@@ -147,7 +176,9 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z.string().describe("Repository name."),
         path: z
           .string()
@@ -169,11 +200,13 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
     createIssue: tool({
       description:
         "Create a new issue in a GitHub repository via the live GitHub API. " +
-        "This is a write operation — always confirm the title and repository with the user before calling this tool.",
+        "This is a write operation: always confirm the title and repository with the user before calling this tool.",
       parameters: z.object({
         owner: z
           .string()
-          .describe("GitHub username or organisation that owns the repository."),
+          .describe(
+            "GitHub username or organisation that owns the repository.",
+          ),
         repo: z.string().describe("Repository name."),
         title: z.string().describe("The title of the issue to create."),
         body: z
@@ -204,6 +237,65 @@ export function buildToolRegistry(ctx: ToolRegistryContext) {
           body,
           labels,
           assignees,
+        });
+      },
+    }),
+
+    getRepositorySummary: tool({
+      description:
+        "Fetch pre-generated high-level summaries of repositories directly from the local database. " +
+        "Use this for fast repository overviews or when the user asks for a summary of their project.",
+      parameters: z.object({
+        owner: z
+          .string()
+          .optional()
+          .describe("Optional GitHub username or organisation owner."),
+        repo: z.string().optional().describe("Optional repository name."),
+      }),
+      execute: async ({ owner, repo }) => {
+        return getRepositorySummary({
+          userId: ctx.userId,
+          owner,
+          repo,
+        });
+      },
+    }),
+
+    getProjectMemory: tool({
+      description:
+        "Perform semantic search across stored project embeddings (commits, PRs, issues, README) in pgvector database. " +
+        "Use this when answering questions about project history, why decisions were made, or finding relevant code/PR context.",
+      parameters: z.object({
+        query: z
+          .string()
+          .describe(
+            "Search query string or question to match against project vector memory.",
+          ),
+        owner: z
+          .string()
+          .optional()
+          .describe("Optional repository owner to scope the search."),
+        repo: z
+          .string()
+          .optional()
+          .describe("Optional repository name to scope the search."),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(20)
+          .optional()
+          .describe(
+            "Maximum number of vector memory items to return (default 5).",
+          ),
+      }),
+      execute: async ({ query, owner, repo, limit }) => {
+        return getProjectMemory({
+          userId: ctx.userId,
+          query,
+          owner,
+          repo,
+          limit,
         });
       },
     }),
