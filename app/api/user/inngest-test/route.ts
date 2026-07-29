@@ -12,6 +12,29 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const userId = searchParams.get("userId");
+    const debug = searchParams.get("debug");
+
+    // Debug mode: show users + tenant info so you know what values to use
+    if (debug === "true") {
+      const users = await db.select().from(schema.user);
+      const summaries = await db.select().from(schema.repositorySummaries);
+      const activityLogs = await db.select().from(schema.activityLogs);
+      return NextResponse.json({
+        success: true,
+        userCount: users.length,
+        users: users.map((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          corsairTenantId: u.corsairTenantId,
+        })),
+        summaryCount: summaries.length,
+        activityLogCount: activityLogs.length,
+        hint: users.length === 0
+          ? "⚠️ No users found! Sign in at http://localhost:3000 with GitHub first."
+          : `✅ Use corsairTenantId "${users[0].corsairTenantId}" in your Inngest event payload.`,
+      });
+    }
 
     let query = db.select().from(schema.repositorySummaries);
     if (userId) {

@@ -34,6 +34,9 @@ export const generateEmbeddings = inngest.createFunction(
   },
   [{ event: "github.connected" }, { event: "embeddings.generate" }],
   async ({ event, step }) => {
+    const { userId, corsairTenantId, repositoryOwner, repositoryName } =
+      event.data;
+
     let resolvedUserId = userId;
     if (!resolvedUserId && corsairTenantId) {
       const [u] = await db
@@ -50,7 +53,9 @@ export const generateEmbeddings = inngest.createFunction(
       if (defaultUser) resolvedUserId = defaultUser.id;
     }
     if (!resolvedUserId) {
-      resolvedUserId = "dev_user";
+      throw new Error(
+        `[generateEmbeddings] Could not resolve a valid userId for tenant '${corsairTenantId}'. Please sign in first so a user record exists in the database.`,
+      );
     }
 
     /**
@@ -60,12 +65,12 @@ export const generateEmbeddings = inngest.createFunction(
       "fetch-target-repositories",
       async () => {
         const { tenantId } = await getCorsairTenantClient({
-          userId,
+          userId: resolvedUserId,
           tenantId: corsairTenantId,
         });
 
         const repoResult = await getRepositories({
-          userId,
+          userId: resolvedUserId,
           tenantId,
           perPage: 100,
         });

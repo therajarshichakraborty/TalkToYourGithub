@@ -62,7 +62,9 @@ export const updateActivityLog = inngest.createFunction(
     }
 
     if (!userId) {
-      userId = "dev_user";
+      throw new Error(
+        `[updateActivityLog] Could not resolve a valid userId for tenant '${corsairTenantId}'. Please sign in first so a user record exists in the database.`,
+      );
     }
 
     /**

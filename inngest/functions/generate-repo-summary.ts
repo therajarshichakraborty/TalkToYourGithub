@@ -22,9 +22,25 @@ export const generateRepoSummary = inngest.createFunction(
     const { userId, corsairTenantId, repositoryOwner, repositoryName } =
       event.data;
 
-    if (!userId && !corsairTenantId) {
+    // Resolve a REAL userId upfront — DB FK constraint requires a valid user row
+    let resolvedUserId = userId;
+    if (!resolvedUserId && corsairTenantId) {
+      const [u] = await db
+        .select({ id: schema.user.id })
+        .from(schema.user)
+        .where(eq(schema.user.corsairTenantId, corsairTenantId));
+      if (u) resolvedUserId = u.id;
+    }
+    if (!resolvedUserId) {
+      const [defaultUser] = await db
+        .select({ id: schema.user.id })
+        .from(schema.user)
+        .limit(1);
+      if (defaultUser) resolvedUserId = defaultUser.id;
+    }
+    if (!resolvedUserId) {
       throw new Error(
-        "[generateRepoSummary] Missing required userId or corsairTenantId in event data.",
+        `[generateRepoSummary] Could not resolve a valid userId. Please sign in to the app first so a user record exists in the database.`,
       );
     }
 
@@ -33,12 +49,12 @@ export const generateRepoSummary = inngest.createFunction(
       "fetch-target-repositories",
       async () => {
         const { tenantId } = await getCorsairTenantClient({
-          userId,
+          userId: resolvedUserId,
           tenantId: corsairTenantId,
         });
 
         const repoResult = await getRepositories({
-          userId,
+          userId: resolvedUserId,
           tenantId,
           perPage: 100,
         });
@@ -110,21 +126,21 @@ export const generateRepoSummary = inngest.createFunction(
           const [commitsRes, branchesRes, prsRes, issuesRes, readmeRes] =
             await Promise.allSettled([
               getCommits({
-                userId,
+                userId: resolvedUserId,
                 tenantId: corsairTenantId,
                 owner,
                 repo: name,
                 perPage: 10,
               }),
               getBranches({
-                userId,
+                userId: resolvedUserId,
                 tenantId: corsairTenantId,
                 owner,
                 repo: name,
                 perPage: 10,
               }),
               getPullRequests({
-                userId,
+                userId: resolvedUserId,
                 tenantId: corsairTenantId,
                 owner,
                 repo: name,
@@ -132,7 +148,7 @@ export const generateRepoSummary = inngest.createFunction(
                 perPage: 10,
               }),
               getIssues({
-                userId,
+                userId: resolvedUserId,
                 tenantId: corsairTenantId,
                 owner,
                 repo: name,
@@ -140,7 +156,7 @@ export const generateRepoSummary = inngest.createFunction(
                 perPage: 10,
               }),
               getFileContent({
-                userId,
+                userId: resolvedUserId,
                 tenantId: corsairTenantId,
                 owner,
                 repo: name,
@@ -235,28 +251,6 @@ Write a detailed 2 to 3 paragraph summary covering:
       const recordId = await step.run(
         `save-summary-to-db-${owner}-${name}`,
         async () => {
-          // Resolve exact userId if not passed directly in event
-          let resolvedUserId = userId;
-          if (!resolvedUserId && corsairTenantId) {
-            const [u] = await db
-              .select({ id: schema.user.id })
-              .from(schema.user)
-              .where(eq(schema.user.corsairTenantId, corsairTenantId));
-            if (u) resolvedUserId = u.id;
-          }
-
-          if (!resolvedUserId) {
-            const [defaultUser] = await db
-              .select({ id: schema.user.id })
-              .from(schema.user)
-              .limit(1);
-            if (defaultUser) resolvedUserId = defaultUser.id;
-          }
-
-          if (!resolvedUserId) {
-            resolvedUserId = "dev_user";
-          }
-
           const existing = await db
             .select()
             .from(schema.repositorySummaries)

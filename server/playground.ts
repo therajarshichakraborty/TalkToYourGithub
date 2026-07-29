@@ -67,7 +67,7 @@ while (true) {
   page++;
 }
 
-allRepos.forEach((element: any) => {
+allRepos.forEach((element) => {
   console.log(element.name);
 });
 
