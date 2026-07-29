@@ -1,27 +1,15 @@
 import type { Metadata } from "next";
-import { Pacifico, Amatic_SC, Permanent_Marker } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const pacifico = Pacifico({
+const pacifico = Inter({
   weight: "400",
   subsets: ["latin"],
-  variable: "--font-pacifico",
+  variable: "--Inter",
   display: "swap",
 });
 
-const amaticSc = Amatic_SC({
-  weight: ["400", "700"],
-  subsets: ["latin"],
-  variable: "--font-amatic-sc",
-  display: "swap",
-});
 
-const permanentMarker = Permanent_Marker({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-permanent-marker",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Talk To Your GitHub",
@@ -36,7 +24,7 @@ export default function RootLayout({
   return (
     <html
       lang='en'
-      className={`${pacifico.variable} ${amaticSc.variable} ${permanentMarker.variable} h-full antialiased`}
+      className={`${pacifico.variable} h-full antialiased`}
     >
       <body className='min-h-full flex flex-col font-sans'>{children}</body>
     </html>
