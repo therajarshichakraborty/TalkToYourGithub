@@ -104,8 +104,8 @@ export const generateRepoSummary = inngest.createFunction(
               getFileContent({ userId, tenantId: corsairTenantId, owner, repo: name, path: "README.md" }),
             ]);
 
-          const commits: any[] = commitsRes.status === "fulfilled" && commitsRes.value.success ? (commitsRes.value.commits as any[]) : [];
-          const branches: any[] = branchesRes.status === "fulfilled" && branchesRes.value.success ? (branchesRes.value.branches as any[]) : [];
+          const commits = commitsRes.status === "fulfilled" && commitsRes.value.success ? commitsRes.value.commits : [];
+          const branches = branchesRes.status === "fulfilled" && branchesRes.value.success ? branchesRes.value.branches : [];
           const pullRequests = prsRes.status === "fulfilled" && prsRes.value.success ? prsRes.value.pullRequests : [];
           const issues = issuesRes.status === "fulfilled" && issuesRes.value.success ? issuesRes.value.issues : [];
           const readme = readmeRes.status === "fulfilled" && readmeRes.value.success ? readmeRes.value.content : null;
