@@ -221,7 +221,7 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
 
               {/* Message Content Bubble */}
               <div className="space-y-1 max-w-[85%]">
-                {(message.content || isUser) && (
+                {message.content ? (
                   <div
                     className={`rounded-2xl px-4 py-2.5 text-sm shadow-xs leading-relaxed ${
                       isUser
@@ -233,7 +233,16 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
                       {message.content}
                     </div>
                   </div>
-                )}
+                ) : isUser ? (
+                  <div className="rounded-2xl px-4 py-2.5 text-sm bg-primary text-primary-foreground rounded-tr-xs">
+                    {message.content}
+                  </div>
+                ) : !(message as any).toolInvocations?.length ? (
+                  <div className="rounded-2xl px-4 py-2.5 text-sm bg-muted/60 text-muted-foreground border rounded-tl-xs flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    <span>Analyzing repository & fetching context...</span>
+                  </div>
+                ) : null}
 
                 {/* Render Tool Invocations if Assistant executed tools */}
                 {!isUser && renderToolInvocations((message as any).toolInvocations)}

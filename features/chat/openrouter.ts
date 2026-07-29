@@ -1,47 +1,57 @@
 /**
- * openrouter.ts
- * Configures the Vercel AI SDK to use OpenRouter as its inference backend.
+ * openrouter.ts / model.ts
+ * Flexible AI model provider configuration for Vercel AI SDK.
  *
- * OpenRouter exposes an OpenAI-compatible REST API. We use @ai-sdk/openai
- * with a custom baseURL so that every streamText() call is routed through
- * OpenRouter's intelligent auto-router.
+ * Supports direct OpenAI API (via OPENAI_API_KEY) with automatic fallback
+ * to OpenRouter API (via OPENROUTER_API_KEY).
  *
- * Model: "openrouter/auto"
- * OpenRouter's automatic model selection: picks the best available model
- * for each request based on task complexity, latency, cost, and current
- * provider availability. No need to pin a specific model; OpenRouter decides.
- *
- * Environment variable required:
- *   OPENROUTER_API_KEY: from https://openrouter.ai/keys
+ * Environment variables:
+ *   - OPENAI_API_KEY: Direct OpenAI API Key (e.g. sk-...)
+ *   - OPENROUTER_API_KEY: OpenRouter API Key (e.g. sk-or-v1-...)
  */
 
 import { createOpenAI } from "@ai-sdk/openai";
 
-if (!process.env.OPENROUTER_API_KEY) {
+const openaiKey = process.env.OPENAI_API_KEY;
+const openrouterKey = process.env.OPENROUTER_API_KEY;
+
+if (!openaiKey && !openrouterKey) {
   throw new Error(
-    "Missing OPENROUTER_API_KEY environment variable. " +
-      "Get a free key at https://openrouter.ai/keys and add it to your .env file.",
+    "Missing API Key. Please set OPENAI_API_KEY or OPENROUTER_API_KEY in your .env file.",
   );
 }
 
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-  headers: {
-    "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-    "X-Title": "Talk to Your GitHub",
-  },
-});
+/**
+ * Configure AI Provider: Direct OpenAI if OPENAI_API_KEY exists, else OpenRouter
+ */
+const aiProvider = openaiKey
+  ? createOpenAI({
+      apiKey: openaiKey,
+    })
+  : createOpenAI({
+      baseURL: "https://openrouter.ai/api/v1",
+      apiKey: openrouterKey,
+      structuredOutputs: false,
+      headers: {
+        "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+        "X-Title": "Talk to Your GitHub",
+      },
+    });
 
 /**
- * OpenRouter auto-router: automatically selects the best model per request.
- * See: https://openrouter.ai/docs/model-routing
+ * Chat LLM model configuration:
+ * - For direct OpenAI: defaults to 'gpt-4o-mini' (or process.env.OPENAI_MODEL)
+ * - For OpenRouter: defaults to 'openai/gpt-4o-mini' (or process.env.OPENROUTER_MODEL)
  */
-export const chatModel = openrouter("openrouter/auto");
+export const chatModel = aiProvider(
+  openaiKey
+    ? (process.env.OPENAI_MODEL || "gpt-4o-mini")
+    : (process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini")
+);
 
 /**
- * Text embedding model configuration using OpenRouter OpenAI-compatible endpoint.
+ * Text embedding model configuration
  */
-export const embeddingModel = openrouter.textEmbeddingModel(
-  "openai/text-embedding-3-small",
+export const embeddingModel = aiProvider.textEmbeddingModel(
+  openaiKey ? "text-embedding-3-small" : "openai/text-embedding-3-small"
 );
