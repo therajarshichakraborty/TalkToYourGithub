@@ -57,17 +57,10 @@ export const generateEmbeddings = inngest.createFunction(
         const repoResult = await getRepositories({
           userId,
           tenantId,
-          perPage: 20,
+          perPage: 100,
         });
 
-        if (!repoResult.success || !repoResult.repositories?.length) {
-          console.warn(
-            `[generateEmbeddings] No repositories found for tenant '${tenantId}'`,
-          );
-          return [];
-        }
-
-        let repos = repoResult.repositories.map((r) => {
+        let repos = (repoResult.repositories || []).map((r: any) => {
           const full_name = r.full_name || r.fullName || "";
           const parts = full_name.split("/");
           return {
@@ -82,11 +75,26 @@ export const generateEmbeddings = inngest.createFunction(
         });
 
         if (repositoryOwner && repositoryName) {
-          repos = repos.filter(
+          const filtered = repos.filter(
             (r) =>
               r.owner.toLowerCase() === repositoryOwner.toLowerCase() &&
               r.name.toLowerCase() === repositoryName.toLowerCase(),
           );
+          if (filtered.length > 0) {
+            repos = filtered;
+          } else {
+            repos = [
+              {
+                owner: repositoryOwner,
+                name: repositoryName,
+                description: "",
+                defaultBranch: "main",
+                language: "Unknown",
+                isPrivate: false,
+                stars: 0,
+              },
+            ];
+          }
         }
 
         return repos;

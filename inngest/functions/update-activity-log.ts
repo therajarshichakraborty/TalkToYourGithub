@@ -83,14 +83,10 @@ export const updateActivityLog = inngest.createFunction(
         const repoResult = await getRepositories({
           userId,
           tenantId,
-          perPage: 10,
+          perPage: 100,
         });
 
-        if (!repoResult.success || !repoResult.repositories?.length) {
-          return items;
-        }
-
-        let targetRepos = repoResult.repositories.map((r) => {
+        let targetRepos = (repoResult.repositories || []).map((r: any) => {
           const full_name = r.full_name || r.fullName || "";
           const parts = full_name.split("/");
           return {
@@ -102,11 +98,16 @@ export const updateActivityLog = inngest.createFunction(
         if (repositoryOwner && repositoryName) {
           const targetOwner = repositoryOwner.toLowerCase();
           const targetName = repositoryName.toLowerCase();
-          targetRepos = targetRepos.filter(
+          const filtered = targetRepos.filter(
             (r) =>
               r.owner.toLowerCase() === targetOwner &&
               r.name.toLowerCase() === targetName,
           );
+          if (filtered.length > 0) {
+            targetRepos = filtered;
+          } else {
+            targetRepos = [{ owner: repositoryOwner, name: repositoryName }];
+          }
         }
 
         for (const repo of targetRepos) {

@@ -2,9 +2,9 @@ import { corsair } from "./corsair";
 
 // With multiTenancy: true, all plugin access must go through withTenant()
 // corsair.github is undefined - that's correct and expected
-//@ts-ignore
 
-const tenant = (corsair as any).withTenant("test_user");
+
+const tenant = corsair.withTenant("test_user") as any;
 await tenant.github.keys.set_api_key(process.env.GITHUB_TOKEN!);
 
 // const result = await tenant.github.api.repositories.listCommits({
@@ -27,7 +27,7 @@ await tenant.github.keys.set_api_key(process.env.GITHUB_TOKEN!);
 //     const commits = (await tenant.github.api.repositories.listCommits({
 //         owner: "therajarshichakraborty",
 //         repo: "Rajarshi-s-Portfolio",
-//         per_page: 100,
+//         perPage: 100,
 //         page: page,
 //     })) as any[];
 //     let count = 0;
@@ -49,9 +49,8 @@ let allRepos: any[] = [];
 let page = 1;
 
 while (true) {
-  //@ts-ignore
   const repos = (await tenant.github.api.repositories.list({
-    per_page: 100, // <--- Use snake_case per_page so GitHub API accepts it
+    perPage: 100,
     page: page,
   })) as any[];
 

@@ -1,4 +1,5 @@
 import { inngest } from "../client";
+import { getCommits } from "@/lib/tools/get-commits";
 import { generateText } from "ai";
 import { chatModel } from "@/features/chat";
 import { db } from "@/db";
@@ -56,13 +57,41 @@ export const generateContinueWorking = inngest.createFunction(
         .orderBy(desc(schema.activityLogs.occurredAt))
         .limit(15);
 
-      return logs.map((l) => ({
-        repo: `${l.repositoryOwner}/${l.repositoryName}`,
-        type: l.activityType,
-        title: l.title,
-        description: l.description,
-        occurredAt: l.occurredAt,
-      }));
+      if (logs.length > 0) {
+        return logs.map((l) => ({
+          repo: `${l.repositoryOwner}/${l.repositoryName}`,
+          type: l.activityType,
+          title: l.title,
+          description: l.description,
+          occurredAt: l.occurredAt?.toISOString() || String(l.occurredAt),
+        }));
+      }
+
+      // Fallback: Fetch recent commits via Live API if DB activityLogs is empty
+      if (repositoryOwner && repositoryName) {
+        try {
+          const commitsRes = await getCommits({
+            userId,
+            tenantId: corsairTenantId,
+            owner: repositoryOwner,
+            repo: repositoryName,
+            perPage: 10,
+          });
+          if (commitsRes.success && commitsRes.commits?.length) {
+            return commitsRes.commits.map((c: any) => ({
+              repo: `${repositoryOwner}/${repositoryName}`,
+              type: "commit",
+              title: c.commit?.message || "Commit",
+              description: c.sha || "",
+              occurredAt: c.commit?.author?.date || new Date().toISOString(),
+            }));
+          }
+        } catch (e) {
+          console.warn("[generateContinueWorking] Fallback commit fetch note:", e);
+        }
+      }
+
+      return [];
     });
 
     if (!recentLogs.length) {
