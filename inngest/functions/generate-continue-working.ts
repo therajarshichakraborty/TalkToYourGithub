@@ -4,12 +4,12 @@ import { generateText } from "ai";
 import { chatModel } from "@/features/chat";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, ilike } from "drizzle-orm";
 
 /**
  * Inngest function: generateContinueWorking
  * Reads recent developer activity logs from activityLogs database table and uses LLM text synthesis
- * to construct a Continue Working summary card for the developer dashboard.
+ * to construct a Continue Working summary card for a specific repository (or overall dashboard).
  */
 export const generateContinueWorking = inngest.createFunction(
   {
@@ -47,13 +47,25 @@ export const generateContinueWorking = inngest.createFunction(
     }
 
     /**
-     * Step 1: Read recent developer activity logs from database.
+     * Step 1: Read recent developer activity logs from database for the specified repository.
      */
     const recentLogs = await step.run("fetch-recent-activities", async () => {
+      const conditions = [eq(schema.activityLogs.userId, userId)];
+      if (repositoryOwner) {
+        conditions.push(
+          ilike(schema.activityLogs.repositoryOwner, repositoryOwner),
+        );
+      }
+      if (repositoryName) {
+        conditions.push(
+          ilike(schema.activityLogs.repositoryName, repositoryName),
+        );
+      }
+
       const logs = await db
         .select()
         .from(schema.activityLogs)
-        .where(eq(schema.activityLogs.userId, userId))
+        .where(and(...conditions))
         .orderBy(desc(schema.activityLogs.occurredAt))
         .limit(15);
 
@@ -67,7 +79,7 @@ export const generateContinueWorking = inngest.createFunction(
         }));
       }
 
-      // Fallback: Fetch recent commits via Live API if DB activityLogs is empty
+      // Fallback: Fetch recent commits via Live API if DB activityLogs is empty for this repository
       if (repositoryOwner && repositoryName) {
         try {
           const commitsRes = await getCommits({
@@ -95,18 +107,27 @@ export const generateContinueWorking = inngest.createFunction(
     });
 
     if (!recentLogs.length) {
+      const targetName =
+        repositoryOwner && repositoryName
+          ? `${repositoryOwner}/${repositoryName}`
+          : "the requested repository";
       return {
         success: true,
-        message: "No recent activity logs available to summarize.",
+        message: `No recent activity logs available for ${targetName} to summarize.`,
       };
     }
 
     /**
-     * Step 2: Synthesize Continue Working summary via AI text generation.
+     * Step 2: Synthesize repository-specific Continue Working summary via AI text generation.
      */
     const summaryText = await step.run(
       "synthesize-continue-working-summary",
       async () => {
+        const targetRepoStr =
+          repositoryOwner && repositoryName
+            ? `${repositoryOwner}/${repositoryName}`
+            : "the requested repository";
+
         const activityListStr = recentLogs
           .map(
             (a) =>
@@ -115,10 +136,10 @@ export const generateContinueWorking = inngest.createFunction(
           .join("\n");
 
         const prompt = `
-You are an AI developer productivity assistant. Analyze the following recent GitHub developer activity log and compose a clear, concise "Continue Working" summary card (2 paragraphs):
+You are an AI developer productivity assistant. Compose a clear, concise "Continue Working" summary card (2 paragraphs) focused specifically on repository "${targetRepoStr}":
 
-Paragraph 1: State what the developer was working on recently across their repositories (recent commits, PRs, or open issues).
-Paragraph 2: Recommend the immediate next logical task or action items they should focus on when returning to work.
+Paragraph 1: Summarize recent development work (commits, PRs, issues) strictly for "${targetRepoStr}" based on the activity logs below. Do NOT mention any other repository.
+Paragraph 2: Recommend the immediate next logical task, improvements, or action items specifically for "${targetRepoStr}".
 
 Recent Activity Log:
 ${activityListStr}
@@ -134,10 +155,14 @@ ${activityListStr}
     );
 
     /**
-     * Step 3: Persist Continue Working summary into activityLogs table.
+     * Step 3: Persist Continue Working summary into activityLogs table for this repository.
      */
     await step.run("store-continue-working-summary", async () => {
-      const activityId = `continue_working_summary_${userId}`;
+      const repoKey =
+        repositoryOwner && repositoryName
+          ? `${repositoryOwner}_${repositoryName}`
+          : "global";
+      const activityId = `continue_working_summary_${userId}_${repoKey}`;
 
       await db
         .delete(schema.activityLogs)
@@ -157,11 +182,14 @@ ${activityListStr}
         repositoryName: repositoryName || "all",
         activityType: "review",
         activityId,
-        title: "Continue Working Dashboard Summary",
+        title: repositoryName
+          ? `Continue Working Summary: ${repositoryName}`
+          : "Continue Working Dashboard Summary",
         description: summaryText,
         metadata: {
           generatedAt: new Date().toISOString(),
           logCount: recentLogs.length,
+          targetRepo: repositoryName || "all",
         },
         occurredAt: new Date(),
       });
@@ -169,6 +197,10 @@ ${activityListStr}
 
     return {
       success: true,
+      repository:
+        repositoryOwner && repositoryName
+          ? `${repositoryOwner}/${repositoryName}`
+          : "all",
       summary: summaryText,
     };
   },

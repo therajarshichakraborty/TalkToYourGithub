@@ -9,6 +9,7 @@ import { embeddingModel } from "@/features/chat/openrouter";
 import { embedMany } from "ai";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { getPineconeIndex } from "@/lib/pinecone";
 import type { PineconeRecord } from "@pinecone-database/pinecone";
 
