@@ -6,6 +6,9 @@
 
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { db } from "@/db";
+import * as schema from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { getRepositories } from "@/lib/tools/get-repositories";
 
 export const runtime = "nodejs";
@@ -22,6 +25,18 @@ export async function GET() {
   }
 
   try {
+    /* Fetch authenticated user's connected GitHub login */
+    const [conn] = await db
+      .select({ githubLogin: schema.githubConnections.githubLogin })
+      .from(schema.githubConnections)
+      .where(eq(schema.githubConnections.userId, session.user.id));
+
+    const userGithubLogin =
+      conn?.githubLogin ||
+      session.user.name ||
+      session.user.email?.split("@")[0] ||
+      "";
+
     /* Fetch repositories for the authenticated user via getRepositories tool */
     const result = await getRepositories({
       userId: session.user.id,
@@ -41,32 +56,41 @@ export async function GET() {
         /* Corsair entity objects encapsulate fields inside data or payload */
         const r = repoItem?.data || repoItem?.payload || repoItem || {};
 
-        const fullName =
+        let fullName =
           r.full_name ||
           r.fullName ||
           r.repositoryFullName ||
           r.repository_full_name ||
-          (r.owner && r.name ? `${typeof r.owner === "string" ? r.owner : r.owner.login}/${r.name}` : "") ||
+          (r.owner && r.name ? `${typeof r.owner === "string" ? r.owner : r.owner.login || r.owner.name}/${r.name}` : "") ||
           "";
 
-        const parts = fullName.split("/");
-
-        const owner =
+        let owner =
           r.owner?.login ||
-          (typeof r.owner === "string" ? r.owner : "") ||
+          (typeof r.owner === "string" && r.owner !== "github" ? r.owner : "") ||
           r.repositoryOwner ||
           r.repository_owner ||
-          parts[0] ||
+          r.owner_login ||
+          r.ownerLogin ||
           "";
 
-        const name =
+        let name =
           r.name ||
           r.repositoryName ||
           r.repository_name ||
-          parts[1] ||
           "";
 
-        const formattedFullName = fullName || (owner && name ? `${owner}/${name}` : name);
+        if (fullName && fullName.includes("/")) {
+          const parts = fullName.split("/");
+          if (!owner) owner = parts[0];
+          if (!name) name = parts[1];
+        }
+
+        /* Fallback owner to authenticated user's githubLogin if owner is missing or generic "github" */
+        if (!owner || owner.toLowerCase() === "github") {
+          owner = userGithubLogin;
+        }
+
+        const formattedFullName = owner && name ? `${owner}/${name}` : (fullName || name);
 
         if (!name && !formattedFullName) {
           return null;
@@ -74,7 +98,7 @@ export async function GET() {
 
         return {
           id: repoItem.id ? String(repoItem.id) : formattedFullName,
-          owner: owner || "github",
+          owner: owner || userGithubLogin,
           name: name || formattedFullName || "repository",
           fullName: formattedFullName,
           description: r.description || "",

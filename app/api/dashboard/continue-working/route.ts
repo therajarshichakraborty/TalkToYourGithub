@@ -52,6 +52,18 @@ export async function GET() {
       summaryMap.set(key, s.summary);
     }
 
+    /* Fetch authenticated user's connected GitHub login */
+    const [conn] = await db
+      .select({ githubLogin: schema.githubConnections.githubLogin })
+      .from(schema.githubConnections)
+      .where(eq(schema.githubConnections.userId, userId));
+
+    const userGithubLogin =
+      conn?.githubLogin ||
+      session.user.name ||
+      session.user.email?.split("@")[0] ||
+      "";
+
     /*
      * Group activity logs by repository
      */
@@ -75,9 +87,15 @@ export async function GET() {
 
     for (const log of logs) {
       if (!log.repositoryOwner || !log.repositoryName) continue;
+      if (log.repositoryName.toLowerCase() === "all" || log.repositoryOwner.toLowerCase() === "all") continue;
 
-      const owner = log.repositoryOwner;
+      let owner = log.repositoryOwner;
       const name = log.repositoryName;
+
+      if (!owner || owner.toLowerCase() === "github") {
+        owner = userGithubLogin;
+      }
+
       const key = `${owner.toLowerCase()}/${name.toLowerCase()}`;
 
       if (!repoGroups.has(key)) {
@@ -87,7 +105,7 @@ export async function GET() {
           fullName: `${owner}/${name}`,
           activities: [],
           latestActivityAt: log.occurredAt.toISOString(),
-          summary: summaryMap.get(key) || null,
+          summary: summaryMap.get(key) || summaryMap.get(`github/${name.toLowerCase()}`) || null,
         });
       }
 
@@ -105,12 +123,21 @@ export async function GET() {
      * Also include repositories that have summaries even if they have no recent activity log rows
      */
     for (const s of summaries) {
-      const key = `${s.repositoryOwner.toLowerCase()}/${s.repositoryName.toLowerCase()}`;
+      if (s.repositoryName.toLowerCase() === "all" || s.repositoryOwner.toLowerCase() === "all") continue;
+
+      let owner = s.repositoryOwner;
+      const name = s.repositoryName;
+
+      if (!owner || owner.toLowerCase() === "github") {
+        owner = userGithubLogin;
+      }
+
+      const key = `${owner.toLowerCase()}/${name.toLowerCase()}`;
       if (!repoGroups.has(key)) {
         repoGroups.set(key, {
-          owner: s.repositoryOwner,
-          name: s.repositoryName,
-          fullName: `${s.repositoryOwner}/${s.repositoryName}`,
+          owner,
+          name,
+          fullName: `${owner}/${name}`,
           activities: [],
           latestActivityAt: s.updatedAt.toISOString(),
           summary: s.summary,
