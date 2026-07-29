@@ -17,6 +17,9 @@ importers:
       '@corsair-dev/github':
         specifier: ^0.1.10
         version: 0.1.10(@types/node@20.19.43)(corsair@0.1.76)(zod@3.25.76)
+      '@pinecone-database/pinecone':
+        specifier: ^5.0.1
+        version: 5.1.2
       ai:
         specifier: ^4.3.19
         version: 4.3.19(react@19.2.4)(zod@3.25.76)
@@ -1971,6 +1974,10 @@ packages:
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
+
+  '@pinecone-database/pinecone@5.1.2':
+    resolution: {integrity: sha512-z7737KUA1hXwd508q1+o4bnRxj0NpMmzA2beyaFm7Y+EC2TYLT5ABuYsn/qhiwiEsYp8v1qS596eBhhvgNagig==}
+    engines: {node: '>=18.0.0'}
 
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
@@ -8425,6 +8432,8 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.0)
+
+  '@pinecone-database/pinecone@5.1.2': {}
 
   '@pkgjs/parseargs@0.11.0':
     optional: true

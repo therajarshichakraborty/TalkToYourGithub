@@ -41,7 +41,6 @@ export const updateActivityLog = inngest.createFunction(
   async ({ event, step }) => {
     let { userId, corsairTenantId, repositoryOwner, repositoryName } =
       event.data;
-
     // Resolve userId if not provided directly
     if (!userId && corsairTenantId) {
       const [foundUser] = await db

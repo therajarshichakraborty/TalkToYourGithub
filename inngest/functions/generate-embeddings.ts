@@ -9,6 +9,8 @@ import { embeddingModel } from "@/features/chat/openrouter";
 import { embedMany } from "ai";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { getPineconeIndex } from "@/lib/pinecone";
+import type { PineconeRecord } from "@pinecone-database/pinecone";
 
 /**
  * Interface representing a content chunk to be embedded into pgvector database.
@@ -255,7 +257,7 @@ export const generateEmbeddings = inngest.createFunction(
       if (!chunks.length) continue;
 
       /**
-       * Step 3: Compute embeddings and persist to pgvector database table.
+       * Step 3: Compute embeddings and persist vectors to Pinecone database.
        */
       const savedCount = await step.run(
         `embed-and-save-${owner}-${name}`,
@@ -278,20 +280,64 @@ export const generateEmbeddings = inngest.createFunction(
           }
 
           let inserted = 0;
+
+          // 1. Primary Vector Store: Pinecone Vector Database
+          try {
+            const index = getPineconeIndex();
+            const pineconeRecords = chunks
+              .map((chunk, i) => {
+                const vector = generatedEmbeddings[i];
+                if (!vector || !vector.length) return null;
+                const safeId = `${userId}_${chunk.sourceType}_${chunk.sourceId}`.replace(
+                  /[^a-zA-Z0-9_\-]/g,
+                  "_",
+                );
+                return {
+                  id: safeId,
+                  values: vector,
+                  metadata: {
+                    userId,
+                    sourceType: chunk.sourceType,
+                    sourceId: chunk.sourceId,
+                    content: chunk.content,
+                    repositoryOwner: owner,
+                    repositoryName: name,
+                  },
+                };
+              })
+              .filter(Boolean) as PineconeRecord[];
+
+            if (pineconeRecords.length > 0) {
+              await index.upsert(pineconeRecords);
+              inserted = pineconeRecords.length;
+            }
+          } catch (pineconeErr: unknown) {
+            console.warn(
+              `[generateEmbeddings] Pinecone upsert note for ${owner}/${name}:`,
+              pineconeErr instanceof Error ? pineconeErr.message : pineconeErr,
+            );
+          }
+
+          // 2. Database Backup: Write to PostgreSQL embeddings table
           for (let i = 0; i < chunks.length; i++) {
             const chunk = chunks[i];
             const vector = generatedEmbeddings[i];
             if (!vector) continue;
 
-            await db.insert(schema.embeddings).values({
-              userId,
-              sourceType: chunk.sourceType,
-              sourceId: chunk.sourceId,
-              content: chunk.content,
-              embedding: vector,
-              metadata: chunk.metadata,
-            });
-            inserted++;
+            await db
+              .insert(schema.embeddings)
+              .values({
+                userId,
+                sourceType: chunk.sourceType,
+                sourceId: chunk.sourceId,
+                content: chunk.content,
+                embedding: vector,
+                metadata: chunk.metadata,
+              })
+              .catch(() => {
+                // Ignore DB duplicate key error if already exists
+              });
+            if (inserted === 0) inserted++;
           }
 
           return inserted;

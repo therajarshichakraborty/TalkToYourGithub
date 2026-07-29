@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { ToolContextOptions } from "./helper";
 import { embed } from "ai";
 import { embeddingModel } from "@/features/chat/openrouter";
+import { getPineconeIndex } from "@/lib/pinecone";
 
 /**
  * Options interface for getProjectMemory tool.
@@ -51,8 +52,8 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
 
 /**
  * Tool function: getProjectMemory
- * Performs vector semantic search on your own pgvector embeddings table to retrieve
- * relevant project context, code snippets, commits, issues, and PR history.
+ * Performs vector semantic search on Pinecone Vector Database (with pgvector table fallback)
+ * to retrieve relevant project context, code snippets, commits, issues, and PR history.
  */
 export async function getProjectMemory(options: GetProjectMemoryOptions) {
   if (!options.userId) {
@@ -78,7 +79,60 @@ export async function getProjectMemory(options: GetProjectMemoryOptions) {
       value: options.query,
     });
 
-    // Retrieve embeddings for user from database
+    // 1. Primary Vector Store: Pinecone Vector Search
+    const pineconeMemories: ProjectMemoryItem[] = [];
+    try {
+      const index = getPineconeIndex();
+      const queryResponse = await index.query({
+        vector: queryVector,
+        topK: limit * 2,
+        includeMetadata: true,
+        filter: {
+          userId: options.userId,
+        },
+      });
+
+      if (queryResponse.matches && queryResponse.matches.length > 0) {
+        for (const match of queryResponse.matches) {
+          const score = match.score ?? 0;
+          if (score < minSimilarity) continue;
+          const meta = (match.metadata as Record<string, unknown>) || {};
+          const recordOwner = (meta.repositoryOwner as string)?.toLowerCase();
+          const recordRepo = (meta.repositoryName as string)?.toLowerCase();
+
+          if (targetOwner && recordOwner && targetOwner !== recordOwner) continue;
+          if (targetRepo && recordRepo && targetRepo !== recordRepo) continue;
+
+          pineconeMemories.push({
+            id: match.id,
+            sourceType: (meta.sourceType as string) || "pinecone",
+            sourceId: (meta.sourceId as string) || match.id,
+            content: (meta.content as string) || "",
+            similarity: Number(score.toFixed(4)),
+            metadata: meta,
+          });
+        }
+      }
+    } catch (pineconeErr) {
+      console.warn(
+        "[getProjectMemory] Pinecone vector search note:",
+        pineconeErr instanceof Error ? pineconeErr.message : pineconeErr,
+      );
+    }
+
+    if (pineconeMemories.length > 0) {
+      pineconeMemories.sort((a, b) => b.similarity - a.similarity);
+      const topPinecone = pineconeMemories.slice(0, limit);
+      return {
+        success: true,
+        source: "pinecone",
+        count: topPinecone.length,
+        query: options.query,
+        memories: topPinecone,
+      };
+    }
+
+    // 2. Fallback: Database pgvector embeddings table
     const storedEmbeddings = await db
       .select()
       .from(schema.embeddings)
@@ -89,11 +143,10 @@ export async function getProjectMemory(options: GetProjectMemoryOptions) {
         success: true,
         count: 0,
         memories: [],
-        message: "No project memory embeddings found for user in database.",
+        message: "No project memory embeddings found for user.",
       };
     }
 
-    // Compute similarity for each row
     const scoredMemories: ProjectMemoryItem[] = [];
 
     for (const record of storedEmbeddings) {
@@ -104,7 +157,6 @@ export async function getProjectMemory(options: GetProjectMemoryOptions) {
       const recordOwner = (metadata.repositoryOwner as string)?.toLowerCase();
       const recordRepo = (metadata.repositoryName as string)?.toLowerCase();
 
-      // Filter by owner/repo if specified
       if (targetOwner && recordOwner && targetOwner !== recordOwner) continue;
       if (targetRepo && recordRepo && targetRepo !== recordRepo) continue;
 
@@ -121,13 +173,12 @@ export async function getProjectMemory(options: GetProjectMemoryOptions) {
       }
     }
 
-    // Sort descending by similarity score
     scoredMemories.sort((a, b) => b.similarity - a.similarity);
-
     const topResults = scoredMemories.slice(0, limit);
 
     return {
       success: true,
+      source: "pgvector_fallback",
       count: topResults.length,
       query: options.query,
       memories: topResults,
