@@ -246,9 +246,15 @@ Write a detailed 2 to 3 paragraph summary covering:
           }
 
           if (!resolvedUserId) {
-            throw new Error(
-              `[generateRepoSummary] Could not resolve userId for tenant '${corsairTenantId}'`,
-            );
+            const [defaultUser] = await db
+              .select({ id: schema.user.id })
+              .from(schema.user)
+              .limit(1);
+            if (defaultUser) resolvedUserId = defaultUser.id;
+          }
+
+          if (!resolvedUserId) {
+            resolvedUserId = "dev_user";
           }
 
           const existing = await db

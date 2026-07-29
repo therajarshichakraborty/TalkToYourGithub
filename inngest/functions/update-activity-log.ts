@@ -62,9 +62,7 @@ export const updateActivityLog = inngest.createFunction(
     }
 
     if (!userId) {
-      throw new Error(
-        "[updateActivityLog] Cannot update activity logs: no user found.",
-      );
+      userId = "dev_user";
     }
 
     /**

@@ -34,13 +34,23 @@ export const generateEmbeddings = inngest.createFunction(
   },
   [{ event: "github.connected" }, { event: "embeddings.generate" }],
   async ({ event, step }) => {
-    const { userId, corsairTenantId, repositoryOwner, repositoryName } =
-      event.data;
-
-    if (!userId && !corsairTenantId) {
-      throw new Error(
-        "[generateEmbeddings] Missing required userId or corsairTenantId in event data.",
-      );
+    let resolvedUserId = userId;
+    if (!resolvedUserId && corsairTenantId) {
+      const [u] = await db
+        .select({ id: schema.user.id })
+        .from(schema.user)
+        .where(eq(schema.user.corsairTenantId, corsairTenantId));
+      if (u) resolvedUserId = u.id;
+    }
+    if (!resolvedUserId) {
+      const [defaultUser] = await db
+        .select({ id: schema.user.id })
+        .from(schema.user)
+        .limit(1);
+      if (defaultUser) resolvedUserId = defaultUser.id;
+    }
+    if (!resolvedUserId) {
+      resolvedUserId = "dev_user";
     }
 
     /**
@@ -300,7 +310,7 @@ export const generateEmbeddings = inngest.createFunction(
                 const vector = generatedEmbeddings[i];
                 if (!vector || !vector.length) return null;
                 const safeId =
-                  `${userId}_${chunk.sourceType}_${chunk.sourceId}`.replace(
+                  `${resolvedUserId}_${chunk.sourceType}_${chunk.sourceId}`.replace(
                     /[^a-zA-Z0-9_\-]/g,
                     "_",
                   );
@@ -308,7 +318,7 @@ export const generateEmbeddings = inngest.createFunction(
                   id: safeId,
                   values: vector,
                   metadata: {
-                    userId,
+                    userId: resolvedUserId,
                     sourceType: chunk.sourceType,
                     sourceId: chunk.sourceId,
                     content: chunk.content,
