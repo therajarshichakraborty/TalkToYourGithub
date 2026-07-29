@@ -5,7 +5,7 @@ import { getCommits } from "@/lib/tools/get-commits";
 import { getPullRequests } from "@/lib/tools/get-pull-requests";
 import { getIssues } from "@/lib/tools/get-issues";
 import { getFileContent } from "@/lib/tools/get-file-content";
-import { embeddingModel } from "@/features/chat/openrouter";
+import { embeddingModel } from "@/features/chat/openai";
 import { embedMany } from "ai";
 import { db } from "@/db";
 import * as schema from "@/db/schema";

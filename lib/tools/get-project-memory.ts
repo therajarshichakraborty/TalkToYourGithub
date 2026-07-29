@@ -3,7 +3,7 @@ import * as schema from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ToolContextOptions } from "./helper";
 import { embed } from "ai";
-import { embeddingModel } from "@/features/chat/openrouter";
+import { embeddingModel } from "@/features/chat/openai";
 import { getPineconeIndex } from "@/lib/pinecone";
 
 /**

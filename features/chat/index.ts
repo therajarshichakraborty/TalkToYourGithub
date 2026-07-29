@@ -10,6 +10,6 @@ export type { SystemPromptContext } from "./system-prompt";
 export { buildToolRegistry } from "./tool-registry";
 export type { ToolRegistryContext, ToolRegistry } from "./tool-registry";
 
-export { chatModel } from "./openrouter";
+export { chatModel } from "./openai";
 
 export type { ChatMessage, ChatRequestBody, ChatSessionContext } from "./types";

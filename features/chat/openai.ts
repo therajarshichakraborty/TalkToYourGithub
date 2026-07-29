@@ -24,19 +24,9 @@ if (!openaiKey && !openrouterKey) {
 /**
  * Configure AI Provider: Direct OpenAI if OPENAI_API_KEY exists, else OpenRouter
  */
-const aiProvider = openaiKey
-  ? createOpenAI({
+const aiProvider = createOpenAI({
       apiKey: openaiKey,
     })
-  : createOpenAI({
-      baseURL: "https://openrouter.ai/api/v1",
-      apiKey: openrouterKey,
-      structuredOutputs: false,
-      headers: {
-        "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-        "X-Title": "Talk to Your GitHub",
-      },
-    });
 
 /**
  * Chat LLM model configuration:
@@ -44,9 +34,7 @@ const aiProvider = openaiKey
  * - For OpenRouter: defaults to 'openai/gpt-4o-mini' (or process.env.OPENROUTER_MODEL)
  */
 export const chatModel = aiProvider(
-  openaiKey
-    ? (process.env.OPENAI_MODEL || "gpt-4o-mini")
-    : (process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini")
+  (process.env.OPENAI_MODEL || "gpt-4o-mini")
 );
 
 /**
