@@ -401,32 +401,66 @@ export default function RepositoryDetailPage(props: {
                   </h3>
 
                   {data?.activityLogs && data.activityLogs.length > 0 ? (
-                    <div className='space-y-2.5'>
-                      {data.activityLogs.map((log) => (
-                        <Card
-                          key={log.id}
-                          className='p-4 text-xs flex items-center justify-between gap-3 border border-border/80 bg-card rounded-2xl shadow-xs hover:border-primary/30 transition-all'
-                        >
-                          <div className='space-y-1 min-w-0'>
-                            <div className='font-semibold flex items-center gap-2 truncate'>
-                              <Badge variant='outline' className='text-[10px] font-mono rounded-full px-2.5 uppercase'>
-                                {log.type}
-                              </Badge>
-                              <span className='truncate text-foreground'>{log.title || "Repository Event"}</span>
+                    <div className='relative pl-6 space-y-4 pt-2 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-border/60'>
+                      {data.activityLogs.map((log) => {
+                        const typeStr = (log.type || "event").toLowerCase();
+                        let icon = <Activity className='h-3.5 w-3.5 text-blue-600 dark:text-blue-400' />;
+                        let badgeBg = "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900/40";
+                        let typeLabel = (log.type || "EVENT").toUpperCase();
+
+                        if (typeStr.includes("chat")) {
+                          icon = <MessageSquare className='h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400' />;
+                          badgeBg = "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/40";
+                          typeLabel = "CHAT";
+                        } else if (typeStr.includes("commit")) {
+                          icon = <GitCommit className='h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400' />;
+                          badgeBg = "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/40";
+                          typeLabel = "COMMIT";
+                        } else if (typeStr.includes("pr") || typeStr.includes("pull")) {
+                          icon = <GitPullRequest className='h-3.5 w-3.5 text-violet-600 dark:text-violet-400' />;
+                          badgeBg = "bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-900/40";
+                          typeLabel = "PR";
+                        } else if (typeStr.includes("summary")) {
+                          icon = <Sparkles className='h-3.5 w-3.5 text-amber-600 dark:text-amber-400' />;
+                          badgeBg = "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/40";
+                          typeLabel = "SUMMARY";
+                        }
+
+                        const formattedTime = formatDistanceToNow(new Date(log.occurredAt), { addSuffix: true });
+
+                        return (
+                          <div key={log.id} className='relative flex items-start gap-4 group'>
+                            {/* Icon Node */}
+                            <div className='absolute -left-6 top-1 flex h-7 w-7 items-center justify-center rounded-full border bg-background shadow-xs shrink-0 z-10'>
+                              {icon}
                             </div>
-                            {log.description && (
-                              <p className='text-muted-foreground text-[11px] truncate font-normal'>
-                                {log.description}
-                              </p>
-                            )}
+
+                            {/* Activity Card */}
+                            <Card className='flex-1 border border-border/80 bg-card p-4 rounded-2xl shadow-xs hover:border-indigo-500/30 transition-all space-y-2'>
+                              <div className='flex items-center justify-between gap-3'>
+                                <div className='flex items-center gap-2 min-w-0 flex-1'>
+                                  <Badge variant='outline' className={`text-[10px] font-mono font-bold rounded-full px-2.5 py-0.5 ${badgeBg}`}>
+                                    {typeLabel}
+                                  </Badge>
+                                  <h4 className='text-xs font-bold text-foreground truncate'>
+                                    {log.title || log.description || "Activity Logged"}
+                                  </h4>
+                                </div>
+                                <span className='text-[10px] text-muted-foreground font-mono shrink-0 bg-muted/40 px-2.5 py-1 rounded-full border border-muted/50 flex items-center gap-1'>
+                                  <Clock className='h-3 w-3 text-muted-foreground' />
+                                  {formattedTime}
+                                </span>
+                              </div>
+
+                              {log.description && log.title && log.description !== log.title && (
+                                <p className='text-xs text-muted-foreground leading-relaxed font-normal bg-muted/20 p-3 rounded-xl border border-muted/40 break-words'>
+                                  {log.description}
+                                </p>
+                              )}
+                            </Card>
                           </div>
-                          <span className='text-[11px] text-muted-foreground shrink-0 font-mono bg-muted/40 px-2.5 py-1 rounded-full border border-muted/50'>
-                            {formatDistanceToNow(new Date(log.occurredAt), {
-                              addSuffix: true,
-                            })}
-                          </span>
-                        </Card>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <Card className='p-12 text-center text-xs text-muted-foreground border-dashed rounded-2xl'>
