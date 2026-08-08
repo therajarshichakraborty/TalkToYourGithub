@@ -9,6 +9,7 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { getRepositories } from "@/lib/tools/get-repositories";
 
 export const runtime = "nodejs";
 
@@ -143,6 +144,43 @@ export async function GET() {
           summary: s.summary,
         });
       }
+    }
+
+    /*
+     * Include all connected user repositories so all projects (including Development) are listed on dashboard
+     */
+    try {
+      const userReposResult = await getRepositories({ userId, perPage: 100 });
+      if (userReposResult.success && Array.isArray(userReposResult.repositories)) {
+        for (const repoItem of userReposResult.repositories) {
+          const r = repoItem?.data || repoItem?.payload || repoItem || {};
+          let fullName = r.full_name || r.fullName || "";
+          let owner = r.owner?.login || (typeof r.owner === "string" ? r.owner : "") || userGithubLogin;
+          let name = r.name || "";
+
+          if (fullName && fullName.includes("/")) {
+            const parts = fullName.split("/");
+            if (!owner) owner = parts[0];
+            if (!name) name = parts[1];
+          }
+
+          if (!name) continue;
+
+          const key = `${owner.toLowerCase()}/${name.toLowerCase()}`;
+          if (!repoGroups.has(key)) {
+            repoGroups.set(key, {
+              owner,
+              name,
+              fullName: `${owner}/${name}`,
+              activities: [],
+              latestActivityAt: r.updated_at || r.updatedAt || new Date(0).toISOString(),
+              summary: summaryMap.get(key) || null,
+            });
+          }
+        }
+      }
+    } catch (repoErr) {
+      console.warn("[/api/dashboard/continue-working] Note fetching user repositories:", repoErr);
     }
 
     const continueWorkingRepos = Array.from(repoGroups.values()).sort(

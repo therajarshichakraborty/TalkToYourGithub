@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { streamText } from "ai";
 import { headers } from "next/headers";
 import {
@@ -20,6 +20,8 @@ export async function POST(req: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const userId = session.user.id;
+
   /*
    * Destructure `messages` (CoreMessage[]) and optional `activeRepo` context object.
    */
@@ -32,28 +34,104 @@ export async function POST(req: Request) {
     );
   }
 
+  const repoOwner = activeRepo?.owner || null;
+  const repoName = activeRepo?.name || null;
+
   /*
-   * Single DB query: fetch the github_connections row to get the user's
-   * GitHub login and connection timestamp for the system prompt.
-   * The `user` row is not needed here — session.user already has what we need.
+   * Single DB query: fetch github_connections row
    */
   const [conn] = await db
     .select()
     .from(schema.githubConnections)
-    .where(eq(schema.githubConnections.userId, session.user.id));
+    .where(eq(schema.githubConnections.userId, userId));
 
   const systemPrompt = buildSystemPrompt({
     githubLogin: conn?.githubLogin ?? session.user.name ?? "unknown",
     connectedAt: conn?.connectedAt?.toISOString(),
-    activeRepo: activeRepo?.owner && activeRepo?.name ? { owner: activeRepo.owner, name: activeRepo.name } : null,
+    activeRepo: repoOwner && repoName ? { owner: repoOwner, name: repoName } : null,
   });
 
+  const tools = buildToolRegistry({ userId });
+
   /*
-   * buildToolRegistry binds the authenticated userId to every tool execute()
-   * call — this is the tenant-scoping gate. Tools resolve corsairTenantId from
-   * the userId before touching any Corsair data.
+   * 1. Find or create conversation in DB for persistence
    */
-  const tools = buildToolRegistry({ userId: session.user.id });
+  let conversationId: string | null = null;
+  try {
+    let existingConv;
+    if (repoOwner && repoName) {
+      const [conv] = await db
+        .select()
+        .from(schema.conversations)
+        .where(
+          and(
+            eq(schema.conversations.userId, userId),
+            eq(schema.conversations.repositoryOwner, repoOwner),
+            eq(schema.conversations.repositoryName, repoName),
+          ),
+        )
+        .limit(1);
+      existingConv = conv;
+    }
+
+    if (existingConv) {
+      conversationId = existingConv.id;
+      await db
+        .update(schema.conversations)
+        .set({ updatedAt: new Date() })
+        .where(eq(schema.conversations.id, conversationId));
+    } else {
+      const [newConv] = await db
+        .insert(schema.conversations)
+        .values({
+          userId,
+          repositoryOwner: repoOwner,
+          repositoryName: repoName,
+          title: repoName ? `Chat: ${repoName}` : "General Chat",
+          updatedAt: new Date(),
+        })
+        .returning({ id: schema.conversations.id });
+      conversationId = newConv.id;
+    }
+
+    /*
+     * 2. Save latest user message into DB messages table
+     */
+    const lastUserMessage = messages[messages.length - 1];
+    if (lastUserMessage && lastUserMessage.role === "user" && conversationId) {
+      const userText = typeof lastUserMessage.content === "string"
+        ? lastUserMessage.content
+        : JSON.stringify(lastUserMessage.content);
+
+      await db.insert(schema.messages).values({
+        conversationId,
+        role: "user",
+        content: userText,
+      });
+
+      /*
+       * 3. Insert Activity Log row for this repository so chat moves repo to top on dashboard
+       */
+      if (repoOwner && repoName) {
+        await db
+          .insert(schema.activityLogs)
+          .values({
+            userId,
+            repositoryOwner: repoOwner,
+            repositoryName: repoName,
+            activityType: "chat",
+            activityId: `chat_${userId}_${repoOwner}_${repoName}_${Date.now()}`,
+            title: `Chatted with AI Assistant: "${userText.slice(0, 60)}${userText.length > 60 ? "..." : ""}"`,
+            description: `Repository chat query in ${repoOwner}/${repoName}`,
+            metadata: { repo: `${repoOwner}/${repoName}` },
+            occurredAt: new Date(),
+          })
+          .catch((logErr) => console.warn("[/api/chat] Note writing activity log:", logErr));
+      }
+    }
+  } catch (dbErr) {
+    console.warn("[/api/chat] Conversation persistence note:", dbErr);
+  }
 
   try {
     const result = streamText({
@@ -61,13 +139,20 @@ export async function POST(req: Request) {
       system: systemPrompt,
       messages,
       tools,
-      /*
-       * maxSteps > 1 is required for tool calls to actually execute.
-       * Without it the SDK emits the tool-call token but never loops back
-       * to run the tool and stream the result to the client.
-       * 5 steps covers: user → tool-call → tool-result → follow-up tool (if needed) → final answer.
-       */
       maxSteps: 5,
+      onFinish: async ({ text, toolInvocations }) => {
+        if (conversationId && text) {
+          await db
+            .insert(schema.messages)
+            .values({
+              conversationId,
+              role: "assistant",
+              content: text,
+              toolCalls: toolInvocations ? JSON.parse(JSON.stringify(toolInvocations)) : null,
+            })
+            .catch((err) => console.warn("[/api/chat] Error saving assistant message:", err));
+        }
+      },
       onError: (err) => {
         console.error("[/api/chat] streamText error:", err);
       },
@@ -83,3 +168,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

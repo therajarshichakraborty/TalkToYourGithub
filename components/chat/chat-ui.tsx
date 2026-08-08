@@ -65,6 +65,28 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
   /* Auto-scroll container reference */
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  /*
+   * Fetch chat history for the active repository from /api/chat/history
+   */
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const query = activeRepo
+          ? `?owner=${encodeURIComponent(activeRepo.owner)}&name=${encodeURIComponent(activeRepo.name)}`
+          : "";
+        const res = await fetch(`/api/chat/history${query}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.messages)) {
+          setMessages(data.messages);
+        }
+      } catch (err) {
+        console.warn("[ChatUI] Note loading history:", err);
+      }
+    };
+
+    fetchHistory();
+  }, [activeRepo?.owner, activeRepo?.name]);
+
   /* Scroll to bottom when messages update or loading state changes */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
