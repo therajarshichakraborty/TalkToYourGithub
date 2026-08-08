@@ -60,11 +60,13 @@ export const generateEmbeddings = inngest.createFunction(
       );
     }
 
+    const runSuffix = event.id ? `-${event.id}` : "";
+
     /**
      * Step 1: Fetch target repositories.
      */
     const targetRepos = await step.run(
-      "fetch-target-repositories",
+      `fetch-target-repositories${runSuffix}`,
       async () => {
         let repos: Array<{
           owner: string;
@@ -193,7 +195,7 @@ export const generateEmbeddings = inngest.createFunction(
       if (!owner || !name) continue;
 
       const chunks: ContentChunk[] = await step.run(
-        `prepare-chunks-${owner}-${name}`,
+        `prepare-chunks-${owner}-${name}${runSuffix}`,
         async () => {
           const extracted: ContentChunk[] = [];
 
@@ -350,7 +352,7 @@ export const generateEmbeddings = inngest.createFunction(
        * Step 3: Compute embeddings via generateResilientEmbeddings and persist vectors to Pinecone & PG vector table.
        */
       const savedCount = await step.run(
-        `embed-and-save-${owner}-${name}`,
+        `embed-and-save-${owner}-${name}${runSuffix}`,
         async () => {
           const valuesToEmbed = chunks.map((c) => c.content);
 

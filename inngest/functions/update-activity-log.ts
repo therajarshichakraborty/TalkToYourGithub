@@ -67,11 +67,13 @@ export const updateActivityLog = inngest.createFunction(
       );
     }
 
+    const runSuffix = event.id ? `-${event.id}` : "";
+
     /**
      * Step 1: Gather and format developer activities from Corsair entities.
      */
     const activitiesToSave: FormatActivityItem[] = await step.run(
-      "fetch-latest-activities",
+      `fetch-latest-activities${runSuffix}`,
       async () => {
         const items: FormatActivityItem[] = [];
 
@@ -281,42 +283,45 @@ export const updateActivityLog = inngest.createFunction(
     /**
      * Step 2: Persist activity logs into database table.
      */
-    const insertedCount = await step.run("write-activity-logs", async () => {
-      let count = 0;
-      for (const item of activitiesToSave) {
-        // Remove existing record with same activityId to update
-        await db
-          .delete(schema.activityLogs)
-          .where(
-            and(
-              eq(schema.activityLogs.userId, item.userId),
-              eq(schema.activityLogs.activityId, item.activityId),
-            ),
-          )
-          .catch(() => {
-            // Ignore if record does not exist
-          });
+    const insertedCount = await step.run(
+      `write-activity-logs${runSuffix}`,
+      async () => {
+        let count = 0;
+        for (const item of activitiesToSave) {
+          // Remove existing record with same activityId to update
+          await db
+            .delete(schema.activityLogs)
+            .where(
+              and(
+                eq(schema.activityLogs.userId, item.userId),
+                eq(schema.activityLogs.activityId, item.activityId),
+              ),
+            )
+            .catch(() => {
+              // Ignore if record does not exist
+            });
 
-        await db.insert(schema.activityLogs).values({
-          userId: item.userId,
-          repositoryOwner: item.repositoryOwner,
-          repositoryName: item.repositoryName,
-          activityType: item.activityType,
-          activityId: item.activityId,
-          title: item.title,
-          description: item.description,
-          metadata: item.metadata,
-          occurredAt: new Date(item.occurredAt),
-        });
-        count++;
-      }
-      return count;
-    });
+          await db.insert(schema.activityLogs).values({
+            userId: item.userId,
+            repositoryOwner: item.repositoryOwner,
+            repositoryName: item.repositoryName,
+            activityType: item.activityType,
+            activityId: item.activityId,
+            title: item.title,
+            description: item.description,
+            metadata: item.metadata,
+            occurredAt: new Date(item.occurredAt),
+          });
+          count++;
+        }
+        return count;
+      },
+    );
 
     /**
      * Step 3: Send trigger to generate Continue Working summary dashboard card.
      */
-    await step.run("trigger-continue-working", async () => {
+    await step.run(`trigger-continue-working${runSuffix}`, async () => {
       await inngest.send({
         name: "activity.continue_working",
         data: {
@@ -335,3 +340,4 @@ export const updateActivityLog = inngest.createFunction(
     };
   },
 );
+

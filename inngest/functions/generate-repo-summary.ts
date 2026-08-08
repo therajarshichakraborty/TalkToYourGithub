@@ -57,9 +57,11 @@ export const generateRepoSummary = inngest.createFunction(
       );
     }
 
+    const runSuffix = event.id ? `-${event.id}` : "";
+
     // Step 1: Fetch user repositories and verify tenant connection
     const targetRepos = await step.run(
-      "fetch-target-repositories",
+      `fetch-target-repositories${runSuffix}`,
       async () => {
         let repos: Array<{
           owner: string;
@@ -165,7 +167,7 @@ export const generateRepoSummary = inngest.createFunction(
 
       // Step 2: Gather context data for the repository
       const repoContext: RepoContext = await step.run(
-        `fetch-context-${owner}-${name}`,
+        `fetch-context-${owner}-${name}${runSuffix}`,
         async (): Promise<RepoContext> => {
           const [commitsRes, branchesRes, prsRes, issuesRes, readmeRes] =
             await Promise.allSettled([
@@ -255,7 +257,7 @@ export const generateRepoSummary = inngest.createFunction(
 
       // Step 3: Generate summary with AI model
       const generatedSummary = await step.run(
-        `generate-ai-summary-${owner}-${name}`,
+        `generate-ai-summary-${owner}-${name}${runSuffix}`,
         async () => {
           const prompt = `
 # ROLE
@@ -452,7 +454,7 @@ closing remarks, no formatting markup, no code fences.
 
       // Step 4: Write or update repository summary in DB
       const recordId = await step.run(
-        `save-summary-to-db-${owner}-${name}`,
+        `save-summary-to-db-${owner}-${name}${runSuffix}`,
         async () => {
           const existing = await db
             .select()

@@ -46,10 +46,14 @@ export const generateContinueWorking = inngest.createFunction(
     }
 
 
+    const runSuffix = event.id ? `-${event.id}` : "";
+
     /**
      * Step 1: Read recent developer activity logs from database for the specified repository.
      */
-    const recentLogs = await step.run("fetch-recent-activities", async () => {
+    const recentLogs = await step.run(
+      `fetch-recent-activities${runSuffix}`,
+      async () => {
       const conditions = [eq(schema.activityLogs.userId, userId)];
       if (repositoryOwner) {
         conditions.push(
@@ -124,7 +128,7 @@ export const generateContinueWorking = inngest.createFunction(
      * Step 2: Synthesize repository-specific Continue Working summary via AI text generation.
      */
     const summaryText = await step.run(
-      "synthesize-continue-working-summary",
+      `synthesize-continue-working-summary${runSuffix}`,
       async () => {
         const targetRepoStr =
           repositoryOwner && repositoryName
@@ -323,7 +327,7 @@ text, with no preamble, no closing remarks, and no formatting markup.
     /**
      * Step 3: Persist Continue Working summary into activityLogs table for this repository.
      */
-    await step.run("store-continue-working-summary", async () => {
+    await step.run(`store-continue-working-summary${runSuffix}`, async () => {
       const repoKey =
         repositoryOwner && repositoryName
           ? `${repositoryOwner}_${repositoryName}`
