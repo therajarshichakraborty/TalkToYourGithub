@@ -1,15 +1,16 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: 'Monaspace Radon', 'JetBrains Mono', monospace;
+  --font-mono: 'Monaspace Radon', 'JetBrains Mono', monospace;
+  --font-heading: 'Monaspace Radon', 'JetBrains Mono', monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,6 +50,8 @@
 }
 
 :root {
+  --font-sans: 'Monaspace Radon', 'JetBrains Mono', monospace;
+  --font-mono: 'Monaspace Radon', 'JetBrains Mono', monospace;
   --background: oklch(0.99 0.002 270);
   --foreground: oklch(0.14 0.02 270);
   --card: oklch(1 0 0);
@@ -122,10 +125,14 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-size: 14px;
   }
   html {
     @apply font-sans;
+  }
+  code, kbd, samp, pre, .font-mono {
+    font-family: 'Monaspace Radon', 'JetBrains Mono', 'Fira Code', monospace !important;
   }
 }
 ::view-transition-old(root),

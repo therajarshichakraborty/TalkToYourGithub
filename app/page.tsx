@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ArrowRight,
   GitBranch,
@@ -15,6 +16,8 @@ import {
   ShieldCheck,
   Terminal,
   Zap,
+  LogOut,
+  User as UserIcon,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
@@ -35,11 +38,20 @@ function Nav() {
     });
   };
 
+  const userInitials = session?.user?.name
+    ? session.user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "GH";
+
   return (
     <header className='sticky top-6 z-50 mx-auto w-full max-w-5xl px-4 sm:px-6'>
-      <div className='flex items-center justify-between rounded-full border border-border/80 bg-background/80 p-2 pl-6 pr-3 shadow-md shadow-indigo-500/5 backdrop-blur-md transition-all duration-300 hover:border-indigo-500/30'>
+      <div className='flex items-center justify-between rounded-full border border-border/80 bg-background/85 p-2 pl-6 pr-3 shadow-xl shadow-indigo-500/5 backdrop-blur-xl transition-all duration-300 hover:border-indigo-500/30'>
         <Link href='/' className='flex items-center gap-3 group'>
-          <div className='flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-sm shadow-indigo-500/25 transition-transform duration-300 group-hover:scale-110'>
+          <div className='flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25 transition-transform duration-300 group-hover:scale-110'>
             <Terminal className='h-4 w-4' />
           </div>
           <span className='text-base font-bold tracking-tight text-foreground'>
@@ -68,20 +80,41 @@ function Nav() {
           </Link>
         </nav>
 
-        <div className='flex items-center gap-2'>
+        <div className='flex items-center gap-2.5'>
           <AnimatedThemeToggler
             variant='circle'
             className='flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/40'
           />
           {session?.user ? (
-            <Button
-              size='sm'
-              variant='outline'
-              onClick={handleSignOut}
-              className='h-8 rounded-full px-4 text-xs font-bold border-border/80 transition-transform active:scale-95'
-            >
-              Sign out
-            </Button>
+            <div className='flex items-center gap-2.5'>
+              <Button
+                size='sm'
+                className='h-8 rounded-full px-5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-1.5'
+                asChild
+              >
+                <Link href='/dashboard'>
+                  <span>Go to Dashboard</span>
+                  <ArrowRight className='h-3.5 w-3.5' />
+                </Link>
+              </Button>
+
+              {/* User Avatar with Sign Out onClick */}
+              <button
+                onClick={handleSignOut}
+                title={`Signed in as ${session.user.name || session.user.email} (Click to Sign out)`}
+                className='group relative flex items-center gap-2 p-0.5 rounded-full hover:ring-2 hover:ring-indigo-500/40 transition-all active:scale-95'
+              >
+                <Avatar className='h-8 w-8 rounded-full border border-indigo-200 dark:border-indigo-900/60 shadow-xs'>
+                  <AvatarImage
+                    src={session.user.image || ""}
+                    alt={session.user.name || "User"}
+                  />
+                  <AvatarFallback className='bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-xs font-bold'>
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </div>
           ) : (
             <Button
               size='sm'
@@ -98,6 +131,8 @@ function Nav() {
 }
 
 function Hero() {
+  const { data: session } = authClient.useSession();
+
   return (
     <section className='relative mx-auto max-w-5xl px-6 pt-16 pb-16 sm:pt-24 animate-in fade-in slide-in-from-bottom-4 duration-700'>
       <div className='absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none' />
@@ -123,16 +158,29 @@ function Hero() {
           </p>
 
           <div className='mt-8 flex flex-wrap items-center gap-3'>
-            <Button
-              size='lg'
-              className='rounded-full px-7 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-95'
-              asChild
-            >
-              <Link href='/sign-in' className='flex items-center gap-2'>
-                Get started free
-                <ArrowRight className='h-4 w-4' />
-              </Link>
-            </Button>
+            {session?.user ? (
+              <Button
+                size='lg'
+                className='rounded-full px-7 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-95'
+                asChild
+              >
+                <Link href='/dashboard' className='flex items-center gap-2'>
+                  Go to Dashboard
+                  <ArrowRight className='h-4 w-4' />
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                size='lg'
+                className='rounded-full px-7 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-95'
+                asChild
+              >
+                <Link href='/sign-in' className='flex items-center gap-2'>
+                  Get started free
+                  <ArrowRight className='h-4 w-4' />
+                </Link>
+              </Button>
+            )}
             <Button
               size='lg'
               variant='outline'
@@ -199,12 +247,53 @@ function Hero() {
   );
 }
 
+function StatsBand() {
+  return (
+    <section className='mx-auto max-w-5xl px-6 py-6'>
+      <div className='grid grid-cols-2 md:grid-cols-4 gap-4 p-6 rounded-3xl border border-border/80 bg-card/60 shadow-sm backdrop-blur-sm'>
+        <div className='space-y-1 text-center sm:text-left'>
+          <div className='text-2xl font-extrabold tracking-tight text-foreground font-mono'>
+            40+
+          </div>
+          <div className='text-xs text-muted-foreground font-medium'>
+            Connected Repositories
+          </div>
+        </div>
+        <div className='space-y-1 text-center sm:text-left'>
+          <div className='text-2xl font-extrabold tracking-tight text-indigo-600 dark:text-indigo-400 font-mono'>
+            &lt; 800ms
+          </div>
+          <div className='text-xs text-muted-foreground font-medium'>
+            Sub-second RAG Query
+          </div>
+        </div>
+        <div className='space-y-1 text-center sm:text-left'>
+          <div className='text-2xl font-extrabold tracking-tight text-foreground font-mono'>
+            100%
+          </div>
+          <div className='text-xs text-muted-foreground font-medium'>
+            Type-Safe Drizzle DB
+          </div>
+        </div>
+        <div className='space-y-1 text-center sm:text-left'>
+          <div className='text-2xl font-extrabold tracking-tight text-indigo-600 dark:text-indigo-400 font-mono'>
+            Inngest
+          </div>
+          <div className='text-xs text-muted-foreground font-medium'>
+            Async Job Pipeline
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const features = [
   {
     icon: Search,
     title: "Semantic Code Search",
     description:
-      "Query commits, file history, and branch differences without memorizing git CLI commands.",
+      "Query commits, file history, and branch differences using natural language vector search.",
   },
   {
     icon: MessageSquare,
@@ -240,8 +329,8 @@ const features = [
 
 function Features() {
   return (
-    <section id='features' className='mx-auto max-w-5xl px-6 py-24'>
-      <div className='mb-16 text-center sm:text-left space-y-2'>
+    <section id='features' className='mx-auto max-w-5xl px-6 py-20'>
+      <div className='mb-14 text-center sm:text-left space-y-2'>
         <Badge
           variant='outline'
           className='mb-3 rounded-full border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/70 dark:bg-indigo-950/40 text-xs font-bold uppercase tracking-widest text-indigo-700 dark:text-indigo-300'
@@ -283,23 +372,65 @@ function Features() {
   );
 }
 
+function HowItWorks() {
+  return (
+    <section id='how-it-works' className='mx-auto max-w-5xl px-6 py-16'>
+      <div className='mb-12 text-center sm:text-left space-y-2'>
+        <Badge
+          variant='outline'
+          className='mb-3 rounded-full border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/70 dark:bg-indigo-950/40 text-xs font-bold uppercase tracking-widest text-indigo-700 dark:text-indigo-300'
+        >
+          Architecture
+        </Badge>
+        <h2 className='text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl'>
+          How TalkToYourGitHub Works
+        </h2>
+        <p className='text-xs sm:text-sm text-muted-foreground max-w-lg leading-relaxed'>
+          Three seamless steps connecting your GitHub workflow to AI vector search.
+        </p>
+      </div>
+
+      <div className='grid gap-6 sm:grid-cols-3'>
+        <div className='p-6 rounded-3xl border border-border/80 bg-card/90 shadow-sm space-y-3 relative overflow-hidden'>
+          <div className='text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400'>
+            01 / CONNECT
+          </div>
+          <h3 className='text-base font-bold text-foreground'>GitHub OAuth 2.0</h3>
+          <p className='text-xs text-muted-foreground leading-relaxed'>
+            Connect your GitHub account with read-only access for secure multi-tenant isolation via Corsair API.
+          </p>
+        </div>
+
+        <div className='p-6 rounded-3xl border border-border/80 bg-card/90 shadow-sm space-y-3 relative overflow-hidden'>
+          <div className='text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400'>
+            02 / INDEX
+          </div>
+          <h3 className='text-base font-bold text-foreground'>Inngest Vector RAG</h3>
+          <p className='text-xs text-muted-foreground leading-relaxed'>
+            LangChain character splitters generate vector embeddings stored in Pinecone and PostgreSQL.
+          </p>
+        </div>
+
+        <div className='p-6 rounded-3xl border border-border/80 bg-card/90 shadow-sm space-y-3 relative overflow-hidden'>
+          <div className='text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400'>
+            03 / CHAT
+          </div>
+          <h3 className='text-base font-bold text-foreground'>AI Intelligence</h3>
+          <p className='text-xs text-muted-foreground leading-relaxed'>
+            Ask questions, review PRs, triage issues, and inspect repository files in natural language.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function CtaBand() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
 
-  const handleSignOut = async () => {
-    await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          router.push("/sign-in");
-          router.refresh();
-        },
-      },
-    });
-  };
-
   return (
-    <section id='how-it-works' className='mx-auto max-w-5xl px-6 py-16'>
+    <section className='mx-auto max-w-5xl px-6 py-16'>
       <div className='rounded-3xl border border-indigo-200/60 dark:border-indigo-900/40 bg-gradient-to-br from-indigo-50/50 via-background to-violet-50/50 dark:from-indigo-950/30 dark:to-violet-950/20 p-8 sm:p-12 shadow-xl shadow-indigo-500/5 transition-all duration-300 hover:border-indigo-500/30'>
         <div className='grid gap-8 sm:grid-cols-2 sm:items-center'>
           <div className='space-y-3 text-left'>
@@ -307,7 +438,7 @@ function CtaBand() {
               variant='outline'
               className='rounded-full border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/70 dark:bg-indigo-950/40 text-xs font-bold text-indigo-700 dark:text-indigo-300 tracking-wider'
             >
-              Fast Setup
+              Instant Access
             </Badge>
             <h2 className='text-2xl font-bold tracking-tight text-foreground sm:text-3xl'>
               Ready to talk to your repositories?
@@ -318,31 +449,35 @@ function CtaBand() {
             </p>
           </div>
           <div className='flex flex-col sm:flex-row gap-3 sm:justify-end'>
-            {session?.user && (
+            {session?.user ? (
               <Button
                 size='lg'
-                variant='outline'
-                onClick={handleSignOut}
-                className='w-full sm:w-auto rounded-full px-6 text-xs font-bold border-border/80 transition-transform active:scale-95'
+                className='w-full sm:w-auto rounded-full px-7 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-transform active:scale-95'
+                asChild
               >
-                Sign out
+                <Link
+                  href='/dashboard'
+                  className='flex items-center justify-center gap-2'
+                >
+                  Go to Dashboard
+                  <ArrowRight className='h-4 w-4' />
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                size='lg'
+                className='w-full sm:w-auto rounded-full px-7 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-transform active:scale-95'
+                asChild
+              >
+                <Link
+                  href='/sign-in'
+                  className='flex items-center justify-center gap-2'
+                >
+                  Connect GitHub Repository
+                  <ArrowRight className='h-4 w-4' />
+                </Link>
               </Button>
             )}
-            <Button
-              size='lg'
-              className='w-full sm:w-auto rounded-full px-7 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-transform active:scale-95'
-              asChild
-            >
-              <Link
-                href='/sign-in'
-                className='flex items-center justify-center gap-2'
-              >
-                {session?.user
-                  ? "Re-authorize GitHub"
-                  : "Connect GitHub Repository"}
-                <ArrowRight className='h-4 w-4' />
-              </Link>
-            </Button>
           </div>
         </div>
       </div>
@@ -393,7 +528,9 @@ export default function Home() {
       <div className='relative z-10'>
         <Nav />
         <Hero />
+        <StatsBand />
         <Features />
+        <HowItWorks />
         <CtaBand />
         <Footer />
       </div>

@@ -45,6 +45,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 interface RepoDetailsData {
   owner: string;
@@ -169,16 +170,24 @@ export default function RepositoryDetailPage(props: {
               </div>
             </div>
 
-            <Button
-              variant='ghost'
-              size='sm'
-              onClick={fetchRepoDetails}
-              className='h-7 text-xs'
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`}
+            <div className='flex items-center gap-2'>
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={fetchRepoDetails}
+                className='h-7 text-xs'
+                title='Refresh repository data'
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`}
+                />
+              </Button>
+
+              <AnimatedThemeToggler
+                variant='circle'
+                className='flex h-7 w-7 items-center justify-center rounded-full border border-border/80 text-muted-foreground transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/40'
               />
-            </Button>
+            </div>
           </header>
 
           {/* Repository Main Content Tabs */}

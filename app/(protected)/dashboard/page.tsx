@@ -29,6 +29,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+
 export default function DashboardPage() {
   /* Active repository state selected from sidebar or dashboard cards */
   const [selectedRepo, setSelectedRepo] = useState<RepositoryItem | null>(null);
@@ -142,6 +144,11 @@ export default function DashboardPage() {
                 <Sparkles className='h-3.5 w-3.5 text-indigo-200' />
                 Run Inngest Sync {selectedRepo ? `(${selectedRepo.name})` : ""}
               </Button>
+
+              <AnimatedThemeToggler
+                variant='circle'
+                className='flex h-8 w-8 items-center justify-center rounded-full border border-border/80 text-muted-foreground transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/40'
+              />
             </div>
           </header>
 

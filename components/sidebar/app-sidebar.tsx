@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FolderGit2, MessageSquare, LogOut, Sparkles, Bot } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 /*
  * SVG GitHub Icon component to replace missing lucide-react icon
@@ -87,12 +88,16 @@ export function AppSidebar({
     <Sidebar className='border-r border-sidebar-border bg-sidebar'>
       {/* Brand & App Header */}
       <SidebarHeader className='border-b border-sidebar-border px-4 py-3'>
-        <div className='flex items-center gap-3'>
-          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25 shrink-0'>
+        <Link
+          href='/'
+          className='flex items-center gap-3 group hover:opacity-90 transition-all cursor-pointer'
+          title='Go to Landing Page'
+        >
+          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25 shrink-0 group-hover:scale-105 transition-transform'>
             <GithubIcon className='h-5 w-5' />
           </div>
           <div className='flex flex-col'>
-            <span className='font-semibold text-sm leading-none flex items-center gap-1.5'>
+            <span className='font-semibold text-sm leading-none flex items-center gap-1.5 text-foreground group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors'>
               TalkToYourGitHub
               <Sparkles className='h-3 w-3 text-indigo-500' />
             </span>
@@ -100,7 +105,7 @@ export function AppSidebar({
               AI Code Assistant
             </span>
           </div>
-        </div>
+        </Link>
       </SidebarHeader>
 
       {/* Main Sidebar Content: Repository Navigation */}
