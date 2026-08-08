@@ -11,34 +11,69 @@ export async function getCommits(options: GetCommitsOptions) {
     throw new Error("Both 'owner' and 'repo' are required to fetch commits.");
   }
 
-  const { tenant } = await getCorsairTenantClient(options);
   const perPage = options.perPage || 30;
   const targetFullName = `${options.owner}/${options.repo}`;
 
-  // Fetch commits via Corsair Live GitHub API Proxy (corsair.github.api.repositories.listCommits)
+  // 1. Try Corsair Live API Proxy
   try {
+    const { tenant } = await getCorsairTenantClient(options);
     const commits = await (
       tenant as any
     ).github?.api?.repositories?.listCommits({
       owner: options.owner,
       repo: options.repo,
-      per_page: perPage,
       perPage,
     });
-    if (commits && Array.isArray(commits)) {
+    if (commits && Array.isArray(commits) && commits.length > 0) {
       return {
         success: true,
-        source: "live_api",
+        source: "corsair_api",
         owner: options.owner,
         repo: options.repo,
         count: commits.length,
         commits,
       };
     }
-  } catch (apiErr: unknown) {
+  } catch (corsairErr: unknown) {
     console.warn(
-      `[getCommits] Live API call note for ${targetFullName}:`,
-      apiErr instanceof Error ? apiErr.message : apiErr,
+      `[getCommits] Corsair API note for ${targetFullName}:`,
+      corsairErr instanceof Error ? corsairErr.message : corsairErr,
+    );
+  }
+
+  // 2. Direct GitHub REST API Fallback (using GITHUB_TOKEN if available)
+  try {
+    const token = process.env.GITHUB_TOKEN;
+    const reqHeaders: Record<string, string> = {
+      "User-Agent": "TalkToYourGithub",
+      Accept: "application/vnd.github.v3+json",
+    };
+    if (token) {
+      reqHeaders.Authorization = `Bearer ${token}`;
+    }
+
+    const ghRes = await fetch(
+      `https://api.github.com/repos/${options.owner}/${options.repo}/commits?per_page=${perPage}`,
+      { headers: reqHeaders },
+    );
+
+    if (ghRes.ok) {
+      const data = await ghRes.json();
+      if (Array.isArray(data)) {
+        return {
+          success: true,
+          source: "github_rest",
+          owner: options.owner,
+          repo: options.repo,
+          count: data.length,
+          commits: data,
+        };
+      }
+    }
+  } catch (restErr: unknown) {
+    console.warn(
+      `[getCommits] GitHub REST API fallback note for ${targetFullName}:`,
+      restErr instanceof Error ? restErr.message : restErr,
     );
   }
 
@@ -46,7 +81,8 @@ export async function getCommits(options: GetCommitsOptions) {
     success: false,
     owner: options.owner,
     repo: options.repo,
-    error: `Could not find commits for '${targetFullName}' via Live API.`,
+    error: `Could not find commits for '${targetFullName}'.`,
     commits: [],
   };
 }
+

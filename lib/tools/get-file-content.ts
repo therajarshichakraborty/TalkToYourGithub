@@ -15,10 +15,11 @@ export async function getFileContent(options: GetFileContentOptions) {
     );
   }
 
-  const { tenant } = await getCorsairTenantClient(options);
   const targetFullName = `${options.owner}/${options.repo}/${targetPath}`;
 
+  // 1. Try Corsair API
   try {
+    const { tenant } = await getCorsairTenantClient(options);
     const res = await tenant.github.api.repositories.getContent({
       owner: options.owner,
       repo: options.repo,
@@ -39,7 +40,7 @@ export async function getFileContent(options: GetFileContentOptions) {
 
         return {
           success: true,
-          source: "live_api",
+          source: "corsair_api",
           owner: options.owner,
           repo: options.repo,
           path: options.path,
@@ -55,52 +56,62 @@ export async function getFileContent(options: GetFileContentOptions) {
           content: contentStr,
         };
       }
+    }
+  } catch (corsairErr: unknown) {
+    console.warn(
+      `[getFileContent] Corsair API note for ${targetFullName}:`,
+      corsairErr instanceof Error ? corsairErr.message : corsairErr,
+    );
+  }
 
-      if (Array.isArray(res) || ("type" in res && res.type === "dir")) {
-        const items = Array.isArray(res) ? res : [];
+  // 2. Direct GitHub REST API Fallback
+  try {
+    const token = process.env.GITHUB_TOKEN;
+    const reqHeaders: Record<string, string> = {
+      "User-Agent": "TalkToYourGithub",
+      Accept: "application/vnd.github.v3+json",
+    };
+    if (token) {
+      reqHeaders.Authorization = `Bearer ${token}`;
+    }
+
+    const refQuery = options.ref ? `?ref=${options.ref}` : "";
+    const ghRes = await fetch(
+      `https://api.github.com/repos/${options.owner}/${options.repo}/contents/${targetPath}${refQuery}`,
+      { headers: reqHeaders },
+    );
+
+    if (ghRes.ok) {
+      const data = await ghRes.json();
+      if (data && data.type === "file" && data.content) {
+        let contentStr = data.content;
+        if (data.encoding === "base64") {
+          contentStr = Buffer.from(contentStr, "base64").toString("utf-8");
+        }
         return {
           success: true,
-          source: "live_api",
+          source: "github_rest",
           owner: options.owner,
           repo: options.repo,
           path: options.path,
           ref: options.ref || "default",
-          type: "directory",
-          itemCount: items.length,
-          items: items.map((item) => ({
-            name: item.name,
-            path: item.path,
-            type: item.type,
-            sha: item.sha,
-            size: item.size,
-          })),
+          type: "file",
+          name: data.name,
+          sha: data.sha,
+          size: data.size,
+          encoding: data.encoding,
+          downloadUrl: data.download_url ?? null,
+          htmlUrl: data.html_url ?? null,
+          publicUrl: data.html_url || `https://github.com/${options.owner}/${options.repo}/blob/${options.ref || "main"}/${options.path}`,
+          content: contentStr,
         };
       }
     }
-  } catch (apiErr: unknown) {
-    const errMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
-    const isRateLimited =
-      errMsg.toLowerCase().includes("rate limit") ||
-      errMsg.includes("403") ||
-      errMsg.includes("429");
-
+  } catch (restErr: unknown) {
     console.warn(
-      `[getFileContent] Live API call note for ${targetFullName}:`,
-      errMsg,
-      isRateLimited ? "(Rate Limit Detected)" : "",
+      `[getFileContent] GitHub REST API fallback note for ${targetFullName}:`,
+      restErr instanceof Error ? restErr.message : restErr,
     );
-
-    return {
-      success: false,
-      owner: options.owner,
-      repo: options.repo,
-      path: options.path,
-      isRateLimited,
-      error: isRateLimited
-        ? `GitHub API rate limit exceeded while fetching '${targetFullName}'.`
-        : `Could not fetch content for '${targetFullName}': ${errMsg}`,
-      content: null,
-    };
   }
 
   return {
@@ -108,7 +119,8 @@ export async function getFileContent(options: GetFileContentOptions) {
     owner: options.owner,
     repo: options.repo,
     path: options.path,
-    error: `No content returned for '${targetFullName}' via Live API.`,
+    error: `Could not fetch content for '${targetFullName}'.`,
     content: null,
   };
 }
+

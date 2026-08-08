@@ -12,13 +12,13 @@ export async function getIssues(options: GetIssuesOptions) {
     throw new Error("Both 'owner' and 'repo' are required to fetch issues.");
   }
 
-  const { tenant } = await getCorsairTenantClient(options);
   const perPage = options.perPage || 30;
   const state = options.state || "all";
   const targetFullName = `${options.owner}/${options.repo}`;
 
-  // 1. Primary: Local Synced Corsair Database (corsair.github.db.issues.search)
+  // 1. Try Corsair API / Synced DB
   try {
+    const { tenant } = await getCorsairTenantClient(options);
     if (tenant.github?.db?.issues?.search) {
       const dbIssues = await tenant.github.db.issues.search({});
       if (dbIssues && Array.isArray(dbIssues) && dbIssues.length > 0) {
@@ -32,37 +32,63 @@ export async function getIssues(options: GetIssuesOptions) {
         };
       }
     }
-  } catch (dbErr: unknown) {
-    console.warn(
-      `[getIssues] Local DB search note for ${targetFullName}:`,
-      dbErr instanceof Error ? dbErr.message : dbErr,
-    );
-  }
 
-  // 2. Fallback: Corsair Live GitHub API Proxy (corsair.github.api.issues.list)
-  try {
-    // @ts-ignore
     const issues = await (tenant as any).github?.api?.issues?.list({
       owner: options.owner,
       repo: options.repo,
       state,
-      per_page: perPage,
       perPage,
     });
-    if (issues && Array.isArray(issues)) {
+    if (issues && Array.isArray(issues) && issues.length > 0) {
       return {
         success: true,
-        source: "live_api",
+        source: "corsair_api",
         owner: options.owner,
         repo: options.repo,
         count: issues.length,
         issues,
       };
     }
-  } catch (apiErr: unknown) {
+  } catch (corsairErr: unknown) {
     console.warn(
-      `[getIssues] Live API call note for ${targetFullName}:`,
-      apiErr instanceof Error ? apiErr.message : apiErr,
+      `[getIssues] Corsair note for ${targetFullName}:`,
+      corsairErr instanceof Error ? corsairErr.message : corsairErr,
+    );
+  }
+
+  // 2. Direct GitHub REST API Fallback
+  try {
+    const token = process.env.GITHUB_TOKEN;
+    const reqHeaders: Record<string, string> = {
+      "User-Agent": "TalkToYourGithub",
+      Accept: "application/vnd.github.v3+json",
+    };
+    if (token) {
+      reqHeaders.Authorization = `Bearer ${token}`;
+    }
+
+    const ghRes = await fetch(
+      `https://api.github.com/repos/${options.owner}/${options.repo}/issues?state=${state}&per_page=${perPage}`,
+      { headers: reqHeaders },
+    );
+
+    if (ghRes.ok) {
+      const data = await ghRes.json();
+      if (Array.isArray(data)) {
+        return {
+          success: true,
+          source: "github_rest",
+          owner: options.owner,
+          repo: options.repo,
+          count: data.length,
+          issues: data,
+        };
+      }
+    }
+  } catch (restErr: unknown) {
+    console.warn(
+      `[getIssues] GitHub REST API fallback note for ${targetFullName}:`,
+      restErr instanceof Error ? restErr.message : restErr,
     );
   }
 
@@ -70,7 +96,8 @@ export async function getIssues(options: GetIssuesOptions) {
     success: false,
     owner: options.owner,
     repo: options.repo,
-    error: `Could not find issues for '${targetFullName}' via Synced DB or Live API.`,
+    error: `Could not find issues for '${targetFullName}'.`,
     issues: [],
   };
 }
+

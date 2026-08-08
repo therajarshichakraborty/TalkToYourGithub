@@ -5,8 +5,8 @@ import { getCommits } from "@/lib/tools/get-commits";
 import { getPullRequests } from "@/lib/tools/get-pull-requests";
 import { getIssues } from "@/lib/tools/get-issues";
 import { getFileContent } from "@/lib/tools/get-file-content";
-import { embeddingModel } from "@/features/chat/openai";
-import { embedMany } from "ai";
+import { generateResilientEmbeddings } from "@/features/chat/openai";
+import { RecursiveCharacterTextSplitter } from "@/lib/rag/text-splitter";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -25,8 +25,9 @@ interface ContentChunk {
 
 /**
  * Inngest function: generateEmbeddings
- * Pulls content from Corsair GitHub entities (commits, issues, PRs, readme, repos),
- * embeds content using AI SDK embeddingModel, and persists vectors to pgvector embeddings table.
+ * Pulls content from GitHub entities (commits, issues, PRs, readme, repos),
+ * chunks content using LangChain RecursiveCharacterTextSplitter,
+ * computes vector embeddings via generateResilientEmbeddings, and persists vectors to Pinecone & pgvector.
  */
 export const generateEmbeddings = inngest.createFunction(
   {
@@ -60,7 +61,7 @@ export const generateEmbeddings = inngest.createFunction(
     }
 
     /**
-     * Step 1: Fetch target repositories from Corsair.
+     * Step 1: Fetch target repositories.
      */
     const targetRepos = await step.run(
       "fetch-target-repositories",
@@ -130,7 +131,7 @@ export const generateEmbeddings = inngest.createFunction(
           }
         }
 
-        // Fallback: If no repos retrieved, query existing database summaries / activity logs
+        // Fallback: If no repos retrieved, query existing database summaries or fallback to TalkToYourGithub
         if (!repos.length) {
           const existingSummaries = await db
             .select({
@@ -152,7 +153,6 @@ export const generateEmbeddings = inngest.createFunction(
               stars: 0,
             }));
           } else {
-            // Default fallback repository if nothing else is available
             repos = [
               {
                 owner: "therajarshichakraborty",
@@ -180,6 +180,10 @@ export const generateEmbeddings = inngest.createFunction(
     }
 
     let totalEmbeddedCount = 0;
+    const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+    });
 
     /**
      * Step 2: Extract entity contents and generate vector embeddings for each repository.
@@ -240,36 +244,28 @@ export const generateEmbeddings = inngest.createFunction(
               }),
             ]);
 
-          // Process Readme with multi-chunking for rich embeddings
+          // Process Readme using LangChain RecursiveCharacterTextSplitter
           if (
             readmeRes.status === "fulfilled" &&
             readmeRes.value.success &&
             readmeRes.value.content
           ) {
             const readmeText = readmeRes.value.content;
-            const CHUNK_SIZE = 1000;
-            const CHUNK_OVERLAP = 200;
+            const readmeChunks = textSplitter.splitText(readmeText);
 
-            for (
-              let i = 0;
-              i < readmeText.length;
-              i += CHUNK_SIZE - CHUNK_OVERLAP
-            ) {
-              const snippet = readmeText.slice(i, i + CHUNK_SIZE);
-              if (snippet.trim().length > 50) {
-                extracted.push({
-                  sourceType: "readme",
-                  sourceId: `${owner}/${name}/README.md#chunk-${extracted.length}`,
-                  content: `README snippet for ${owner}/${name}:\n${snippet}`,
-                  metadata: {
-                    repositoryOwner: owner,
-                    repositoryName: name,
-                    path: "README.md",
-                    chunkIndex: extracted.length,
-                  },
-                });
-              }
-            }
+            readmeChunks.forEach((snippet, idx) => {
+              extracted.push({
+                sourceType: "readme",
+                sourceId: `${owner}/${name}/README.md#chunk-${idx + 1}`,
+                content: `README chunk #${idx + 1} for ${owner}/${name}:\n${snippet}`,
+                metadata: {
+                  repositoryOwner: owner,
+                  repositoryName: name,
+                  path: "README.md",
+                  chunkIndex: idx + 1,
+                },
+              });
+            });
           }
 
           // Process Commits
@@ -351,30 +347,14 @@ export const generateEmbeddings = inngest.createFunction(
       if (!chunks.length) continue;
 
       /**
-       * Step 3: Compute embeddings and persist vectors to Pinecone database and PG vector table.
+       * Step 3: Compute embeddings via generateResilientEmbeddings and persist vectors to Pinecone & PG vector table.
        */
       const savedCount = await step.run(
         `embed-and-save-${owner}-${name}`,
         async () => {
           const valuesToEmbed = chunks.map((c) => c.content);
 
-          let generatedEmbeddings: number[][] = [];
-          try {
-            const { embeddings: vectors } = await embedMany({
-              model: embeddingModel,
-              values: valuesToEmbed,
-            });
-            generatedEmbeddings = vectors;
-          } catch (embedError: unknown) {
-            const errStr =
-              embedError instanceof Error ? embedError.message : String(embedError);
-            console.error(
-              `[generateEmbeddings] Embedding generation failed for ${owner}/${name}: ${errStr}`,
-            );
-            throw new Error(
-              `[generateEmbeddings] Embedding API call failed: ${errStr}`,
-            );
-          }
+          const generatedEmbeddings = await generateResilientEmbeddings(valuesToEmbed);
 
           let pineconeSaved = 0;
           let postgresSaved = 0;
@@ -453,4 +433,5 @@ export const generateEmbeddings = inngest.createFunction(
     };
   },
 );
+
 
