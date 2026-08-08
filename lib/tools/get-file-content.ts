@@ -56,6 +56,29 @@ export async function getFileContent(options: GetFileContentOptions) {
           content: contentStr,
         };
       }
+
+      if (Array.isArray(res) || ("type" in res && res.type === "dir")) {
+        const items = Array.isArray(res) ? res : [];
+        return {
+          success: true,
+          source: "corsair_api",
+          owner: options.owner,
+          repo: options.repo,
+          path: options.path,
+          ref: options.ref || "default",
+          type: "directory",
+          itemCount: items.length,
+          items: items.map((item: any) => ({
+            name: item.name,
+            path: item.path,
+            type: item.type,
+            sha: item.sha,
+            size: item.size,
+            downloadUrl: item.downloadUrl ?? null,
+            htmlUrl: item.htmlUrl ?? null,
+          })),
+        };
+      }
     }
   } catch (corsairErr: unknown) {
     console.warn(
@@ -91,9 +114,34 @@ export async function getFileContent(options: GetFileContentOptions) {
 
     if (ghRes.ok) {
       const data = await ghRes.json();
-      if (data && data.type === "file" && data.content) {
-        let contentStr = data.content;
-        if (data.encoding === "base64") {
+      
+      // Directory listing
+      if (Array.isArray(data)) {
+        return {
+          success: true,
+          source: "github_rest",
+          owner: options.owner,
+          repo: options.repo,
+          path: options.path,
+          ref: options.ref || "default",
+          type: "directory",
+          itemCount: data.length,
+          items: data.map((item: any) => ({
+            name: item.name,
+            path: item.path,
+            type: item.type,
+            sha: item.sha,
+            size: item.size,
+            downloadUrl: item.download_url ?? null,
+            htmlUrl: item.html_url ?? null,
+          })),
+        };
+      }
+
+      // Single File content
+      if (data && data.type === "file") {
+        let contentStr = data.content || "";
+        if (data.encoding === "base64" && contentStr) {
           contentStr = Buffer.from(contentStr, "base64").toString("utf-8");
         }
         return {
