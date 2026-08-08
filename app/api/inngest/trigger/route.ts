@@ -52,13 +52,13 @@ export async function POST(req: Request) {
         repositoryName = repositoryName || latestSummary.name;
       } else {
         const [conn] = await db
-          .select({ githubUsername: schema.githubConnections.githubUsername })
+          .select({ githubLogin: schema.githubConnections.githubLogin })
           .from(schema.githubConnections)
           .where(eq(schema.githubConnections.userId, userId))
           .limit(1);
 
         repositoryOwner =
-          repositoryOwner || conn?.githubUsername || "therajarshichakraborty";
+          repositoryOwner || conn?.githubLogin || "therajarshichakraborty";
         repositoryName = repositoryName || "TalkToYourGithub";
       }
     }

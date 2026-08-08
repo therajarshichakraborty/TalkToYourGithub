@@ -21,7 +21,7 @@ export async function getFileContent(options: GetFileContentOptions) {
   // 1. Try Corsair API
   try {
     const { tenant } = await getCorsairTenantClient(options);
-    const res = await tenant.github.api.repositories.getContent({
+    const res = await (tenant.github.api.repositories as any).getContent({
       owner: options.owner,
       repo: options.repo,
       path: targetPath,

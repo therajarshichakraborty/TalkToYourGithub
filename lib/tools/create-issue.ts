@@ -20,7 +20,7 @@ export async function createIssue(options: CreateIssueOptions) {
   const targetFullName = `${options.owner}/${options.repo}`;
 
   try {
-    const issue = await tenant.github.api.issues.create({
+    const issue = await (tenant as any).github?.api?.issues?.create({
       owner: options.owner,
       repo: options.repo,
       title: options.title,

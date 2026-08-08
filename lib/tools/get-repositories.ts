@@ -33,7 +33,7 @@ export async function getRepositories(options: GetRepositoriesOptions = {}) {
       }
     }
 
-    const repos = await tenant.github.api.repositories.list({
+    const repos = await (tenant as any).github?.api?.repositories?.list({
       perPage,
     });
     if (repos && Array.isArray(repos) && repos.length > 0) {
