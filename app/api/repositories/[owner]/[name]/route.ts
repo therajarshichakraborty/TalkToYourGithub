@@ -18,16 +18,13 @@ export const runtime = "nodejs";
 
 export async function GET(
   req: Request,
-  props: { params: Promise<{ owner: string; name: string }> }
+  props: { params: Promise<{ owner: string; name: string }> },
 ) {
   /* Authenticate user session */
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session?.user?.id) {
-    return Response.json(
-      { error: "Unauthorized access" },
-      { status: 401 }
-    );
+    return Response.json({ error: "Unauthorized access" }, { status: 401 });
   }
 
   const { owner, name } = await props.params;
@@ -44,8 +41,8 @@ export async function GET(
         and(
           eq(schema.repositorySummaries.userId, userId),
           eq(schema.repositorySummaries.repositoryOwner, owner),
-          eq(schema.repositorySummaries.repositoryName, name)
-        )
+          eq(schema.repositorySummaries.repositoryName, name),
+        ),
       )
       .limit(1);
 
@@ -59,8 +56,8 @@ export async function GET(
         and(
           eq(schema.activityLogs.userId, userId),
           eq(schema.activityLogs.repositoryOwner, owner),
-          eq(schema.activityLogs.repositoryName, name)
-        )
+          eq(schema.activityLogs.repositoryName, name),
+        ),
       )
       .orderBy(desc(schema.activityLogs.occurredAt))
       .limit(30);
@@ -72,7 +69,13 @@ export async function GET(
       await Promise.allSettled([
         getCommits({ userId, owner, repo: name, perPage: 100 }),
         getBranches({ userId, owner, repo: name, perPage: 100 }),
-        getPullRequests({ userId, owner, repo: name, state: "all", perPage: 100 }),
+        getPullRequests({
+          userId,
+          owner,
+          repo: name,
+          state: "all",
+          perPage: 100,
+        }),
         getIssues({ userId, owner, repo: name, state: "all", perPage: 100 }),
         getFileContent({ userId, owner, repo: name, path: "README.md" }),
       ]);
@@ -124,16 +127,22 @@ export async function GET(
         date: c.commit?.author?.date || c.date || "",
         sha: c.sha ? String(c.sha).slice(0, 7) : "",
       })),
-      branches: branches.slice(0, 5).map((b: any) => (typeof b === "string" ? b : b?.name || "")).filter(Boolean),
+      branches: branches
+        .slice(0, 5)
+        .map((b: any) => (typeof b === "string" ? b : b?.name || ""))
+        .filter(Boolean),
       readmeSnippet: readme ? readme.slice(0, 2000) : null,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[/api/repositories/${owner}/${name}] Error fetching repo details:`, message);
+    console.error(
+      `[/api/repositories/${owner}/${name}] Error fetching repo details:`,
+      message,
+    );
 
     return Response.json(
       { error: `Internal server error loading repository ${owner}/${name}` },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

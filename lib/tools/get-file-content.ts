@@ -8,7 +8,8 @@ export interface GetFileContentOptions extends ToolContextOptions {
 }
 
 export async function getFileContent(options: GetFileContentOptions) {
-  const targetPath = options.path !== undefined && options.path !== null ? options.path : "";
+  const targetPath =
+    options.path !== undefined && options.path !== null ? options.path : "";
   if (!options.owner || !options.repo) {
     throw new Error(
       "Parameters 'owner' and 'repo' are required to fetch file content.",
@@ -114,7 +115,7 @@ export async function getFileContent(options: GetFileContentOptions) {
 
     if (ghRes.ok) {
       const data = await ghRes.json();
-      
+
       // Directory listing
       if (Array.isArray(data)) {
         return {
@@ -158,7 +159,9 @@ export async function getFileContent(options: GetFileContentOptions) {
           encoding: data.encoding,
           downloadUrl: data.download_url ?? null,
           htmlUrl: data.html_url ?? null,
-          publicUrl: data.html_url || `https://github.com/${options.owner}/${options.repo}/blob/${options.ref || "main"}/${options.path}`,
+          publicUrl:
+            data.html_url ||
+            `https://github.com/${options.owner}/${options.repo}/blob/${options.ref || "main"}/${options.path}`,
           content: contentStr,
         };
       }
@@ -179,4 +182,3 @@ export async function getFileContent(options: GetFileContentOptions) {
     content: null,
   };
 }
-

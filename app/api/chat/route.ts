@@ -48,7 +48,8 @@ export async function POST(req: Request) {
   const systemPrompt = buildSystemPrompt({
     githubLogin: conn?.githubLogin ?? session.user.name ?? "unknown",
     connectedAt: conn?.connectedAt?.toISOString(),
-    activeRepo: repoOwner && repoName ? { owner: repoOwner, name: repoName } : null,
+    activeRepo:
+      repoOwner && repoName ? { owner: repoOwner, name: repoName } : null,
   });
 
   const tools = buildToolRegistry({ userId });
@@ -99,9 +100,10 @@ export async function POST(req: Request) {
      */
     const lastUserMessage = messages[messages.length - 1];
     if (lastUserMessage && lastUserMessage.role === "user" && conversationId) {
-      const userText = typeof lastUserMessage.content === "string"
-        ? lastUserMessage.content
-        : JSON.stringify(lastUserMessage.content);
+      const userText =
+        typeof lastUserMessage.content === "string"
+          ? lastUserMessage.content
+          : JSON.stringify(lastUserMessage.content);
 
       await db.insert(schema.messages).values({
         conversationId,
@@ -126,7 +128,9 @@ export async function POST(req: Request) {
             metadata: { repo: `${repoOwner}/${repoName}` },
             occurredAt: new Date(),
           })
-          .catch((logErr) => console.warn("[/api/chat] Note writing activity log:", logErr));
+          .catch((logErr) =>
+            console.warn("[/api/chat] Note writing activity log:", logErr),
+          );
       }
     }
   } catch (dbErr) {
@@ -148,9 +152,13 @@ export async function POST(req: Request) {
               conversationId,
               role: "assistant",
               content: text,
-              toolCalls: toolInvocations ? JSON.parse(JSON.stringify(toolInvocations)) : null,
+              toolCalls: toolInvocations
+                ? JSON.parse(JSON.stringify(toolInvocations))
+                : null,
             })
-            .catch((err) => console.warn("[/api/chat] Error saving assistant message:", err));
+            .catch((err) =>
+              console.warn("[/api/chat] Error saving assistant message:", err),
+            );
         }
       },
       onError: (err) => {
@@ -168,4 +176,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

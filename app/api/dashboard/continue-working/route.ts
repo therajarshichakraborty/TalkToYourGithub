@@ -18,10 +18,7 @@ export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session?.user?.id) {
-    return Response.json(
-      { error: "Unauthorized access" },
-      { status: 401 }
-    );
+    return Response.json({ error: "Unauthorized access" }, { status: 401 });
   }
 
   const userId = session.user.id;
@@ -88,7 +85,11 @@ export async function GET() {
 
     for (const log of logs) {
       if (!log.repositoryOwner || !log.repositoryName) continue;
-      if (log.repositoryName.toLowerCase() === "all" || log.repositoryOwner.toLowerCase() === "all") continue;
+      if (
+        log.repositoryName.toLowerCase() === "all" ||
+        log.repositoryOwner.toLowerCase() === "all"
+      )
+        continue;
 
       let owner = log.repositoryOwner;
       const name = log.repositoryName;
@@ -106,7 +107,10 @@ export async function GET() {
           fullName: `${owner}/${name}`,
           activities: [],
           latestActivityAt: log.occurredAt.toISOString(),
-          summary: summaryMap.get(key) || summaryMap.get(`github/${name.toLowerCase()}`) || null,
+          summary:
+            summaryMap.get(key) ||
+            summaryMap.get(`github/${name.toLowerCase()}`) ||
+            null,
         });
       }
 
@@ -124,7 +128,11 @@ export async function GET() {
      * Also include repositories that have summaries even if they have no recent activity log rows
      */
     for (const s of summaries) {
-      if (s.repositoryName.toLowerCase() === "all" || s.repositoryOwner.toLowerCase() === "all") continue;
+      if (
+        s.repositoryName.toLowerCase() === "all" ||
+        s.repositoryOwner.toLowerCase() === "all"
+      )
+        continue;
 
       let owner = s.repositoryOwner;
       const name = s.repositoryName;
@@ -151,11 +159,17 @@ export async function GET() {
      */
     try {
       const userReposResult = await getRepositories({ userId, perPage: 100 });
-      if (userReposResult.success && Array.isArray(userReposResult.repositories)) {
+      if (
+        userReposResult.success &&
+        Array.isArray(userReposResult.repositories)
+      ) {
         for (const repoItem of userReposResult.repositories) {
           const r = repoItem?.data || repoItem?.payload || repoItem || {};
           let fullName = r.full_name || r.fullName || "";
-          let owner = r.owner?.login || (typeof r.owner === "string" ? r.owner : "") || userGithubLogin;
+          let owner =
+            r.owner?.login ||
+            (typeof r.owner === "string" ? r.owner : "") ||
+            userGithubLogin;
           let name = r.name || "";
 
           if (fullName && fullName.includes("/")) {
@@ -173,20 +187,24 @@ export async function GET() {
               name,
               fullName: `${owner}/${name}`,
               activities: [],
-              latestActivityAt: r.updated_at || r.updatedAt || new Date(0).toISOString(),
+              latestActivityAt:
+                r.updated_at || r.updatedAt || new Date(0).toISOString(),
               summary: summaryMap.get(key) || null,
             });
           }
         }
       }
     } catch (repoErr) {
-      console.warn("[/api/dashboard/continue-working] Note fetching user repositories:", repoErr);
+      console.warn(
+        "[/api/dashboard/continue-working] Note fetching user repositories:",
+        repoErr,
+      );
     }
 
     const continueWorkingRepos = Array.from(repoGroups.values()).sort(
       (a, b) =>
         new Date(b.latestActivityAt).getTime() -
-        new Date(a.latestActivityAt).getTime()
+        new Date(a.latestActivityAt).getTime(),
     );
 
     return Response.json({
@@ -204,11 +222,14 @@ export async function GET() {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[/api/dashboard/continue-working] Error fetching dashboard data:", message);
+    console.error(
+      "[/api/dashboard/continue-working] Error fetching dashboard data:",
+      message,
+    );
 
     return Response.json(
       { error: "Internal server error loading dashboard data." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

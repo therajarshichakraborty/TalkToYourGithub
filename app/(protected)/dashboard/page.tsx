@@ -8,7 +8,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import {
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarInset,
+} from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { RepositoryItem } from "@/components/sidebar/repo-list";
 import { ChatUI } from "@/components/chat/chat-ui";
@@ -18,7 +22,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FolderGit2, MessageSquare, LayoutDashboard, Sparkles } from "lucide-react";
+import {
+  FolderGit2,
+  MessageSquare,
+  LayoutDashboard,
+  Sparkles,
+} from "lucide-react";
 
 export default function DashboardPage() {
   /* Active repository state selected from sidebar or dashboard cards */
@@ -40,7 +49,7 @@ export default function DashboardPage() {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+      <div className='flex h-screen w-screen overflow-hidden bg-background text-foreground'>
         {/* Navigation Sidebar housing Repository list */}
         <AppSidebar
           selectedRepo={selectedRepo}
@@ -52,49 +61,54 @@ export default function DashboardPage() {
         />
 
         {/* Main Interface Content Area */}
-        <SidebarInset className="flex flex-col flex-1 h-full min-w-0 overflow-hidden">
+        <SidebarInset className='flex flex-col flex-1 h-full min-w-0 overflow-hidden'>
           {/* Top Control Header */}
-          <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-1 h-4" />
+          <header className='flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'>
+            <div className='flex items-center gap-2'>
+              <SidebarTrigger className='-ml-1' />
+              <Separator orientation='vertical' className='mr-1 h-4' />
 
               {/* View Switcher Tabs */}
               <Tabs
                 value={activeTab}
-                onValueChange={(val) => setActiveTab(val as "dashboard" | "chat")}
-                className="w-auto"
+                onValueChange={(val) =>
+                  setActiveTab(val as "dashboard" | "chat")
+                }
+                className='w-auto'
               >
-                <TabsList className="h-8 p-0.5 bg-muted/60">
+                <TabsList className='h-8 p-0.5 bg-muted/60'>
                   <TabsTrigger
-                    value="dashboard"
-                    className="text-xs h-7 gap-1.5 px-2.5 data-[state=active]:bg-background"
+                    value='dashboard'
+                    className='text-xs h-7 gap-1.5 px-2.5 data-[state=active]:bg-background'
                   >
-                    <LayoutDashboard className="h-3.5 w-3.5" />
+                    <LayoutDashboard className='h-3.5 w-3.5' />
                     Dashboard
                   </TabsTrigger>
                   <TabsTrigger
-                    value="chat"
-                    className="text-xs h-7 gap-1.5 px-2.5 data-[state=active]:bg-background"
+                    value='chat'
+                    className='text-xs h-7 gap-1.5 px-2.5 data-[state=active]:bg-background'
                   >
-                    <MessageSquare className="h-3.5 w-3.5" />
+                    <MessageSquare className='h-3.5 w-3.5' />
                     AI Chat
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
 
               {selectedRepo && (
-                <Badge variant="outline" className="text-[11px] font-mono gap-1 ml-2 hidden sm:inline-flex">
-                  <FolderGit2 className="h-3 w-3 text-primary" />
+                <Badge
+                  variant='outline'
+                  className='text-[11px] font-mono gap-1 ml-2 hidden sm:inline-flex'
+                >
+                  <FolderGit2 className='h-3 w-3 text-primary' />
                   {selectedRepo.fullName}
                 </Badge>
               )}
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className='flex items-center gap-2 text-xs text-muted-foreground'>
               <Button
-                variant="outline"
-                size="sm"
+                variant='outline'
+                size='sm'
                 onClick={async () => {
                   try {
                     const targetOwner = selectedRepo?.owner;
@@ -110,8 +124,13 @@ export default function DashboardPage() {
                     });
                     const d = await res.json();
                     if (d.success) {
-                      const repoLabel = d.repositoryOwner && d.repositoryName ? `${d.repositoryOwner}/${d.repositoryName}` : "all repositories";
-                      alert(`Inngest Sync Triggered for ${repoLabel}! Background jobs (embeddings, summary, activity) dispatched.`);
+                      const repoLabel =
+                        d.repositoryOwner && d.repositoryName
+                          ? `${d.repositoryOwner}/${d.repositoryName}`
+                          : "all repositories";
+                      alert(
+                        `Inngest Sync Triggered for ${repoLabel}! Background jobs (embeddings, summary, activity) dispatched.`,
+                      );
                     } else {
                       alert(`Inngest trigger error: ${d.error}`);
                     }
@@ -119,19 +138,21 @@ export default function DashboardPage() {
                     alert("Failed to trigger Inngest event.");
                   }
                 }}
-                className="h-7 text-[11px] gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-                title="Trigger Inngest background jobs manually"
+                className='h-7 text-[11px] gap-1.5 border-primary/30 text-primary hover:bg-primary/10'
+                title='Trigger Inngest background jobs manually'
               >
-                <Sparkles className="h-3 w-3 text-amber-500" />
+                <Sparkles className='h-3 w-3 text-amber-500' />
                 Run Inngest Sync {selectedRepo ? `(${selectedRepo.name})` : ""}
               </Button>
             </div>
           </header>
 
           {/* Main View Pane */}
-          <main className="flex-1 h-[calc(100vh-3rem)] overflow-y-auto">
+          <main className='flex-1 h-[calc(100vh-3rem)] overflow-y-auto'>
             {activeTab === "dashboard" ? (
-              <ContinueWorkingCards onSelectRepoForChat={handleSelectRepoForChat} />
+              <ContinueWorkingCards
+                onSelectRepoForChat={handleSelectRepoForChat}
+              />
             ) : (
               <ChatUI activeRepo={selectedRepo} />
             )}

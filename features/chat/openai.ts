@@ -4,10 +4,12 @@ import { embedMany } from "ai";
 const openaiKey = process.env.OPENAI_API_KEY;
 const openrouterKey = process.env.OPENROUTER_API_KEY;
 
-const isOpenRouterKey = (key?: string) => Boolean(key && key.startsWith("sk-or-"));
+const isOpenRouterKey = (key?: string) =>
+  Boolean(key && key.startsWith("sk-or-"));
 
 let apiKey = openaiKey || openrouterKey;
-let isOpenRouter = isOpenRouterKey(apiKey) || Boolean(openrouterKey && !openaiKey);
+let isOpenRouter =
+  isOpenRouterKey(apiKey) || Boolean(openrouterKey && !openaiKey);
 
 if (!apiKey) {
   throw new Error(
@@ -24,7 +26,8 @@ export const aiProvider = createOpenAI(
         baseURL: "https://openrouter.ai/api/v1",
         apiKey: openrouterKey || apiKey,
         headers: {
-          "HTTP-Referer": process.env.BETTER_AUTH_URL || "http://localhost:3000",
+          "HTTP-Referer":
+            process.env.BETTER_AUTH_URL || "http://localhost:3000",
           "X-Title": "Talk-To-Your-GitHub",
         },
       }
@@ -103,11 +106,14 @@ export async function generateResilientEmbeddings(
         baseURL: "https://openrouter.ai/api/v1",
         apiKey: openrouterKey,
         headers: {
-          "HTTP-Referer": process.env.BETTER_AUTH_URL || "http://localhost:3000",
+          "HTTP-Referer":
+            process.env.BETTER_AUTH_URL || "http://localhost:3000",
           "X-Title": "Talk-To-Your-GitHub",
         },
       });
-      const orModel = openrouterProvider.textEmbeddingModel("openai/text-embedding-3-small");
+      const orModel = openrouterProvider.textEmbeddingModel(
+        "openai/text-embedding-3-small",
+      );
       const { embeddings } = await embedMany({
         model: orModel,
         values,
@@ -129,5 +135,3 @@ export async function generateResilientEmbeddings(
   );
   return values.map((val) => createDeterministicVector(val, 1536));
 }
-
-

@@ -356,7 +356,8 @@ export const generateEmbeddings = inngest.createFunction(
         async () => {
           const valuesToEmbed = chunks.map((c) => c.content);
 
-          const generatedEmbeddings = await generateResilientEmbeddings(valuesToEmbed);
+          const generatedEmbeddings =
+            await generateResilientEmbeddings(valuesToEmbed);
 
           let pineconeSaved = 0;
           let postgresSaved = 0;
@@ -435,5 +436,3 @@ export const generateEmbeddings = inngest.createFunction(
     };
   },
 );
-
-

@@ -15,7 +15,9 @@ async function main() {
   });
 
   console.log("✅ Event sent successfully! Event IDs:", res.ids);
-  console.log("Check execution status in Inngest dashboard: http://localhost:8288");
+  console.log(
+    "Check execution status in Inngest dashboard: http://localhost:8288",
+  );
 }
 
 main().catch(console.error);

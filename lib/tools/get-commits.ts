@@ -93,4 +93,3 @@ export async function getCommits(options: GetCommitsOptions) {
     commits: [],
   };
 }
-

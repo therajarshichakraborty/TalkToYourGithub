@@ -41,10 +41,10 @@ export const generateContinueWorking = inngest.createFunction(
     }
 
     if (!userId) {
-      throw new Error("[generateContinueWorking] Cannot generate summary: missing userId.",)
-
+      throw new Error(
+        "[generateContinueWorking] Cannot generate summary: missing userId.",
+      );
     }
-
 
     const runSuffix = event.id ? `-${event.id}` : "";
 
@@ -54,64 +54,65 @@ export const generateContinueWorking = inngest.createFunction(
     const recentLogs = await step.run(
       `fetch-recent-activities${runSuffix}`,
       async () => {
-      const conditions = [eq(schema.activityLogs.userId, userId)];
-      if (repositoryOwner) {
-        conditions.push(
-          ilike(schema.activityLogs.repositoryOwner, repositoryOwner),
-        );
-      }
-      if (repositoryName) {
-        conditions.push(
-          ilike(schema.activityLogs.repositoryName, repositoryName),
-        );
-      }
-
-      const logs = await db
-        .select()
-        .from(schema.activityLogs)
-        .where(and(...conditions))
-        .orderBy(desc(schema.activityLogs.occurredAt))
-        .limit(15);
-
-      if (logs.length > 0) {
-        return logs.map((l) => ({
-          repo: `${l.repositoryOwner}/${l.repositoryName}`,
-          type: l.activityType,
-          title: l.title,
-          description: l.description,
-          occurredAt: l.occurredAt?.toISOString() || String(l.occurredAt),
-        }));
-      }
-
-      // Fallback: Fetch recent commits via Live API if DB activityLogs is empty for this repository
-      if (repositoryOwner && repositoryName) {
-        try {
-          const commitsRes = await getCommits({
-            userId,
-            tenantId: corsairTenantId,
-            owner: repositoryOwner,
-            repo: repositoryName,
-            perPage: 10,
-          });
-          if (commitsRes.success && commitsRes.commits?.length) {
-            return commitsRes.commits.map((c) => ({
-              repo: `${repositoryOwner}/${repositoryName}`,
-              type: "commit",
-              title: c.commit?.message || "Commit",
-              description: c.sha || "",
-              occurredAt: c.commit?.author?.date || new Date().toISOString(),
-            }));
-          }
-        } catch (e) {
-          console.warn(
-            "[generateContinueWorking] Fallback commit fetch note:",
-            e,
+        const conditions = [eq(schema.activityLogs.userId, userId)];
+        if (repositoryOwner) {
+          conditions.push(
+            ilike(schema.activityLogs.repositoryOwner, repositoryOwner),
           );
         }
-      }
+        if (repositoryName) {
+          conditions.push(
+            ilike(schema.activityLogs.repositoryName, repositoryName),
+          );
+        }
 
-      return [];
-    });
+        const logs = await db
+          .select()
+          .from(schema.activityLogs)
+          .where(and(...conditions))
+          .orderBy(desc(schema.activityLogs.occurredAt))
+          .limit(15);
+
+        if (logs.length > 0) {
+          return logs.map((l) => ({
+            repo: `${l.repositoryOwner}/${l.repositoryName}`,
+            type: l.activityType,
+            title: l.title,
+            description: l.description,
+            occurredAt: l.occurredAt?.toISOString() || String(l.occurredAt),
+          }));
+        }
+
+        // Fallback: Fetch recent commits via Live API if DB activityLogs is empty for this repository
+        if (repositoryOwner && repositoryName) {
+          try {
+            const commitsRes = await getCommits({
+              userId,
+              tenantId: corsairTenantId,
+              owner: repositoryOwner,
+              repo: repositoryName,
+              perPage: 10,
+            });
+            if (commitsRes.success && commitsRes.commits?.length) {
+              return commitsRes.commits.map((c) => ({
+                repo: `${repositoryOwner}/${repositoryName}`,
+                type: "commit",
+                title: c.commit?.message || "Commit",
+                description: c.sha || "",
+                occurredAt: c.commit?.author?.date || new Date().toISOString(),
+              }));
+            }
+          } catch (e) {
+            console.warn(
+              "[generateContinueWorking] Fallback commit fetch note:",
+              e,
+            );
+          }
+        }
+
+        return [];
+      },
+    );
 
     if (!recentLogs.length) {
       const targetName =

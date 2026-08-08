@@ -108,4 +108,3 @@ export async function getIssues(options: GetIssuesOptions) {
     issues: [],
   };
 }
-

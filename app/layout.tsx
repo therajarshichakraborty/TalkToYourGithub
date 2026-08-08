@@ -9,8 +9,6 @@ const pacifico = Inter({
   display: "swap",
 });
 
-
-
 export const metadata: Metadata = {
   title: "Talk To Your GitHub",
   description: "An AI-powered web app to talk to your GitHub repositories.",
@@ -22,10 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang='en'
-      className={`${pacifico.variable} h-full antialiased`}
-    >
+    <html lang='en' className={`${pacifico.variable} h-full antialiased`}>
       <body className='min-h-full flex flex-col font-sans'>{children}</body>
     </html>
   );

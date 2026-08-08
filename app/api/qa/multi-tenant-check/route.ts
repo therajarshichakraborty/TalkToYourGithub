@@ -20,10 +20,7 @@ export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session?.user?.id) {
-    return Response.json(
-      { error: "Unauthorized access" },
-      { status: 401 }
-    );
+    return Response.json({ error: "Unauthorized access" }, { status: 401 });
   }
 
   const currentUserId = session.user.id;
@@ -69,11 +66,11 @@ export async function GET() {
         }
       }
       diagnostics.checksPerformed.push(
-        `Validated corsairTenantId uniqueness across ${otherUsers.length} distinct users`
+        `Validated corsairTenantId uniqueness across ${otherUsers.length} distinct users`,
       );
     } else {
       diagnostics.checksPerformed.push(
-        "Single tenant active in database; verified user-level Drizzle query scoping"
+        "Single tenant active in database; verified user-level Drizzle query scoping",
       );
     }
 
@@ -91,7 +88,7 @@ export async function GET() {
       .where(eq(schema.activityLogs.userId, currentUserId));
 
     diagnostics.checksPerformed.push(
-      `Queried ${mySummaries.length} summaries and ${myActivityLogs.length} activity logs scoped strictly to user '${currentUserId}'`
+      `Queried ${mySummaries.length} summaries and ${myActivityLogs.length} activity logs scoped strictly to user '${currentUserId}'`,
     );
 
     /*
@@ -102,7 +99,7 @@ export async function GET() {
     } catch {
       diagnostics.edgeCaseResilience.unconnectedUserHandled = true;
       diagnostics.checksPerformed.push(
-        "Verified tool error boundary triggers clean error response for unconnected users"
+        "Verified tool error boundary triggers clean error response for unconnected users",
       );
     }
 
@@ -113,11 +110,14 @@ export async function GET() {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[/api/qa/multi-tenant-check] Error running QA check:", message);
+    console.error(
+      "[/api/qa/multi-tenant-check] Error running QA check:",
+      message,
+    );
 
     return Response.json(
       { error: "Internal server error running multi-tenant QA check." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

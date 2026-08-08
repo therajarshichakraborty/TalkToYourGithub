@@ -79,23 +79,29 @@ export async function getProjectMemory(options: GetProjectMemoryOptions) {
     const pineconeMemories: ProjectMemoryItem[] = [];
     try {
       const index = getPineconeIndex();
-      let queryResponse = await index.query({
-        vector: queryVector,
-        topK: limit * 4,
-        includeMetadata: true,
-        filter: {
-          userId: options.userId,
-        },
-      }).catch(async () => {
-        // Fallback: Query Pinecone without filter if metadata index filter is not active
-        return await index.query({
+      let queryResponse = await index
+        .query({
           vector: queryVector,
           topK: limit * 4,
           includeMetadata: true,
+          filter: {
+            userId: options.userId,
+          },
+        })
+        .catch(async () => {
+          // Fallback: Query Pinecone without filter if metadata index filter is not active
+          return await index.query({
+            vector: queryVector,
+            topK: limit * 4,
+            includeMetadata: true,
+          });
         });
-      });
 
-      if (queryResponse && queryResponse.matches && queryResponse.matches.length > 0) {
+      if (
+        queryResponse &&
+        queryResponse.matches &&
+        queryResponse.matches.length > 0
+      ) {
         for (const match of queryResponse.matches) {
           const score = match.score ?? 0;
           if (score < minSimilarity) continue;
@@ -105,7 +111,8 @@ export async function getProjectMemory(options: GetProjectMemoryOptions) {
           const recordRepo = (meta.repositoryName as string)?.toLowerCase();
 
           if (recordUserId && recordUserId !== options.userId) continue;
-          if (targetOwner && recordOwner && targetOwner !== recordOwner) continue;
+          if (targetOwner && recordOwner && targetOwner !== recordOwner)
+            continue;
           if (targetRepo && recordRepo && targetRepo !== recordRepo) continue;
 
           pineconeMemories.push({

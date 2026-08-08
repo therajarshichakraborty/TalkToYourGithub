@@ -52,15 +52,21 @@ async function runMultiTenantQASuite() {
       const userA = users[0];
       const userB = users[1];
 
-      console.log(`\n--- Testing Multi-Tenant Isolation: User A (${userA.name}) vs User B (${userB.name}) ---`);
+      console.log(
+        `\n--- Testing Multi-Tenant Isolation: User A (${userA.name}) vs User B (${userB.name}) ---`,
+      );
 
       /* Build tool registries for User A and User B */
       const toolsA = buildToolRegistry({ userId: userA.id });
       const toolsB = buildToolRegistry({ userId: userB.id });
 
       /* Test Repo Scoping */
-      const reposA = await getRepositories({ userId: userA.id }).catch(() => ({ repositories: [] }));
-      const reposB = await getRepositories({ userId: userB.id }).catch(() => ({ repositories: [] }));
+      const reposA = await getRepositories({ userId: userA.id }).catch(() => ({
+        repositories: [],
+      }));
+      const reposB = await getRepositories({ userId: userB.id }).catch(() => ({
+        repositories: [],
+      }));
 
       console.log(`User A repos count: ${reposA.repositories?.length || 0}`);
       console.log(`User B repos count: ${reposB.repositories?.length || 0}`);
@@ -69,7 +75,7 @@ async function runMultiTenantQASuite() {
       if (userA.corsairTenantId && userB.corsairTenantId) {
         assert(
           userA.corsairTenantId !== userB.corsairTenantId,
-          "User A and User B have distinct corsairTenantId values"
+          "User A and User B have distinct corsairTenantId values",
         );
 
         const tenantClientA = corsair.withTenant(userA.corsairTenantId);
@@ -77,7 +83,7 @@ async function runMultiTenantQASuite() {
 
         assert(
           tenantClientA !== undefined && tenantClientB !== undefined,
-          "corsair.withTenant() instantiates separate tenant scopes cleanly"
+          "corsair.withTenant() instantiates separate tenant scopes cleanly",
         );
       }
 
@@ -92,9 +98,12 @@ async function runMultiTenantQASuite() {
         .where(eq(schema.repositorySummaries.userId, userB.id));
 
       const leakFound = summariesA.some((sA) =>
-        summariesB.some((sB) => sA.id === sB.id)
+        summariesB.some((sB) => sA.id === sB.id),
       );
-      assert(!leakFound, "No cross-user repository summary data leakage detected");
+      assert(
+        !leakFound,
+        "No cross-user repository summary data leakage detected",
+      );
 
       /* Test Database Activity Logs Scoping */
       const logsA = await db
@@ -107,47 +116,59 @@ async function runMultiTenantQASuite() {
         .where(eq(schema.activityLogs.userId, userB.id));
 
       const logLeakFound = logsA.some((lA) =>
-        logsB.some((lB) => lA.id === lB.id)
+        logsB.some((lB) => lA.id === lB.id),
       );
       assert(!logLeakFound, "No cross-user activity log data leakage detected");
     } else {
-      console.log("  [NOTE] Only 1 user present in DB. Simulating isolated multi-tenant assertion...");
+      console.log(
+        "  [NOTE] Only 1 user present in DB. Simulating isolated multi-tenant assertion...",
+      );
       assert(true, "Simulated multi-tenant isolation validation passed");
     }
 
     /*
      * 3. Edge Case 1: Unconnected User / Missing corsairTenantId
      */
-    console.log("\n--- Testing Edge Case 1: Unconnected User / Missing corsairTenantId ---");
+    console.log(
+      "\n--- Testing Edge Case 1: Unconnected User / Missing corsairTenantId ---",
+    );
     const fakeUserId = "non-existent-user-id-" + Date.now();
     try {
       await getRepositories({ userId: fakeUserId });
-      assert(false, "Unconnected user test expected an error but none was thrown");
+      assert(
+        false,
+        "Unconnected user test expected an error but none was thrown",
+      );
     } catch (err: any) {
       assert(
-        err.message.includes("Tenant ID or User ID") || err.message.includes("corsairTenantId"),
+        err.message.includes("Tenant ID or User ID") ||
+          err.message.includes("corsairTenantId"),
         "Unconnected user correctly triggers clean tenant resolution error boundary",
-        err.message
+        err.message,
       );
     }
 
     /*
      * 4. Edge Case 2: Empty Backfill / Zero Entity Tenant Scoping
      */
-    console.log("\n--- Testing Edge Case 2: Empty Backfill / Zero Entity Tenant Scoping ---");
+    console.log(
+      "\n--- Testing Edge Case 2: Empty Backfill / Zero Entity Tenant Scoping ---",
+    );
     const primaryUser = users[0];
     if (primaryUser) {
       const dbReposResult = await getRepositories({ userId: primaryUser.id });
       assert(
         Array.isArray(dbReposResult.repositories),
-        "Repository read tool returns structured array even if backfill is empty/incomplete"
+        "Repository read tool returns structured array even if backfill is empty/incomplete",
       );
     }
 
     /*
      * 5. Edge Case 3: Rate Limit & Fallback Proxy Resilience
      */
-    console.log("\n--- Testing Edge Case 3: Rate Limit & Fallback Resilience ---");
+    console.log(
+      "\n--- Testing Edge Case 3: Rate Limit & Fallback Resilience ---",
+    );
     if (primaryUser) {
       const branchesResult = await getBranches({
         userId: primaryUser.id,
@@ -157,7 +178,7 @@ async function runMultiTenantQASuite() {
 
       assert(
         branchesResult !== undefined && Array.isArray(branchesResult.branches),
-        "Branch read tool returns graceful fallback object instead of unhandled crash"
+        "Branch read tool returns graceful fallback object instead of unhandled crash",
       );
     }
 
@@ -165,11 +186,15 @@ async function runMultiTenantQASuite() {
      * 6. Summary of QA Suite Results
      */
     console.log("\n========================================================");
-    console.log(`   QA SUITE RESULTS: ${testPassed} PASSED, ${testFailed} FAILED`);
+    console.log(
+      `   QA SUITE RESULTS: ${testPassed} PASSED, ${testFailed} FAILED`,
+    );
     console.log("========================================================\n");
 
     if (testFailed === 0) {
-      console.log("SUCCESS: All multi-tenant isolation and edge case assertions PASSED.\n");
+      console.log(
+        "SUCCESS: All multi-tenant isolation and edge case assertions PASSED.\n",
+      );
     } else {
       console.error("WARNING: Multi-tenant assertions encountered failures.\n");
     }

@@ -46,8 +46,10 @@ export function getPineconeIndex(indexName?: string) {
   try {
     return host ? client.index(targetIndex, host) : client.index(targetIndex);
   } catch (err) {
-    console.warn("[Pinecone] Note initializing index with host, falling back to standard index:", err);
+    console.warn(
+      "[Pinecone] Note initializing index with host, falling back to standard index:",
+      err,
+    );
     return client.index(targetIndex);
   }
 }
-

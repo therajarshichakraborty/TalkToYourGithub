@@ -80,14 +80,14 @@ export async function reviewPullRequest(options: ReviewPullRequestOptions) {
       .slice(0, 10)
       .map(
         (f) =>
-          `* File: ${f.filename || f.path} (${f.status || "modified"}, +${f.additions || 0}/-${f.deletions || 0})\nDiff Snippet:\n${(f.patch || "No diff snippet").slice(0, 500)}`
+          `* File: ${f.filename || f.path} (${f.status || "modified"}, +${f.additions || 0}/-${f.deletions || 0})\nDiff Snippet:\n${(f.patch || "No diff snippet").slice(0, 500)}`,
       )
       .join("\n\n");
 
     /*
      * 3. Run AI LLM analysis to construct structured review
      */
-const prompt = `
+    const prompt = `
 # ROLE
 
 You are an expert lead code reviewer and senior staff software engineer with
@@ -311,15 +311,26 @@ Return strictly valid JSON matching this schema, and nothing else:
 
     try {
       const parsed = JSON.parse(
-        responseText.replace(/```json/g, "").replace(/```/g, "").trim()
+        responseText
+          .replace(/```json/g, "")
+          .replace(/```/g, "")
+          .trim(),
       );
       if (parsed && typeof parsed === "object") {
         reviewResult = {
           summary: parsed.summary || reviewResult.summary,
-          positives: Array.isArray(parsed.positives) ? parsed.positives : reviewResult.positives,
-          potentialIssues: Array.isArray(parsed.potentialIssues) ? parsed.potentialIssues : reviewResult.potentialIssues,
-          securityFlags: Array.isArray(parsed.securityFlags) ? parsed.securityFlags : reviewResult.securityFlags,
-          suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : reviewResult.suggestions,
+          positives: Array.isArray(parsed.positives)
+            ? parsed.positives
+            : reviewResult.positives,
+          potentialIssues: Array.isArray(parsed.potentialIssues)
+            ? parsed.potentialIssues
+            : reviewResult.potentialIssues,
+          securityFlags: Array.isArray(parsed.securityFlags)
+            ? parsed.securityFlags
+            : reviewResult.securityFlags,
+          suggestions: Array.isArray(parsed.suggestions)
+            ? parsed.suggestions
+            : reviewResult.suggestions,
         };
       }
     } catch (parseErr) {

@@ -18,10 +18,7 @@ export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session?.user?.id) {
-    return Response.json(
-      { error: "Unauthorized access" },
-      { status: 401 }
-    );
+    return Response.json({ error: "Unauthorized access" }, { status: 401 });
   }
 
   const userId = session.user.id;
@@ -60,7 +57,8 @@ export async function POST(req: Request) {
           .where(eq(schema.githubConnections.userId, userId))
           .limit(1);
 
-        repositoryOwner = repositoryOwner || conn?.githubUsername || "therajarshichakraborty";
+        repositoryOwner =
+          repositoryOwner || conn?.githubUsername || "therajarshichakraborty";
         repositoryName = repositoryName || "TalkToYourGithub";
       }
     }
@@ -105,8 +103,7 @@ export async function POST(req: Request) {
 
     return Response.json(
       { error: `Failed to trigger Inngest event: ${message}` },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

@@ -18,10 +18,7 @@ export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session?.user?.id) {
-    return Response.json(
-      { error: "Unauthorized access" },
-      { status: 401 }
-    );
+    return Response.json({ error: "Unauthorized access" }, { status: 401 });
   }
 
   try {
@@ -46,7 +43,7 @@ export async function GET() {
     if (!result.success) {
       return Response.json(
         { error: result.error || "Failed to fetch repositories." },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -61,23 +58,23 @@ export async function GET() {
           r.fullName ||
           r.repositoryFullName ||
           r.repository_full_name ||
-          (r.owner && r.name ? `${typeof r.owner === "string" ? r.owner : r.owner.login || r.owner.name}/${r.name}` : "") ||
+          (r.owner && r.name
+            ? `${typeof r.owner === "string" ? r.owner : r.owner.login || r.owner.name}/${r.name}`
+            : "") ||
           "";
 
         let owner =
           r.owner?.login ||
-          (typeof r.owner === "string" && r.owner !== "github" ? r.owner : "") ||
+          (typeof r.owner === "string" && r.owner !== "github"
+            ? r.owner
+            : "") ||
           r.repositoryOwner ||
           r.repository_owner ||
           r.owner_login ||
           r.ownerLogin ||
           "";
 
-        let name =
-          r.name ||
-          r.repositoryName ||
-          r.repository_name ||
-          "";
+        let name = r.name || r.repositoryName || r.repository_name || "";
 
         if (fullName && fullName.includes("/")) {
           const parts = fullName.split("/");
@@ -90,7 +87,8 @@ export async function GET() {
           owner = userGithubLogin;
         }
 
-        const formattedFullName = owner && name ? `${owner}/${name}` : (fullName || name);
+        const formattedFullName =
+          owner && name ? `${owner}/${name}` : fullName || name;
 
         if (!name && !formattedFullName) {
           return null;
@@ -102,7 +100,11 @@ export async function GET() {
           name: name || formattedFullName || "repository",
           fullName: formattedFullName,
           description: r.description || "",
-          defaultBranch: r.default_branch || r.defaultBranch || r.default_branch_name || "main",
+          defaultBranch:
+            r.default_branch ||
+            r.defaultBranch ||
+            r.default_branch_name ||
+            "main",
           language: r.language || "TypeScript",
           isPrivate: r.private ?? false,
           stars: r.stargazers_count ?? r.stars ?? 0,
@@ -123,7 +125,7 @@ export async function GET() {
 
     return Response.json(
       { error: "Internal server error while loading repositories." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
