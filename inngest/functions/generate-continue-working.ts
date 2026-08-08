@@ -41,10 +41,10 @@ export const generateContinueWorking = inngest.createFunction(
     }
 
     if (!userId) {
-      throw new Error(
-        "[generateContinueWorking] Cannot generate summary: missing userId.",
-      );
+      throw new Error("[generateContinueWorking] Cannot generate summary: missing userId.",)
+
     }
+
 
     /**
      * Step 1: Read recent developer activity logs from database for the specified repository.

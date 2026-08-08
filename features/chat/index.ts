@@ -5,11 +5,10 @@
  */
 
 export { buildSystemPrompt } from "./system-prompt";
-export type { SystemPromptContext } from "./system-prompt";
-
 export { buildToolRegistry } from "./tool-registry";
+export { chatModel } from "./openai";
+export type { ChatMessage, ChatRequestBody, ChatSessionContext } from "./types";
+export type { SystemPromptContext } from "./system-prompt";
 export type { ToolRegistryContext, ToolRegistry } from "./tool-registry";
 
-export { chatModel } from "./openai";
 
-export type { ChatMessage, ChatRequestBody, ChatSessionContext } from "./types";

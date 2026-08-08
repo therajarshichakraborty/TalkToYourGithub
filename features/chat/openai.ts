@@ -13,11 +13,10 @@
 import { createOpenAI } from "@ai-sdk/openai";
 
 const openaiKey = process.env.OPENAI_API_KEY;
-const openrouterKey = process.env.OPENROUTER_API_KEY;
 
-if (!openaiKey && !openrouterKey) {
+if (!openaiKey) {
   throw new Error(
-    "Missing API Key. Please set OPENAI_API_KEY or OPENROUTER_API_KEY in your .env file.",
+    "Missing API Key. Please set OPENAI_API_KEY in your .env file.",
   );
 }
 
