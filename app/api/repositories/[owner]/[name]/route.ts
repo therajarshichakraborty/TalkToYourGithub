@@ -101,13 +101,74 @@ export async function GET(
         ? readmeRes.value.content
         : null;
 
+    /*
+     * 4. If summary is missing in DB, generate initial AI summary on the fly and persist it
+     */
+    let finalSummary = summaryRow?.summary || null;
+    let finalGeneratedAt = summaryRow?.generatedAt || null;
+
+    if (!finalSummary) {
+      try {
+        const prompt = `
+Write a concise 2-paragraph AI summary for GitHub repository '${owner}/${name}'.
+Primary language: ${branches.length > 0 ? "TypeScript/JavaScript" : "Unknown"}
+Sampled Branches (${branches.length}): ${branches.slice(0, 5).map((b: any) => (typeof b === "string" ? b : b?.name || "")).join(", ")}
+Recent Commits (${commits.length}): ${commits.slice(0, 5).map((c: any) => c.commit?.message || c.message || "").join(" | ")}
+Issues Count: ${issues.length}, Pull Requests Count: ${pullRequests.length}
+README Preview: ${readme ? readme.slice(0, 800) : "No README available."}
+
+Paragraph 1: State primary purpose and core functionality of '${owner}/${name}'.
+Paragraph 2: State technical architecture, commit activity phase, and project health.
+Prose only, no markdown headers or bullet points.
+`.trim();
+
+        const { generateText } = await import("ai");
+        const { chatModel } = await import("@/features/chat");
+
+        const { text } = await generateText({
+          model: chatModel,
+          system: "You are an expert AI software documentation assistant.",
+          prompt,
+        });
+
+        if (text) {
+          finalSummary = text.trim();
+          finalGeneratedAt = new Date();
+
+          await db
+            .insert(schema.repositorySummaries)
+            .values({
+              userId,
+              repositoryOwner: owner,
+              repositoryName: name,
+              summary: finalSummary,
+              generatedAt: finalGeneratedAt,
+            })
+            .onConflictDoUpdate({
+              target: [
+                schema.repositorySummaries.userId,
+                schema.repositorySummaries.repositoryOwner,
+                schema.repositorySummaries.repositoryName,
+              ],
+              set: {
+                summary: finalSummary,
+                generatedAt: finalGeneratedAt,
+                updatedAt: finalGeneratedAt,
+              },
+            });
+        }
+      } catch (genErr) {
+        console.warn(`[route.ts] Note generating auto-summary for ${owner}/${name}:`, genErr);
+      }
+    }
+
     return Response.json({
       success: true,
       owner,
       name,
       fullName: `${owner}/${name}`,
-      summary: summaryRow?.summary || null,
-      summaryGeneratedAt: summaryRow?.generatedAt || null,
+      summary: finalSummary,
+      summaryGeneratedAt: finalGeneratedAt ? new Date(finalGeneratedAt).toISOString() : null,
       activityLogs: activityLogs.map((l) => ({
         id: l.id,
         type: l.activityType,

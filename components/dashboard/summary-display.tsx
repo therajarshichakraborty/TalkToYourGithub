@@ -142,13 +142,44 @@ export function SummaryDisplay({
             ))}
           </div>
         ) : (
-          <div className='p-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-2 border border-dashed rounded-xl'>
-            <FileText className='h-8 w-8 text-muted-foreground/40' />
-            <p className='font-semibold text-foreground'>No summary has been generated for this repository yet.</p>
-            <p className='text-[11px] text-muted-foreground max-w-sm'>
-              Summaries are automatically synthesized by Inngest background jobs
-              when repository events land.
-            </p>
+          <div className='p-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-3 border border-dashed rounded-xl bg-muted/10'>
+            <FileText className='h-8 w-8 text-indigo-500/60' />
+            <div className='space-y-1'>
+              <p className='font-bold text-foreground text-sm'>No AI Summary Available</p>
+              <p className='text-[11px] text-muted-foreground max-w-sm'>
+                Summaries are synthesized automatically on load or when Inngest background events land.
+              </p>
+            </div>
+            <Button
+              variant='default'
+              size='sm'
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/inngest/trigger", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      eventName: "github.connected",
+                      repositoryOwner: owner,
+                      repositoryName: repo,
+                    }),
+                  });
+                  const d = await res.json();
+                  if (d.success) {
+                    alert(`Dispatched AI summary background job for ${owner}/${repo}! Please refresh in a few seconds.`);
+                    window.location.reload();
+                  } else {
+                    alert(`Trigger error: ${d.error}`);
+                  }
+                } catch (e) {
+                  alert("Failed to dispatch Inngest sync.");
+                }
+              }}
+              className='bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-5 h-8 text-xs font-bold shadow-md shadow-indigo-500/20 gap-1.5'
+            >
+              <Sparkles className='h-3.5 w-3.5' />
+              Synthesize AI Summary Now
+            </Button>
           </div>
         )}
       </CardContent>
