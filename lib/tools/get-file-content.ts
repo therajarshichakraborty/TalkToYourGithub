@@ -76,10 +76,18 @@ export async function getFileContent(options: GetFileContentOptions) {
     }
 
     const refQuery = options.ref ? `?ref=${options.ref}` : "";
-    const ghRes = await fetch(
+    let ghRes = await fetch(
       `https://api.github.com/repos/${options.owner}/${options.repo}/contents/${targetPath}${refQuery}`,
       { headers: reqHeaders },
     );
+
+    if (!ghRes.ok && reqHeaders.Authorization) {
+      delete reqHeaders.Authorization;
+      ghRes = await fetch(
+        `https://api.github.com/repos/${options.owner}/${options.repo}/contents/${targetPath}${refQuery}`,
+        { headers: reqHeaders },
+      );
+    }
 
     if (ghRes.ok) {
       const data = await ghRes.json();

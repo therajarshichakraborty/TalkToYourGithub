@@ -52,10 +52,18 @@ export async function getCommits(options: GetCommitsOptions) {
       reqHeaders.Authorization = `Bearer ${token}`;
     }
 
-    const ghRes = await fetch(
+    let ghRes = await fetch(
       `https://api.github.com/repos/${options.owner}/${options.repo}/commits?per_page=${perPage}`,
       { headers: reqHeaders },
     );
+
+    if (!ghRes.ok && reqHeaders.Authorization) {
+      delete reqHeaders.Authorization;
+      ghRes = await fetch(
+        `https://api.github.com/repos/${options.owner}/${options.repo}/commits?per_page=${perPage}`,
+        { headers: reqHeaders },
+      );
+    }
 
     if (ghRes.ok) {
       const data = await ghRes.json();

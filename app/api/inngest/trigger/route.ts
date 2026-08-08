@@ -9,7 +9,7 @@ import { headers } from "next/headers";
 import { inngest } from "@/inngest";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
@@ -27,7 +27,8 @@ export async function POST(req: Request) {
   const userId = session.user.id;
 
   try {
-    const { eventName = "github.connected", repositoryOwner, repositoryName } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    let { eventName, repositoryOwner, repositoryName } = body;
 
     /* Resolve user's corsairTenantId */
     const [u] = await db
@@ -37,24 +38,66 @@ export async function POST(req: Request) {
 
     const corsairTenantId = u?.corsairTenantId || undefined;
 
-    /* Dispatch Inngest event */
-    const { ids } = await inngest.send({
-      name: eventName,
-      data: {
-        userId,
-        corsairTenantId,
-        repositoryOwner,
-        repositoryName,
-      },
-    });
+    /* Auto-resolve repository owner and name if not provided */
+    if (!repositoryOwner || !repositoryName) {
+      const [latestSummary] = await db
+        .select({
+          owner: schema.repositorySummaries.repositoryOwner,
+          name: schema.repositorySummaries.repositoryName,
+        })
+        .from(schema.repositorySummaries)
+        .where(eq(schema.repositorySummaries.userId, userId))
+        .orderBy(desc(schema.repositorySummaries.updatedAt))
+        .limit(1);
 
-    console.log(`[/api/inngest/trigger] Dispatched '${eventName}' event (IDs: ${ids.join(", ")})`);
+      if (latestSummary?.owner && latestSummary?.name) {
+        repositoryOwner = repositoryOwner || latestSummary.owner;
+        repositoryName = repositoryName || latestSummary.name;
+      } else {
+        const [conn] = await db
+          .select({ githubUsername: schema.githubConnections.githubUsername })
+          .from(schema.githubConnections)
+          .where(eq(schema.githubConnections.userId, userId))
+          .limit(1);
+
+        repositoryOwner = repositoryOwner || conn?.githubUsername || "therajarshichakraborty";
+        repositoryName = repositoryName || "TalkToYourGithub";
+      }
+    }
+
+    const payload = {
+      userId,
+      corsairTenantId,
+      repositoryOwner,
+      repositoryName,
+    };
+
+    let eventsToSend = [];
+    if (!eventName || eventName === "github.connected" || eventName === "all") {
+      eventsToSend = [
+        { name: "github.connected", data: payload },
+        { name: "embeddings.generate", data: payload },
+        { name: "repo.summary.generate", data: payload },
+        { name: "activity.update", data: payload },
+      ];
+    } else {
+      eventsToSend = [{ name: eventName, data: payload }];
+    }
+
+    /* Dispatch Inngest events */
+    const { ids } = await inngest.send(eventsToSend);
+
+    console.log(
+      `[/api/inngest/trigger] Dispatched ${eventsToSend.length} event(s) for ${repositoryOwner}/${repositoryName} (IDs: ${ids.join(", ")})`,
+    );
 
     return Response.json({
       success: true,
-      eventName,
+      eventName: eventName || "all",
+      repositoryOwner,
+      repositoryName,
       eventIds: ids,
-      message: `Successfully triggered Inngest background job '${eventName}'.`,
+      message: `Successfully triggered Inngest sync for ${repositoryOwner}/${repositoryName}.`,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -66,3 +109,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

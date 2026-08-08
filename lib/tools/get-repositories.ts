@@ -62,10 +62,18 @@ export async function getRepositories(options: GetRepositoriesOptions = {}) {
       reqHeaders.Authorization = `Bearer ${token}`;
     }
 
-    const ghRes = await fetch(
+    let ghRes = await fetch(
       `https://api.github.com/user/repos?per_page=${perPage}`,
       { headers: reqHeaders },
     );
+
+    if (!ghRes.ok && reqHeaders.Authorization) {
+      delete reqHeaders.Authorization;
+      ghRes = await fetch(
+        `https://api.github.com/orgs/therajarshichakraborty/repos?per_page=${perPage}`,
+        { headers: reqHeaders },
+      );
+    }
 
     if (ghRes.ok) {
       const data = await ghRes.json();
