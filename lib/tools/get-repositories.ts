@@ -15,11 +15,19 @@ export async function getRepositories(options: GetRepositoriesOptions = {}) {
         limit: perPage,
       });
       if (dbRepos && Array.isArray(dbRepos) && dbRepos.length > 0) {
+        const seen = new Set<string>();
+        const uniqueRepos = dbRepos.filter((r: any) => {
+          const key = r.full_name || r.name || String(r.id || "");
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
         return {
           success: true,
           source: "synced_db",
-          count: dbRepos.length,
-          repositories: dbRepos,
+          count: uniqueRepos.length,
+          repositories: uniqueRepos,
         };
       }
     }
@@ -34,8 +42,6 @@ export async function getRepositories(options: GetRepositoriesOptions = {}) {
   try {
     const repos = await tenant.github.api.repositories.list({
       perPage,
-      visibility: "all",
-      affiliation: "owner,collaborator,organization_member",
     });
     if (repos && Array.isArray(repos)) {
       return {
@@ -58,3 +64,4 @@ export async function getRepositories(options: GetRepositoriesOptions = {}) {
     repositories: [],
   };
 }
+

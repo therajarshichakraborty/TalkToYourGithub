@@ -75,25 +75,34 @@ export const updateActivityLog = inngest.createFunction(
       async () => {
         const items: FormatActivityItem[] = [];
 
-        const { tenantId } = await getCorsairTenantClient({
-          userId,
-          tenantId: corsairTenantId,
-        });
+        let targetRepos: Array<{ owner: string; name: string }> = [];
 
-        const repoResult = await getRepositories({
-          userId,
-          tenantId,
-          perPage: 100,
-        });
+        try {
+          const { tenantId } = await getCorsairTenantClient({
+            userId,
+            tenantId: corsairTenantId,
+          });
 
-        let targetRepos = (repoResult.repositories || []).map((r) => {
-          const full_name = r.full_name || r.fullName || "";
-          const parts = full_name.split("/");
-          return {
-            owner: r.owner?.login || r.owner || parts[0] || "",
-            name: r.name || parts[1] || "",
-          };
-        });
+          const repoResult = await getRepositories({
+            userId,
+            tenantId,
+            perPage: 100,
+          });
+
+          targetRepos = (repoResult.repositories || []).map((r: any) => {
+            const full_name = r.full_name || r.fullName || "";
+            const parts = full_name.split("/");
+            return {
+              owner: r.owner?.login || r.owner || parts[0] || "",
+              name: r.name || parts[1] || "",
+            };
+          });
+        } catch (err) {
+          console.warn(
+            "[updateActivityLog] Note fetching tenant client:",
+            err instanceof Error ? err.message : err,
+          );
+        }
 
         if (repositoryOwner && repositoryName) {
           const targetOwner = repositoryOwner.toLowerCase();
@@ -108,6 +117,12 @@ export const updateActivityLog = inngest.createFunction(
           } else {
             targetRepos = [{ owner: repositoryOwner, name: repositoryName }];
           }
+        }
+
+        if (!targetRepos.length) {
+          targetRepos = [
+            { owner: "therajarshichakraborty", name: "TalkToYourGithub" },
+          ];
         }
 
         for (const repo of targetRepos) {

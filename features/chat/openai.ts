@@ -1,44 +1,52 @@
-/**
- * openrouter.ts / model.ts
- * Flexible AI model provider configuration for Vercel AI SDK.
- *
- * Supports direct OpenAI API (via OPENAI_API_KEY) with automatic fallback
- * to OpenRouter API (via OPENROUTER_API_KEY).
- *
- * Environment variables:
- *   - OPENAI_API_KEY: Direct OpenAI API Key (e.g. sk-...)
- *   - OPENROUTER_API_KEY: OpenRouter API Key (e.g. sk-or-v1-...)
- */
-
 import { createOpenAI } from "@ai-sdk/openai";
 
 const openaiKey = process.env.OPENAI_API_KEY;
+const openrouterKey = process.env.OPENROUTER_API_KEY;
 
-if (!openaiKey) {
+const isOpenRouterKey = (key?: string) => Boolean(key && key.startsWith("sk-or-"));
+
+let apiKey = openaiKey || openrouterKey;
+let isOpenRouter = isOpenRouterKey(apiKey) || Boolean(openrouterKey && !openaiKey);
+
+if (!apiKey) {
   throw new Error(
-    "Missing API Key. Please set OPENAI_API_KEY in your .env file.",
+    "Missing API Key. Please set OPENAI_API_KEY or OPENROUTER_API_KEY in your .env file.",
   );
 }
 
 /**
- * Configure AI Provider: Direct OpenAI if OPENAI_API_KEY exists, else OpenRouter
+ * Configure AI Provider: Direct OpenAI if valid OpenAI key exists, else OpenRouter endpoint.
  */
-const aiProvider = createOpenAI({
-      apiKey: openaiKey,
-    })
+export const aiProvider = createOpenAI(
+  isOpenRouter
+    ? {
+        baseURL: "https://openrouter.ai/api/v1",
+        apiKey: openrouterKey || apiKey,
+        headers: {
+          "HTTP-Referer": process.env.BETTER_AUTH_URL || "http://localhost:3000",
+          "X-Title": "Talk-To-Your-GitHub",
+        },
+      }
+    : {
+        apiKey,
+      },
+);
 
 /**
  * Chat LLM model configuration:
- * - For direct OpenAI: defaults to 'gpt-4o-mini' (or process.env.OPENAI_MODEL)
- * - For OpenRouter: defaults to 'openai/gpt-4o-mini' (or process.env.OPENROUTER_MODEL)
+ * - Direct OpenAI: defaults to 'gpt-4o-mini'
+ * - OpenRouter: defaults to 'openai/gpt-4o-mini'
  */
 export const chatModel = aiProvider(
-  (process.env.OPENAI_MODEL || "gpt-4o-mini")
+  process.env.OPENAI_MODEL ||
+    process.env.OPENROUTER_MODEL ||
+    (isOpenRouter ? "openai/gpt-4o-mini" : "gpt-4o-mini"),
 );
 
 /**
  * Text embedding model configuration
  */
 export const embeddingModel = aiProvider.textEmbeddingModel(
-  openaiKey ? "text-embedding-3-small" : "openai/text-embedding-3-small"
+  process.env.EMBEDDING_MODEL || "text-embedding-3-small",
 );
+
