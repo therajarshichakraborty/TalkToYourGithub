@@ -39,7 +39,7 @@ export async function getCorsairTenantClient(options: ToolContextOptions) {
     );
   }
 
-  const tenant = corsair.withTenant(targetTenantId);
+  const tenant = corsair.withTenant(targetTenantId) as any;
   if (!tenant?.github?.api) {
     throw new Error(
       `Corsair GitHub API client is not initialized for tenant ID '${targetTenantId}'.`,

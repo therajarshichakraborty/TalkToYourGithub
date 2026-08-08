@@ -36,7 +36,7 @@ export async function GET() {
     }
 
     const tenantId = userRecord.corsairTenantId;
-    const tenant = corsair.withTenant(tenantId);
+    const tenant = corsair.withTenant(tenantId) as any;
 
     if (!tenant?.github?.api) {
       return NextResponse.json(
@@ -46,19 +46,11 @@ export async function GET() {
     }
 
     // 1. Query live GitHub API via Corsair
-    let repositories: Awaited<
-      ReturnType<typeof tenant.github.api.repositories.list>
-    > = [];
-    let branches: Awaited<
-      ReturnType<typeof tenant.github.api.repositories.listBranches>
-    > = [];
-    let commits: Awaited<
-      ReturnType<typeof tenant.github.api.repositories.listCommits>
-    > = [];
-    let pullRequests: Awaited<
-      ReturnType<typeof tenant.github.api.pullRequests.list>
-    > = [];
-    let issues: Awaited<ReturnType<typeof tenant.github.api.issues.list>> = [];
+    let repositories: any[] = [];
+    let branches: any[] = [];
+    let commits: any[] = [];
+    let pullRequests: any[] = [];
+    let issues: any[] = [];
     let apiError: string | null = null;
     let targetRepo: { owner: string; repo: string } | null = null;
 

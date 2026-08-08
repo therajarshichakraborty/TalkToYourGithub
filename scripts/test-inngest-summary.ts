@@ -119,9 +119,9 @@ async function main() {
         commitsRes.status === "fulfilled" && commitsRes.value.success
           ? commitsRes.value.commits
           : [];
-      const branches =
+      const branches: Array<{ name?: string } | string> =
         branchesRes.status === "fulfilled" && branchesRes.value.success
-          ? branchesRes.value.branches
+          ? (branchesRes.value.branches as Array<{ name?: string } | string>)
           : [];
       const prs =
         prsRes.status === "fulfilled" && prsRes.value.success
@@ -146,7 +146,7 @@ Generate a clear, 2-3 paragraph summary of the following GitHub repository:
 Repository: ${owner}/${name}
 Description: ${description || "N/A"}
 Primary Language: ${language}
-Branches: ${branches.map((b) => b.name).join(", ") || "main"}
+Branches: ${branches.map((b) => (typeof b === "string" ? b : b.name ?? "")).join(", ") || "main"}
 Open Issues: ${issues.length}
 Pull Requests: ${prs.length}
 Recent Commits:

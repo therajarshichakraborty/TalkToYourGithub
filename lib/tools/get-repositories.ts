@@ -4,7 +4,17 @@ export interface GetRepositoriesOptions extends ToolContextOptions {
   perPage?: number;
 }
 
-export async function getRepositories(options: GetRepositoriesOptions = {}) {
+export interface GetRepositoriesResult {
+  success: boolean;
+  source: string;
+  count: number;
+  repositories: any[];
+  error?: string;
+}
+
+export async function getRepositories(
+  options: GetRepositoriesOptions = {},
+): Promise<GetRepositoriesResult> {
   const perPage = options.perPage || 30;
 
   // 1. Try Corsair API / Synced DB

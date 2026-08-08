@@ -47,7 +47,7 @@ async function provisionCorsairTenant({
 
     // Fallback: try setting api_key directly on tenant client if account row exists
     try {
-      const tenant = corsair.withTenant(tenantId);
+      const tenant = corsair.withTenant(tenantId) as any;
       if (tenant?.github?.keys?.set_api_key) {
         await tenant.github.keys.set_api_key(accessToken);
       }

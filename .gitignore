@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+api-test.md
+corsair-api-docs.md
+docs.md
+fix.md
+progress.md
+todo.md

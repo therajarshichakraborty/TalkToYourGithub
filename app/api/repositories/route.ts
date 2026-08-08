@@ -42,7 +42,7 @@ export async function GET() {
 
     if (!result.success) {
       return Response.json(
-        { error: result.error || "Failed to fetch repositories." },
+        { error: (result as any).error || "Failed to fetch repositories." },
         { status: 500 },
       );
     }

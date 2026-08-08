@@ -144,7 +144,7 @@ export async function POST(req: Request) {
       messages,
       tools,
       maxSteps: 5,
-      onFinish: async ({ text, toolInvocations }) => {
+      onFinish: async ({ text, toolInvocations }: any) => {
         if (conversationId && text) {
           await db
             .insert(schema.messages)

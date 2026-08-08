@@ -36,14 +36,16 @@ export async function GET() {
 
     // Test querying Corsair via withTenant(userRecord.corsairTenantId)
     const tenantId = userRecord.corsairTenantId;
-    const tenant = corsair.withTenant(tenantId);
+    const tenant = corsair.withTenant(tenantId) as any;
 
     let repos: unknown = [];
     let corsairSuccess = false;
     let corsairError: string | null = null;
 
     try {
-      repos = await tenant.github.api.repositories.list({ perPage: 5 });
+      repos = await (tenant as any).github?.api?.repositories?.list({
+        perPage: 5,
+      });
       corsairSuccess = true;
     } catch (err: unknown) {
       corsairError = err instanceof Error ? err.message : String(err);

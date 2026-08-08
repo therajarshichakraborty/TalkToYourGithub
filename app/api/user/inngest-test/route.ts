@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
     const eventResult = await inngest.send({
       name: "github.connected",
       data: {
-        userId: targetUserId,
+        userId: targetUserId as string,
         corsairTenantId: targetTenantId,
         repositoryOwner,
         repositoryName,
