@@ -312,23 +312,54 @@ export function ToolCallCard({
    * Handler for getFileContent tool (Directory listing & file content)
    */
   if (toolName === "getFileContent" && result.success) {
+    const owner = result.owner || args?.owner;
+    const repo = result.repo || args?.repo;
+    const ref =
+      result.ref && result.ref !== "default" ? result.ref : args?.ref || "main";
+
     if (result.type === "directory" && Array.isArray(result.items)) {
+      const dirGithubUrl =
+        owner && repo
+          ? `https://github.com/${owner}/${repo}/tree/${ref}/${result.path || ""}`.replace(
+              /\/+$/,
+              "",
+            )
+          : undefined;
+
       return (
         <Card className='my-2 border-border bg-muted/20 text-xs shadow-xs overflow-hidden rounded-2xl'>
           <CardHeader className='p-3 flex flex-row items-center justify-between border-b bg-muted/40'>
-            <div className='flex items-center gap-2'>
-              <Folder className='h-4 w-4 text-indigo-500' />
-              <span className='font-bold text-foreground'>
-                Directory: /{result.path || ""}
-              </span>
-              <Badge variant='outline' className='text-[10px] rounded-full font-mono'>
+            <div className='flex items-center gap-2 truncate'>
+              <Folder className='h-4 w-4 text-indigo-500 shrink-0' />
+              {dirGithubUrl ? (
+                <a
+                  href={dirGithubUrl}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='font-bold text-foreground hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline flex items-center gap-1.5 transition-colors group truncate'
+                  title='Open directory on GitHub'
+                >
+                  <span className='truncate'>
+                    Directory: /{result.path || ""}
+                  </span>
+                  <ExternalLink className='h-3 w-3 text-muted-foreground opacity-70 group-hover:opacity-100 shrink-0' />
+                </a>
+              ) : (
+                <span className='font-bold text-foreground truncate'>
+                  Directory: /{result.path || ""}
+                </span>
+              )}
+              <Badge
+                variant='outline'
+                className='text-[10px] rounded-full font-mono shrink-0'
+              >
                 {result.itemCount} items
               </Badge>
             </div>
             <Button
               variant='ghost'
               size='sm'
-              className='h-6 w-6 p-0'
+              className='h-6 w-6 p-0 shrink-0'
               onClick={() => setIsExpanded(!isExpanded)}
             >
               {isExpanded ? (
@@ -342,11 +373,54 @@ export function ToolCallCard({
             <CardContent className='p-3 space-y-1.5'>
               <div className='grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs font-mono'>
                 {result.items.map((item: any, idx: number) => {
-                  const isDir = item.type === "dir" || item.type === "directory";
+                  const isDir =
+                    item.type === "dir" || item.type === "directory";
+                  const itemPath =
+                    item.path ||
+                    (result.path ? `${result.path}/${item.name}` : item.name);
+
+                  const githubUrl =
+                    item.htmlUrl ||
+                    item.html_url ||
+                    (owner && repo
+                      ? `https://github.com/${owner}/${repo}/${
+                          isDir ? "tree" : "blob"
+                        }/${ref}/${itemPath}`
+                      : undefined);
+
+                  if (githubUrl) {
+                    return (
+                      <a
+                        key={idx}
+                        href={githubUrl}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='flex items-center gap-2 p-2 rounded-xl bg-background border border-border/60 hover:border-indigo-500/50 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-all cursor-pointer group text-decoration-none'
+                        title={`Open ${item.name} on GitHub`}
+                      >
+                        {isDir ? (
+                          <Folder className='h-3.5 w-3.5 text-indigo-500 shrink-0' />
+                        ) : (
+                          <FileCode className='h-3.5 w-3.5 text-muted-foreground group-hover:text-indigo-500 shrink-0 transition-colors' />
+                        )}
+                        <span className='truncate font-medium text-foreground text-[11px] flex-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors'>
+                          {item.name}
+                        </span>
+                        <Badge
+                          variant='secondary'
+                          className='text-[9px] uppercase px-1.5 py-0 font-sans shrink-0'
+                        >
+                          {isDir ? "dir" : "file"}
+                        </Badge>
+                        <ExternalLink className='h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0' />
+                      </a>
+                    );
+                  }
+
                   return (
                     <div
                       key={idx}
-                      className='flex items-center gap-2 p-2 rounded-xl bg-background border border-border/60 hover:border-indigo-500/40 transition-colors'
+                      className='flex items-center gap-2 p-2 rounded-xl bg-background border border-border/60'
                     >
                       {isDir ? (
                         <Folder className='h-3.5 w-3.5 text-indigo-500 shrink-0' />
@@ -368,6 +442,48 @@ export function ToolCallCard({
               </div>
             </CardContent>
           )}
+        </Card>
+      );
+    }
+
+    if (result.type === "file") {
+      const fileUrl =
+        result.publicUrl ||
+        result.htmlUrl ||
+        (owner && repo
+          ? `https://github.com/${owner}/${repo}/blob/${ref}/${result.path}`
+          : undefined);
+
+      return (
+        <Card className='my-2 border-border bg-muted/20 text-xs shadow-xs overflow-hidden rounded-2xl'>
+          <CardHeader className='p-3 flex flex-row items-center justify-between border-b bg-muted/40'>
+            <div className='flex items-center gap-2 truncate'>
+              <FileCode className='h-4 w-4 text-indigo-500 shrink-0' />
+              <span className='font-bold text-foreground truncate'>
+                File: {result.name || result.path}
+              </span>
+              {result.size && (
+                <Badge
+                  variant='outline'
+                  className='text-[10px] rounded-full font-mono shrink-0'
+                >
+                  {result.size} bytes
+                </Badge>
+              )}
+            </div>
+            {fileUrl && (
+              <a
+                href={fileUrl}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0'
+                title='View file on GitHub'
+              >
+                <span>View on GitHub</span>
+                <ExternalLink className='h-3 w-3' />
+              </a>
+            )}
+          </CardHeader>
         </Card>
       );
     }

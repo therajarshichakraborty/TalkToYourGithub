@@ -206,7 +206,7 @@ export function RepoList({ selectedRepo, onSelectRepo }: RepoListProps) {
               return (
                 <SidebarMenuItem key={repo.id}>
                   <button
-                    type="button"
+                    type='button'
                     onClick={() => onSelectRepo(repo)}
                     className={`w-full flex items-start gap-2.5 p-2.5 text-left rounded-xl transition-all border ${
                       isSelected
@@ -214,12 +214,16 @@ export function RepoList({ selectedRepo, onSelectRepo }: RepoListProps) {
                         : "bg-sidebar hover:bg-sidebar-accent/50 border-transparent hover:border-sidebar-border"
                     }`}
                   >
-                    <div className={`p-1.5 rounded-lg shrink-0 ${isSelected ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/60 dark:text-indigo-300" : "bg-muted/50 text-muted-foreground"}`}>
+                    <div
+                      className={`p-1.5 rounded-lg shrink-0 ${isSelected ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/60 dark:text-indigo-300" : "bg-muted/50 text-muted-foreground"}`}
+                    >
                       <GitBranch className='h-3.5 w-3.5' />
                     </div>
                     <div className='flex-1 min-w-0'>
                       <div className='flex items-center justify-between gap-1'>
-                        <span className={`font-semibold text-xs truncate ${isSelected ? "text-indigo-950 dark:text-indigo-100 font-bold" : "text-foreground"}`}>
+                        <span
+                          className={`font-semibold text-xs truncate ${isSelected ? "text-indigo-950 dark:text-indigo-100 font-bold" : "text-foreground"}`}
+                        >
                           {repo.name}
                         </span>
                         {isSelected && (

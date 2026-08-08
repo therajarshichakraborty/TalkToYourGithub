@@ -355,7 +355,8 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
           )}
         </form>
         <p className='text-[10px] text-center text-muted-foreground mt-2 font-normal'>
-          TalkToYourGitHub executes read and write operations via live GitHub API & Corsair sync layer.
+          TalkToYourGitHub executes read and write operations via live GitHub
+          API & Corsair sync layer.
         </p>
       </div>
     </div>

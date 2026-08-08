@@ -66,7 +66,10 @@ export function SummaryDisplay({
           <div>
             <CardTitle className='text-sm font-bold tracking-tight flex items-center gap-2'>
               <span>Repository AI Summary</span>
-              <Badge variant='outline' className='text-[10px] font-mono font-normal'>
+              <Badge
+                variant='outline'
+                className='text-[10px] font-mono font-normal'
+              >
                 {owner}/{repo}
               </Badge>
             </CardTitle>
@@ -109,13 +112,19 @@ export function SummaryDisplay({
         {(language || defaultBranch) && (
           <div className='flex items-center gap-2 text-xs'>
             {language && (
-              <Badge variant='secondary' className='gap-1.5 text-[11px] rounded-full px-3'>
+              <Badge
+                variant='secondary'
+                className='gap-1.5 text-[11px] rounded-full px-3'
+              >
                 <Code2 className='h-3 w-3 text-primary' />
                 {language}
               </Badge>
             )}
             {defaultBranch && (
-              <Badge variant='outline' className='text-[11px] rounded-full px-3'>
+              <Badge
+                variant='outline'
+                className='text-[11px] rounded-full px-3'
+              >
                 Branch: {defaultBranch}
               </Badge>
             )}
@@ -137,7 +146,9 @@ export function SummaryDisplay({
                       ? "2. Architecture & Tech Stack"
                       : "3. Vitality & Activity Status"}
                 </div>
-                <p className='whitespace-pre-wrap leading-relaxed text-xs font-normal'>{para}</p>
+                <p className='whitespace-pre-wrap leading-relaxed text-xs font-normal'>
+                  {para}
+                </p>
               </div>
             ))}
           </div>
@@ -145,9 +156,12 @@ export function SummaryDisplay({
           <div className='p-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-3 border border-dashed rounded-xl bg-muted/10'>
             <FileText className='h-8 w-8 text-indigo-500/60' />
             <div className='space-y-1'>
-              <p className='font-bold text-foreground text-sm'>No AI Summary Available</p>
+              <p className='font-bold text-foreground text-sm'>
+                No AI Summary Available
+              </p>
               <p className='text-[11px] text-muted-foreground max-w-sm'>
-                Summaries are synthesized automatically on load or when Inngest background events land.
+                Summaries are synthesized automatically on load or when Inngest
+                background events land.
               </p>
             </div>
             <Button
@@ -166,7 +180,9 @@ export function SummaryDisplay({
                   });
                   const d = await res.json();
                   if (d.success) {
-                    alert(`Dispatched AI summary background job for ${owner}/${repo}! Please refresh in a few seconds.`);
+                    alert(
+                      `Dispatched AI summary background job for ${owner}/${repo}! Please refresh in a few seconds.`,
+                    );
                     window.location.reload();
                   } else {
                     alert(`Trigger error: ${d.error}`);

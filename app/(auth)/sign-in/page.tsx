@@ -36,7 +36,8 @@ const SignInPage = async ({ searchParams }: SignInPageProps) => {
             Talk to your GitHub
           </h1>
           <p className='text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed'>
-            Ask questions about repositories, commits, and pull requests in plain natural language.
+            Ask questions about repositories, commits, and pull requests in
+            plain natural language.
           </p>
         </div>
       </div>

@@ -130,7 +130,9 @@ export default function DashboardPage() {
                         d.repositoryOwner && d.repositoryName
                           ? `${d.repositoryOwner}/${d.repositoryName}`
                           : "all repositories";
-                      alert(`Inngest Sync Triggered for ${repoLabel}! Background jobs (embeddings, summary, activity) dispatched.`);
+                      alert(
+                        `Inngest Sync Triggered for ${repoLabel}! Background jobs (embeddings, summary, activity) dispatched.`,
+                      );
                     } else {
                       alert(`Inngest trigger error: ${d.error}`);
                     }

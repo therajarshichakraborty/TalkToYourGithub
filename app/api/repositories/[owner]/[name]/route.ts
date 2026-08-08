@@ -112,8 +112,14 @@ export async function GET(
         const prompt = `
 Write a concise 2-paragraph AI summary for GitHub repository '${owner}/${name}'.
 Primary language: ${branches.length > 0 ? "TypeScript/JavaScript" : "Unknown"}
-Sampled Branches (${branches.length}): ${branches.slice(0, 5).map((b: any) => (typeof b === "string" ? b : b?.name || "")).join(", ")}
-Recent Commits (${commits.length}): ${commits.slice(0, 5).map((c: any) => c.commit?.message || c.message || "").join(" | ")}
+Sampled Branches (${branches.length}): ${branches
+          .slice(0, 5)
+          .map((b: any) => (typeof b === "string" ? b : b?.name || ""))
+          .join(", ")}
+Recent Commits (${commits.length}): ${commits
+          .slice(0, 5)
+          .map((c: any) => c.commit?.message || c.message || "")
+          .join(" | ")}
 Issues Count: ${issues.length}, Pull Requests Count: ${pullRequests.length}
 README Preview: ${readme ? readme.slice(0, 800) : "No README available."}
 
@@ -158,7 +164,10 @@ Prose only, no markdown headers or bullet points.
             });
         }
       } catch (genErr) {
-        console.warn(`[route.ts] Note generating auto-summary for ${owner}/${name}:`, genErr);
+        console.warn(
+          `[route.ts] Note generating auto-summary for ${owner}/${name}:`,
+          genErr,
+        );
       }
     }
 
@@ -168,7 +177,9 @@ Prose only, no markdown headers or bullet points.
       name,
       fullName: `${owner}/${name}`,
       summary: finalSummary,
-      summaryGeneratedAt: finalGeneratedAt ? new Date(finalGeneratedAt).toISOString() : null,
+      summaryGeneratedAt: finalGeneratedAt
+        ? new Date(finalGeneratedAt).toISOString()
+        : null,
       activityLogs: activityLogs.map((l) => ({
         id: l.id,
         type: l.activityType,

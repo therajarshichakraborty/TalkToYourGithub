@@ -154,7 +154,8 @@ function Hero() {
 
           <p className='mt-4 text-base font-normal text-muted-foreground sm:text-lg leading-relaxed'>
             Query commits, branches, pull requests, and issues using plain
-            questions. Powered by high-performance RAG vector embeddings, LangChain text splitting, and live API proxies.
+            questions. Powered by high-performance RAG vector embeddings,
+            LangChain text splitting, and live API proxies.
           </p>
 
           <div className='mt-8 flex flex-wrap items-center gap-3'>
@@ -386,7 +387,8 @@ function HowItWorks() {
           How TalkToYourGitHub Works
         </h2>
         <p className='text-xs sm:text-sm text-muted-foreground max-w-lg leading-relaxed'>
-          Three seamless steps connecting your GitHub workflow to AI vector search.
+          Three seamless steps connecting your GitHub workflow to AI vector
+          search.
         </p>
       </div>
 
@@ -395,9 +397,12 @@ function HowItWorks() {
           <div className='text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400'>
             01 / CONNECT
           </div>
-          <h3 className='text-base font-bold text-foreground'>GitHub OAuth 2.0</h3>
+          <h3 className='text-base font-bold text-foreground'>
+            GitHub OAuth 2.0
+          </h3>
           <p className='text-xs text-muted-foreground leading-relaxed'>
-            Connect your GitHub account with read-only access for secure multi-tenant isolation via Corsair API.
+            Connect your GitHub account with read-only access for secure
+            multi-tenant isolation via Corsair API.
           </p>
         </div>
 
@@ -405,9 +410,12 @@ function HowItWorks() {
           <div className='text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400'>
             02 / INDEX
           </div>
-          <h3 className='text-base font-bold text-foreground'>Inngest Vector RAG</h3>
+          <h3 className='text-base font-bold text-foreground'>
+            Inngest Vector RAG
+          </h3>
           <p className='text-xs text-muted-foreground leading-relaxed'>
-            LangChain character splitters generate vector embeddings stored in Pinecone and PostgreSQL.
+            LangChain character splitters generate vector embeddings stored in
+            Pinecone and PostgreSQL.
           </p>
         </div>
 
@@ -415,9 +423,12 @@ function HowItWorks() {
           <div className='text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400'>
             03 / CHAT
           </div>
-          <h3 className='text-base font-bold text-foreground'>AI Intelligence</h3>
+          <h3 className='text-base font-bold text-foreground'>
+            AI Intelligence
+          </h3>
           <p className='text-xs text-muted-foreground leading-relaxed'>
-            Ask questions, review PRs, triage issues, and inspect repository files in natural language.
+            Ask questions, review PRs, triage issues, and inspect repository
+            files in natural language.
           </p>
         </div>
       </div>
