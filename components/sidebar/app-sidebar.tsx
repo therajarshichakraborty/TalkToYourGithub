@@ -88,13 +88,13 @@ export function AppSidebar({
       {/* Brand & App Header */}
       <SidebarHeader className='border-b border-sidebar-border px-4 py-3'>
         <div className='flex items-center gap-3'>
-          <div className='flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm'>
+          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25 shrink-0'>
             <GithubIcon className='h-5 w-5' />
           </div>
           <div className='flex flex-col'>
             <span className='font-semibold text-sm leading-none flex items-center gap-1.5'>
-              TalkToYourGithub
-              <Sparkles className='h-3 w-3 text-amber-500' />
+              TalkToYourGitHub
+              <Sparkles className='h-3 w-3 text-indigo-500' />
             </span>
             <span className='text-[11px] text-muted-foreground mt-0.5'>
               AI Code Assistant

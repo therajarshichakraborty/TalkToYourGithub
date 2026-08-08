@@ -46,23 +46,23 @@ function SubmitButton() {
     <button
       type='submit'
       disabled={pending}
-      className='group relative flex w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-foreground py-3 text-[14px] font-medium text-background shadow-sm transition-all duration-200 hover:bg-foreground/90 hover:shadow-md active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 text-center px-17'
+      className='group relative flex w-full items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 text-sm shadow-md shadow-indigo-500/25 transition-all duration-200 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 text-center px-6'
     >
       {pending ? (
         <>
-          <span className='relative text-sm'>Connecting</span>
+          <span className='relative text-sm'>Connecting...</span>
           <LoadingDots />
         </>
       ) : (
         <>
-          <GitHubIcon className='relative size-[18px] transition-transform duration-200 group-hover:-rotate-6 text-center flex justify-center items-center' />
+          <GitHubIcon className='relative size-5 transition-transform duration-200 group-hover:-rotate-6 text-white' />
           <span className='relative text-center'>Continue with GitHub</span>
           <svg
-            className='relative ml-auto size-3.5 opacity-0 transition-all duration-200 group-hover:opacity-50 group-hover:translate-x-0.5 text-center flex justify-center items-center'
+            className='relative ml-auto size-4 opacity-70 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-1 text-white'
             viewBox='0 0 16 16'
             fill='none'
             stroke='currentColor'
-            strokeWidth='2'
+            strokeWidth='2.5'
           >
             <path
               d='M3 8h10M9 4l4 4-4 4'

@@ -260,58 +260,58 @@ export default function RepositoryDetailPage(props: {
                     </div>
 
                     {/* Repository Quick Stats Grid */}
-                    <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
-                      <Card className='p-3 flex items-center gap-3'>
-                        <div className='p-2 rounded-lg bg-blue-500/10 text-blue-500'>
-                          <GitCommit className='h-4 w-4' />
+                    <div className='grid grid-cols-2 sm:grid-cols-4 gap-3.5'>
+                      <Card className='p-4 border border-border/80 bg-card rounded-2xl shadow-xs flex items-center gap-3.5 hover:border-primary/40 transition-all'>
+                        <div className='p-2.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0'>
+                          <GitCommit className='h-5 w-5' />
                         </div>
                         <div>
-                          <div className='text-xs text-muted-foreground'>
+                          <div className='text-xs text-muted-foreground font-medium'>
                             Commits
                           </div>
-                          <div className='text-base font-semibold'>
+                          <div className='text-lg font-extrabold tracking-tight'>
                             {data.stats.commitsCount}
                           </div>
                         </div>
                       </Card>
 
-                      <Card className='p-3 flex items-center gap-3'>
-                        <div className='p-2 rounded-lg bg-emerald-500/10 text-emerald-500'>
-                          <GitBranch className='h-4 w-4' />
+                      <Card className='p-4 border border-border/80 bg-card rounded-2xl shadow-xs flex items-center gap-3.5 hover:border-primary/40 transition-all'>
+                        <div className='p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0'>
+                          <GitBranch className='h-5 w-5' />
                         </div>
                         <div>
-                          <div className='text-xs text-muted-foreground'>
+                          <div className='text-xs text-muted-foreground font-medium'>
                             Branches
                           </div>
-                          <div className='text-base font-semibold'>
+                          <div className='text-lg font-extrabold tracking-tight'>
                             {data.stats.branchesCount}
                           </div>
                         </div>
                       </Card>
 
-                      <Card className='p-3 flex items-center gap-3'>
-                        <div className='p-2 rounded-lg bg-purple-500/10 text-purple-500'>
-                          <GitPullRequest className='h-4 w-4' />
+                      <Card className='p-4 border border-border/80 bg-card rounded-2xl shadow-xs flex items-center gap-3.5 hover:border-primary/40 transition-all'>
+                        <div className='p-2.5 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0'>
+                          <GitPullRequest className='h-5 w-5' />
                         </div>
                         <div>
-                          <div className='text-xs text-muted-foreground'>
+                          <div className='text-xs text-muted-foreground font-medium'>
                             Pull Requests
                           </div>
-                          <div className='text-base font-semibold'>
+                          <div className='text-lg font-extrabold tracking-tight'>
                             {data.stats.pullRequestsCount}
                           </div>
                         </div>
                       </Card>
 
-                      <Card className='p-3 flex items-center gap-3'>
-                        <div className='p-2 rounded-lg bg-amber-500/10 text-amber-500'>
-                          <AlertCircle className='h-4 w-4' />
+                      <Card className='p-4 border border-border/80 bg-card rounded-2xl shadow-xs flex items-center gap-3.5 hover:border-primary/40 transition-all'>
+                        <div className='p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0'>
+                          <AlertCircle className='h-5 w-5' />
                         </div>
                         <div>
-                          <div className='text-xs text-muted-foreground'>
+                          <div className='text-xs text-muted-foreground font-medium'>
                             Issues
                           </div>
-                          <div className='text-base font-semibold'>
+                          <div className='text-lg font-extrabold tracking-tight'>
                             {data.stats.issuesCount}
                           </div>
                         </div>
@@ -328,21 +328,21 @@ export default function RepositoryDetailPage(props: {
 
                     {/* Recent Commits */}
                     {data.commits.length > 0 && (
-                      <Card>
-                        <CardHeader className='p-4 pb-2'>
-                          <CardTitle className='text-sm font-semibold flex items-center gap-2'>
+                      <Card className='border border-border/80 bg-card rounded-2xl shadow-xs overflow-hidden'>
+                        <CardHeader className='p-4 pb-2 border-b bg-muted/20'>
+                          <CardTitle className='text-sm font-bold tracking-tight flex items-center gap-2'>
                             <GitCommit className='h-4 w-4 text-primary' />
                             Recent Commits
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className='p-4 pt-2 space-y-2'>
+                        <CardContent className='p-4 pt-3 space-y-2'>
                           {data.commits.map((c, i) => (
                             <div
                               key={i}
-                              className='flex items-center justify-between text-xs p-2 rounded bg-muted/40 border'
+                              className='flex items-center justify-between text-xs p-3 rounded-xl bg-muted/20 border border-muted/50 transition-colors hover:bg-muted/40'
                             >
                               <div className='truncate pr-2'>
-                                <span className='font-medium'>{c.message}</span>
+                                <span className='font-semibold text-foreground'>{c.message}</span>
                                 <span className='text-[11px] text-muted-foreground ml-2'>
                                   by {c.author}
                                 </span>
@@ -350,7 +350,7 @@ export default function RepositoryDetailPage(props: {
                               {c.sha && (
                                 <Badge
                                   variant='outline'
-                                  className='font-mono text-[10px] shrink-0'
+                                  className='font-mono text-[10px] shrink-0 rounded-full px-2.5'
                                 >
                                   {c.sha}
                                 </Badge>
@@ -363,15 +363,15 @@ export default function RepositoryDetailPage(props: {
 
                     {/* README Preview */}
                     {data.readmeSnippet && (
-                      <Card>
-                        <CardHeader className='p-4 pb-2'>
-                          <CardTitle className='text-sm font-semibold flex items-center gap-2'>
+                      <Card className='border border-border/80 bg-card rounded-2xl shadow-xs overflow-hidden'>
+                        <CardHeader className='p-4 pb-2 border-b bg-muted/20'>
+                          <CardTitle className='text-sm font-bold tracking-tight flex items-center gap-2'>
                             <FileText className='h-4 w-4 text-primary' />
                             README.md Preview
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className='p-4 pt-2'>
-                          <div className='p-3 bg-muted/50 rounded-lg text-xs font-mono whitespace-pre-wrap overflow-x-auto max-h-60 leading-relaxed text-muted-foreground'>
+                        <CardContent className='p-4 pt-3'>
+                          <div className='p-4 bg-muted/30 border border-muted/50 rounded-xl text-xs font-mono whitespace-pre-wrap overflow-x-auto max-h-60 leading-relaxed text-muted-foreground'>
                             {data.readmeSnippet}
                           </div>
                         </CardContent>
@@ -395,32 +395,32 @@ export default function RepositoryDetailPage(props: {
                 className='flex-1 overflow-y-auto p-4 space-y-4 m-0'
               >
                 <div className='max-w-4xl mx-auto space-y-3'>
-                  <h3 className='text-sm font-semibold flex items-center gap-2'>
+                  <h3 className='text-sm font-bold tracking-tight flex items-center gap-2'>
                     <Activity className='h-4 w-4 text-primary' />
-                    Webhook Activity Timeline
+                    Activity Log Timeline
                   </h3>
 
                   {data?.activityLogs && data.activityLogs.length > 0 ? (
-                    <div className='space-y-2'>
+                    <div className='space-y-2.5'>
                       {data.activityLogs.map((log) => (
                         <Card
                           key={log.id}
-                          className='p-3 text-xs flex items-center justify-between gap-3'
+                          className='p-4 text-xs flex items-center justify-between gap-3 border border-border/80 bg-card rounded-2xl shadow-xs hover:border-primary/30 transition-all'
                         >
-                          <div className='space-y-0.5'>
-                            <div className='font-medium flex items-center gap-2'>
-                              <Badge variant='outline' className='text-[10px]'>
+                          <div className='space-y-1 min-w-0'>
+                            <div className='font-semibold flex items-center gap-2 truncate'>
+                              <Badge variant='outline' className='text-[10px] font-mono rounded-full px-2.5 uppercase'>
                                 {log.type}
                               </Badge>
-                              <span>{log.title || "Repository Event"}</span>
+                              <span className='truncate text-foreground'>{log.title || "Repository Event"}</span>
                             </div>
                             {log.description && (
-                              <p className='text-muted-foreground text-[11px]'>
+                              <p className='text-muted-foreground text-[11px] truncate font-normal'>
                                 {log.description}
                               </p>
                             )}
                           </div>
-                          <span className='text-[10px] text-muted-foreground shrink-0 font-mono'>
+                          <span className='text-[11px] text-muted-foreground shrink-0 font-mono bg-muted/40 px-2.5 py-1 rounded-full border border-muted/50'>
                             {formatDistanceToNow(new Date(log.occurredAt), {
                               addSuffix: true,
                             })}
@@ -429,8 +429,8 @@ export default function RepositoryDetailPage(props: {
                       ))}
                     </div>
                   ) : (
-                    <Card className='p-8 text-center text-xs text-muted-foreground border-dashed'>
-                      No webhook activity logged for this repository yet.
+                    <Card className='p-12 text-center text-xs text-muted-foreground border-dashed rounded-2xl'>
+                      No activity logged for this repository yet.
                     </Card>
                   )}
                 </div>

@@ -190,17 +190,17 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
       <div className='flex-1 overflow-y-auto p-4 space-y-4'>
         {/* Welcome State when conversation is empty */}
         {messages.length === 0 && (
-          <div className='max-w-2xl mx-auto py-8 text-center space-y-6'>
-            <div className='inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary'>
-              <Sparkles className='h-6 w-6' />
+          <div className='max-w-2xl mx-auto py-10 text-center space-y-6'>
+            <div className='inline-flex h-16 w-16 items-center justify-center rounded-3xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shadow-md shadow-indigo-500/10 border border-indigo-200/60 dark:border-indigo-900/40'>
+              <Sparkles className='h-8 w-8' />
             </div>
             <div className='space-y-2'>
-              <h3 className='text-lg font-semibold tracking-tight'>
+              <h3 className='text-2xl font-bold tracking-tight text-foreground'>
                 {activeRepo
                   ? `Talk to ${activeRepo.name}`
-                  : "Welcome to TalkToYourGithub"}
+                  : "Welcome to TalkToYourGitHub"}
               </h3>
-              <p className='text-sm text-muted-foreground max-w-md mx-auto'>
+              <p className='text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed'>
                 {activeRepo
                   ? `Ask anything about commits, branches, issues, or code structure in ${activeRepo.fullName}.`
                   : "Ask questions, review commits, inspect issues, or trigger repository summaries using natural language."}
@@ -208,15 +208,17 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
             </div>
 
             {/* Quick Action Suggestion Cards */}
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-2 text-left pt-2'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 text-left pt-4'>
               {samplePrompts.map((prompt, idx) => (
                 <Card
                   key={idx}
                   onClick={() => handlePromptClick(prompt)}
-                  className='p-3 hover:bg-accent/50 cursor-pointer transition-colors border-muted shadow-none flex items-start gap-2.5 group'
+                  className='p-4 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 hover:border-indigo-200 dark:hover:border-indigo-900/50 cursor-pointer transition-all border-border/80 shadow-xs rounded-2xl flex items-start gap-3 group'
                 >
-                  <Lightbulb className='h-4 w-4 text-amber-500 mt-0.5 shrink-0 group-hover:scale-110 transition-transform' />
-                  <span className='text-xs text-muted-foreground group-hover:text-foreground font-medium'>
+                  <div className='p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0 group-hover:scale-110 transition-transform'>
+                    <Lightbulb className='h-4 w-4' />
+                  </div>
+                  <span className='text-xs text-muted-foreground group-hover:text-foreground font-semibold leading-snug'>
                     {prompt}
                   </span>
                 </Card>
@@ -236,11 +238,11 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
               }`}
             >
               {/* Message Avatar */}
-              <Avatar className='h-8 w-8 shrink-0 mt-0.5 border'>
+              <Avatar className='h-8 w-8 shrink-0 mt-0.5 border shadow-xs'>
                 <AvatarFallback
                   className={
                     isUser
-                      ? "bg-primary text-primary-foreground text-xs"
+                      ? "bg-indigo-600 text-white text-xs font-bold"
                       : "bg-muted text-foreground text-xs"
                   }
                 >
@@ -256,10 +258,10 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
               <div className='space-y-1 max-w-[85%]'>
                 {message.content ? (
                   <div
-                    className={`rounded-2xl px-4 py-2.5 text-sm shadow-xs leading-relaxed ${
+                    className={`rounded-2xl px-4 py-3 text-sm shadow-xs leading-relaxed ${
                       isUser
-                        ? "bg-primary text-primary-foreground rounded-tr-xs"
-                        : "bg-muted/60 text-foreground border rounded-tl-xs"
+                        ? "bg-indigo-600 text-white rounded-tr-xs font-medium"
+                        : "bg-card text-foreground border rounded-tl-xs"
                     }`}
                   >
                     <div className='whitespace-pre-wrap break-words'>
@@ -267,12 +269,12 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
                     </div>
                   </div>
                 ) : isUser ? (
-                  <div className='rounded-2xl px-4 py-2.5 text-sm bg-primary text-primary-foreground rounded-tr-xs'>
+                  <div className='rounded-2xl px-4 py-3 text-sm bg-indigo-600 text-white rounded-tr-xs'>
                     {message.content}
                   </div>
                 ) : !(message as any).toolInvocations?.length ? (
-                  <div className='rounded-2xl px-4 py-2.5 text-sm bg-muted/60 text-muted-foreground border rounded-tl-xs flex items-center gap-2'>
-                    <Loader2 className='h-3.5 w-3.5 animate-spin text-primary' />
+                  <div className='rounded-2xl px-4 py-3 text-sm bg-card text-muted-foreground border rounded-tl-xs flex items-center gap-2.5'>
+                    <Loader2 className='h-4 w-4 animate-spin text-indigo-600' />
                     <span>Analyzing repository & fetching context...</span>
                   </div>
                 ) : null}
@@ -293,8 +295,8 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
                 <Bot className='h-4 w-4' />
               </AvatarFallback>
             </Avatar>
-            <div className='flex items-center gap-2 rounded-2xl bg-muted/40 px-4 py-2 border'>
-              <Loader2 className='h-3.5 w-3.5 animate-spin text-primary' />
+            <div className='flex items-center gap-2.5 rounded-2xl bg-card px-4 py-2.5 border shadow-xs'>
+              <Loader2 className='h-4 w-4 animate-spin text-indigo-600' />
               <span>Thinking and fetching GitHub data...</span>
             </div>
           </div>
@@ -304,14 +306,14 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
       </div>
 
       {/* Message Input Bar */}
-      <div className='p-3 border-t bg-background shrink-0'>
+      <div className='p-4 border-t bg-background shrink-0'>
         <form
           onSubmit={(e) => {
             e.preventDefault();
             if (!input.trim()) return;
             handleSubmit(e);
           }}
-          className='flex items-center gap-2 max-w-4xl mx-auto'
+          className='flex items-center gap-3 max-w-4xl mx-auto'
         >
           <Input
             value={input}
@@ -321,7 +323,7 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
                 ? `Ask about ${activeRepo.name} (e.g. commits, issues, branches)...`
                 : "Ask about your GitHub repositories..."
             }
-            className='flex-1 h-10 text-sm bg-muted/40 border-muted focus-visible:ring-1'
+            className='flex-1 h-11 text-sm bg-muted/30 border-border/80 focus-visible:ring-indigo-500 rounded-full px-5'
           />
 
           {isLoading ? (
@@ -330,7 +332,7 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
               onClick={() => stop()}
               variant='outline'
               size='icon'
-              className='h-10 w-10 text-destructive border-destructive/40 hover:bg-destructive/10'
+              className='h-11 w-11 rounded-full text-destructive border-destructive/40 hover:bg-destructive/10 shrink-0'
               title='Stop response'
             >
               <Square className='h-4 w-4 fill-current' />
@@ -340,16 +342,15 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
               type='submit'
               disabled={!input.trim()}
               size='icon'
-              className='h-10 w-10 shrink-0'
+              className='h-11 w-11 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/25 shrink-0 transition-all hover:scale-105'
               title='Send message'
             >
               <Send className='h-4 w-4' />
             </Button>
           )}
         </form>
-        <p className='text-[10px] text-center text-muted-foreground mt-1.5'>
-          TalkToYourGithub executes read and write operations via live GitHub
-          API & Corsair sync layer.
+        <p className='text-[10px] text-center text-muted-foreground mt-2 font-normal'>
+          TalkToYourGitHub executes read and write operations via live GitHub API & Corsair sync layer.
         </p>
       </div>
     </div>

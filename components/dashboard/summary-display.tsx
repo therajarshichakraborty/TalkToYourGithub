@@ -57,13 +57,18 @@ export function SummaryDisplay({
     : [];
 
   return (
-    <Card className='border-primary/20 bg-muted/20 shadow-xs'>
-      <CardHeader className='p-4 pb-2 border-b bg-muted/30 flex flex-row items-center justify-between'>
-        <div className='flex items-center gap-2'>
-          <Sparkles className='h-4 w-4 text-amber-500' />
+    <Card className='border border-border/80 bg-card shadow-xs rounded-2xl overflow-hidden'>
+      <CardHeader className='p-4 pb-3 border-b bg-muted/30 flex flex-row items-center justify-between'>
+        <div className='flex items-center gap-3'>
+          <div className='p-2 rounded-xl bg-primary/10 text-primary shrink-0'>
+            <Sparkles className='h-4 w-4' />
+          </div>
           <div>
-            <CardTitle className='text-sm font-semibold'>
-              Repository AI Summary — {owner}/{repo}
+            <CardTitle className='text-sm font-bold tracking-tight flex items-center gap-2'>
+              <span>Repository AI Summary</span>
+              <Badge variant='outline' className='text-[10px] font-mono font-normal'>
+                {owner}/{repo}
+              </Badge>
             </CardTitle>
             {generatedAt && (
               <CardDescription className='text-[11px] flex items-center gap-1 mt-0.5'>
@@ -82,7 +87,7 @@ export function SummaryDisplay({
             variant='outline'
             size='sm'
             onClick={handleCopy}
-            className='h-7 text-xs gap-1.5'
+            className='h-8 text-xs gap-1.5 rounded-full border-border/80 font-semibold'
           >
             {copied ? (
               <>
@@ -99,46 +104,48 @@ export function SummaryDisplay({
         )}
       </CardHeader>
 
-      <CardContent className='p-4 space-y-3'>
+      <CardContent className='p-4 space-y-3.5'>
         {/* Language & Branch Badges */}
-        <div className='flex items-center gap-2 text-xs'>
-          {language && (
-            <Badge variant='secondary' className='gap-1 text-[11px]'>
-              <Code2 className='h-3 w-3 text-primary' />
-              {language}
-            </Badge>
-          )}
-          {defaultBranch && (
-            <Badge variant='outline' className='text-[11px]'>
-              Branch: {defaultBranch}
-            </Badge>
-          )}
-        </div>
+        {(language || defaultBranch) && (
+          <div className='flex items-center gap-2 text-xs'>
+            {language && (
+              <Badge variant='secondary' className='gap-1.5 text-[11px] rounded-full px-3'>
+                <Code2 className='h-3 w-3 text-primary' />
+                {language}
+              </Badge>
+            )}
+            {defaultBranch && (
+              <Badge variant='outline' className='text-[11px] rounded-full px-3'>
+                Branch: {defaultBranch}
+              </Badge>
+            )}
+          </div>
+        )}
 
         {/* Paragraphs Display */}
         {paragraphs.length > 0 ? (
-          <div className='space-y-3 text-xs leading-relaxed text-foreground/90'>
+          <div className='space-y-3 text-xs leading-relaxed text-foreground'>
             {paragraphs.map((para, idx) => (
               <div
                 key={idx}
-                className='p-3 rounded-lg bg-background border leading-relaxed'
+                className='p-3.5 rounded-xl bg-muted/20 border border-muted/60 space-y-1'
               >
-                <div className='text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1'>
+                <div className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground'>
                   {idx === 0
                     ? "1. Purpose & Core Value"
                     : idx === 1
                       ? "2. Architecture & Tech Stack"
                       : "3. Vitality & Activity Status"}
                 </div>
-                <p className='whitespace-pre-wrap'>{para}</p>
+                <p className='whitespace-pre-wrap leading-relaxed text-xs font-normal'>{para}</p>
               </div>
             ))}
           </div>
         ) : (
-          <div className='p-6 text-center text-xs text-muted-foreground italic flex flex-col items-center gap-2'>
-            <FileText className='h-8 w-8 text-muted-foreground/50' />
-            <p>No summary has been generated for this repository yet.</p>
-            <p className='text-[11px] text-muted-foreground/70'>
+          <div className='p-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-2 border border-dashed rounded-xl'>
+            <FileText className='h-8 w-8 text-muted-foreground/40' />
+            <p className='font-semibold text-foreground'>No summary has been generated for this repository yet.</p>
+            <p className='text-[11px] text-muted-foreground max-w-sm'>
               Summaries are automatically synthesized by Inngest background jobs
               when repository events land.
             </p>

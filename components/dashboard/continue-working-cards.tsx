@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RepositoryItem } from "@/components/sidebar/repo-list";
 import {
   FolderGit2,
+  GitBranch,
   Clock,
   GitCommit,
   GitPullRequest,
@@ -181,7 +182,7 @@ export function ContinueWorkingCards({
       </div>
 
       {/* Grid of Continue Working Repository Cards */}
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5'>
         {repositories.map((repo) => {
           const formattedTime = repo.latestActivityAt
             ? formatDistanceToNow(new Date(repo.latestActivityAt), {
@@ -192,68 +193,65 @@ export function ContinueWorkingCards({
           return (
             <Card
               key={repo.fullName}
-              className='flex flex-col justify-between hover:border-primary/50 transition-colors shadow-xs'
+              className='flex flex-col justify-between rounded-3xl border border-border/80 bg-card p-5 shadow-xs hover:shadow-lg hover:border-indigo-500/30 transition-all space-y-4'
             >
-              <CardHeader className='p-4 pb-2'>
-                <div className='flex items-start justify-between gap-2'>
-                  <div className='flex items-center gap-2 min-w-0'>
-                    <div className='p-1.5 rounded bg-primary/10 text-primary shrink-0'>
-                      <FolderGit2 className='h-4 w-4' />
-                    </div>
-                    <div className='truncate'>
-                      <CardTitle className='text-sm font-semibold truncate'>
-                        {repo.name}
-                      </CardTitle>
-                      <CardDescription className='text-[11px] truncate'>
-                        {repo.owner}
-                      </CardDescription>
-                    </div>
+              {/* Card Header: Repo Icon, Name, Owner & Time badge */}
+              <div className='flex items-start justify-between gap-3'>
+                <div className='flex items-center gap-3 min-w-0'>
+                  <div className='p-2.5 rounded-2xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0 shadow-xs'>
+                    <GitBranch className='h-4 w-4' />
                   </div>
-                  <Badge
-                    variant='outline'
-                    className='text-[10px] gap-1 shrink-0 font-normal'
-                  >
-                    <Clock className='h-2.5 w-2.5 text-muted-foreground' />
-                    {formattedTime}
-                  </Badge>
+                  <div className='truncate'>
+                    <h3 className='text-base font-bold tracking-tight text-foreground truncate'>
+                      {repo.name}
+                    </h3>
+                    <p className='text-xs text-muted-foreground truncate font-normal mt-0.5'>
+                      {repo.owner}
+                    </p>
+                  </div>
                 </div>
-              </CardHeader>
+                <div className='text-[11px] text-muted-foreground font-medium flex items-center gap-1 shrink-0 bg-muted/40 px-2.5 py-1 rounded-full border border-muted/50'>
+                  <Clock className='h-3 w-3 text-muted-foreground' />
+                  {formattedTime}
+                </div>
+              </div>
 
-              <CardContent className='p-4 pt-2 space-y-3 flex-1'>
-                {/* AI Summary Preview if present */}
+              {/* Card Content: AI Project Summary & Recent Activity */}
+              <div className='space-y-3.5 flex-1'>
+                {/* AI Summary Box */}
                 {repo.summary ? (
-                  <div className='bg-muted/40 p-2.5 rounded-lg border text-xs space-y-1'>
-                    <div className='flex items-center gap-1 font-semibold text-primary text-[11px]'>
-                      <Sparkles className='h-3 w-3 text-amber-500' />
-                      AI Project Summary
+                  <div className='bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl p-4 space-y-1.5'>
+                    <div className='flex items-center gap-1.5 font-bold text-indigo-600 dark:text-indigo-400 text-xs'>
+                      <Sparkles className='h-3.5 w-3.5 fill-indigo-500/20' />
+                      <span>AI Project Summary</span>
                     </div>
-                    <p className='line-clamp-3 text-muted-foreground leading-relaxed text-[11px]'>
+                    <p className='text-xs text-muted-foreground leading-relaxed line-clamp-3 font-normal'>
                       {repo.summary}
                     </p>
                   </div>
                 ) : (
-                  <div className='bg-muted/20 p-2.5 rounded-lg border text-xs text-muted-foreground flex items-center gap-2'>
-                    <FileText className='h-3.5 w-3.5 text-muted-foreground shrink-0' />
-                    <span className='text-[11px]'>
+                  <div className='bg-muted/20 p-3.5 rounded-2xl border border-dashed text-xs text-muted-foreground flex items-center gap-2.5'>
+                    <FileText className='h-4 w-4 text-muted-foreground shrink-0' />
+                    <span className='text-xs'>
                       No AI summary generated yet for this repository.
                     </span>
                   </div>
                 )}
 
-                {/* Recent Activity Log Snippets */}
+                {/* Recent Activity List */}
                 {repo.activities.length > 0 && (
-                  <div className='space-y-1.5 pt-1'>
-                    <div className='text-[11px] font-medium text-muted-foreground'>
-                      Recent Activity ({repo.activities.length})
+                  <div className='space-y-2 pt-0.5'>
+                    <div className='text-xs font-semibold text-foreground flex items-center gap-1.5'>
+                      <span>Recent Activity ({repo.activities.length})</span>
                     </div>
-                    <div className='space-y-1'>
+                    <div className='space-y-1.5'>
                       {repo.activities.slice(0, 2).map((act) => (
                         <div
                           key={act.id}
-                          className='flex items-center gap-2 text-[11px] py-1 px-2 rounded bg-background border truncate'
+                          className='flex items-center gap-2.5 text-xs py-2 px-3 rounded-xl bg-muted/30 border border-muted/40 text-foreground truncate'
                         >
                           {renderActivityIcon(act.type)}
-                          <span className='truncate font-medium flex-1'>
+                          <span className='truncate font-medium flex-1 text-[11px]'>
                             {act.title || act.description || "Activity logged"}
                           </span>
                         </div>
@@ -261,21 +259,16 @@ export function ContinueWorkingCards({
                     </div>
                   </div>
                 )}
-              </CardContent>
+              </div>
 
-              <CardFooter className='p-4 pt-2 border-t flex items-center justify-between gap-2 bg-muted/10'>
+              {/* Card Footer: View Details link + Hot Pink Chat Pill Button */}
+              <div className='pt-3 border-t flex items-center justify-between gap-3'>
                 <Link
                   href={`/repositories/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`}
-                  className='flex-1'
+                  className='text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors group'
                 >
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    className='w-full text-xs h-8 justify-between'
-                  >
-                    <span>View Details</span>
-                    <ArrowRight className='h-3 w-3' />
-                  </Button>
+                  <span>View Details</span>
+                  <ArrowRight className='h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform' />
                 </Link>
 
                 <Button
@@ -294,12 +287,12 @@ export function ContinueWorkingCards({
                       stars: 0,
                     })
                   }
-                  className='text-xs h-8 gap-1.5'
+                  className='bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-4.5 py-1.5 h-8 text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center gap-1.5 transition-all hover:scale-[1.02]'
                 >
                   <MessageSquare className='h-3.5 w-3.5' />
                   <span>Chat</span>
                 </Button>
-              </CardFooter>
+              </div>
             </Card>
           );
         })}

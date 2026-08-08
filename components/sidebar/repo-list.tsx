@@ -200,52 +200,58 @@ export function RepoList({ selectedRepo, onSelectRepo }: RepoListProps) {
       {/* Repository List */}
       {!isLoading && !error && filteredRepos.length > 0 && (
         <SidebarGroupContent>
-          <SidebarMenu className='space-y-0.5'>
+          <SidebarMenu className='space-y-1.5'>
             {filteredRepos.map((repo) => {
               const isSelected = selectedRepo?.id === repo.id;
               return (
                 <SidebarMenuItem key={repo.id}>
-                  <SidebarMenuButton
+                  <button
+                    type="button"
                     onClick={() => onSelectRepo(repo)}
-                    isActive={isSelected}
-                    className='w-full flex items-start gap-2.5 py-2 px-2.5 h-auto text-left rounded-md transition-colors'
+                    className={`w-full flex items-start gap-2.5 p-2.5 text-left rounded-xl transition-all border ${
+                      isSelected
+                        ? "bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-200/80 dark:border-indigo-900/60 shadow-xs"
+                        : "bg-sidebar hover:bg-sidebar-accent/50 border-transparent hover:border-sidebar-border"
+                    }`}
                   >
-                    <FolderGit2 className='h-4 w-4 mt-0.5 shrink-0 text-muted-foreground' />
+                    <div className={`p-1.5 rounded-lg shrink-0 ${isSelected ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/60 dark:text-indigo-300" : "bg-muted/50 text-muted-foreground"}`}>
+                      <GitBranch className='h-3.5 w-3.5' />
+                    </div>
                     <div className='flex-1 min-w-0'>
                       <div className='flex items-center justify-between gap-1'>
-                        <span className='font-medium text-xs truncate'>
+                        <span className={`font-semibold text-xs truncate ${isSelected ? "text-indigo-950 dark:text-indigo-100 font-bold" : "text-foreground"}`}>
                           {repo.name}
                         </span>
                         {isSelected && (
-                          <Check className='h-3.5 w-3.5 text-primary shrink-0' />
+                          <Check className='h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0' />
                         )}
                       </div>
-                      <div className='text-[11px] text-muted-foreground truncate'>
+                      <div className='text-[11px] text-muted-foreground truncate font-normal mt-0.5'>
                         {repo.owner}
                       </div>
 
                       {/* Meta badges for language & stats */}
-                      <div className='flex items-center gap-1.5 mt-1 text-[10px] text-muted-foreground'>
+                      <div className='flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground'>
                         {repo.language && (
-                          <span className='truncate max-w-[80px]'>
+                          <span className='truncate max-w-[80px] bg-muted/40 px-1.5 py-0.5 rounded-md font-mono'>
                             {repo.language}
                           </span>
                         )}
                         {repo.defaultBranch && (
-                          <span className='flex items-center gap-0.5'>
-                            <GitBranch className='h-2.5 w-2.5' />
+                          <span className='flex items-center gap-1 font-mono'>
+                            <GitBranch className='h-2.5 w-2.5 opacity-60' />
                             {repo.defaultBranch}
                           </span>
                         )}
                         {repo.stars > 0 && (
-                          <span className='flex items-center gap-0.5 ml-auto'>
-                            <Star className='h-2.5 w-2.5 fill-current text-amber-500' />
+                          <span className='flex items-center gap-0.5 ml-auto font-mono'>
+                            <Star className='h-2.5 w-2.5 fill-amber-400 text-amber-500' />
                             {repo.stars}
                           </span>
                         )}
                       </div>
                     </div>
-                  </SidebarMenuButton>
+                  </button>
                 </SidebarMenuItem>
               );
             })}
