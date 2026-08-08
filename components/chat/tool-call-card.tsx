@@ -25,6 +25,7 @@ import {
   ThumbsUp,
   Lightbulb,
   ExternalLink,
+  Folder,
 } from "lucide-react";
 
 interface ToolCallCardProps {
@@ -305,6 +306,71 @@ export function ToolCallCard({
         </CardContent>
       </Card>
     );
+  }
+
+  /*
+   * Handler for getFileContent tool (Directory listing & file content)
+   */
+  if (toolName === "getFileContent" && result.success) {
+    if (result.type === "directory" && Array.isArray(result.items)) {
+      return (
+        <Card className='my-2 border-border bg-muted/20 text-xs shadow-xs overflow-hidden rounded-2xl'>
+          <CardHeader className='p-3 flex flex-row items-center justify-between border-b bg-muted/40'>
+            <div className='flex items-center gap-2'>
+              <Folder className='h-4 w-4 text-indigo-500' />
+              <span className='font-bold text-foreground'>
+                Directory: /{result.path || ""}
+              </span>
+              <Badge variant='outline' className='text-[10px] rounded-full font-mono'>
+                {result.itemCount} items
+              </Badge>
+            </div>
+            <Button
+              variant='ghost'
+              size='sm'
+              className='h-6 w-6 p-0'
+              onClick={() => setIsExpanded(!isExpanded)}
+            >
+              {isExpanded ? (
+                <ChevronUp className='h-3.5 w-3.5' />
+              ) : (
+                <ChevronDown className='h-3.5 w-3.5' />
+              )}
+            </Button>
+          </CardHeader>
+          {isExpanded && (
+            <CardContent className='p-3 space-y-1.5'>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs font-mono'>
+                {result.items.map((item: any, idx: number) => {
+                  const isDir = item.type === "dir" || item.type === "directory";
+                  return (
+                    <div
+                      key={idx}
+                      className='flex items-center gap-2 p-2 rounded-xl bg-background border border-border/60 hover:border-indigo-500/40 transition-colors'
+                    >
+                      {isDir ? (
+                        <Folder className='h-3.5 w-3.5 text-indigo-500 shrink-0' />
+                      ) : (
+                        <FileCode className='h-3.5 w-3.5 text-muted-foreground shrink-0' />
+                      )}
+                      <span className='truncate font-medium text-foreground text-[11px] flex-1'>
+                        {item.name}
+                      </span>
+                      <Badge
+                        variant='secondary'
+                        className='text-[9px] uppercase px-1.5 py-0 font-sans'
+                      >
+                        {isDir ? "dir" : "file"}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      );
+    }
   }
 
   /*

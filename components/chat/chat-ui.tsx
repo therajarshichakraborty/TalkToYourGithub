@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 
 import { ToolCallCard } from "./tool-call-card";
+import { MarkdownRenderer } from "@/components/chat/markdown-renderer";
 
 interface ChatUIProps {
   activeRepo: RepositoryItem | null;
@@ -264,9 +265,13 @@ export function ChatUI({ activeRepo }: ChatUIProps) {
                         : "bg-card text-foreground border rounded-tl-xs"
                     }`}
                   >
-                    <div className='whitespace-pre-wrap break-words'>
-                      {message.content}
-                    </div>
+                    {isUser ? (
+                      <div className='whitespace-pre-wrap break-words'>
+                        {message.content}
+                      </div>
+                    ) : (
+                      <MarkdownRenderer content={message.content} />
+                    )}
                   </div>
                 ) : isUser ? (
                   <div className='rounded-2xl px-4 py-3 text-sm bg-indigo-600 text-white rounded-tr-xs'>

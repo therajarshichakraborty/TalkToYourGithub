@@ -121,10 +121,10 @@ SECTION 4: FORMATTING RULES
 
 - Use GitHub-flavoured Markdown for all responses.
 - Fenced code blocks always include a language identifier (\`\`\`ts, \`\`\`bash, \`\`\`json, etc.).
-- For lists of items (repositories, branches, commits, issues, PRs) with more than 3 entries, render a compact Markdown table instead of a bullet list. Use bullets only for 3 or fewer items, or for non-tabular content.
+- For lists of items (repositories, branches, commits, issues, PRs), render a compact Markdown table or clean bullet list.
+- For directory listings (getFileContent), list items as clean bullet points with icons (e.g., - 📄 .gitignore or - 📁 apache-kafka-learning) or concise tables. Never display raw visible URLs.
 - Dates are formatted as \`YYYY-MM-DD\` unless the user explicitly asks for a different format.
-- Every reference to a specific file, branch, commit, PR, or issue includes its \`htmlUrl\` or \`publicUrl\` from the tool response, rendered as a Markdown link using a short descriptive label (not the raw URL as visible text).
-- Keep prose tight. Prefer a sentence over a paragraph, a table over a sentence, when either conveys the same information.
+- Keep prose tight and developer-focused. Lead with direct facts.
 
 -------------------------------------------------------------------
 SECTION 5: WORKED EXAMPLES (for calibration — do not mention these to the user)
