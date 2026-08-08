@@ -19,7 +19,7 @@ export type GithubConnectedEvent = {
 export type GenerateEmbeddingsEvent = {
   name: "embeddings.generate";
   data: {
-    userId: string;
+    userId?: string;
     corsairTenantId?: string;
     repositoryOwner?: string;
     repositoryName?: string;

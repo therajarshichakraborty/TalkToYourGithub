@@ -9,6 +9,6 @@ import { pool } from "@/lib/pool";
 export const corsair = createCorsair({
   database: pool,
   kek: process.env.CORSAIR_KEK!,
-  plugins: [github()],
+  plugins: [github() as any],
   multiTenancy: true,
 });
