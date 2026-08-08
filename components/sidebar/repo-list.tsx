@@ -70,7 +70,13 @@ export function RepoList({ selectedRepo, onSelectRepo }: RepoListProps) {
         throw new Error(data.error || "Failed to load repositories.");
       }
 
-      setRepositories(data.repositories || []);
+      const repos = data.repositories || [];
+      setRepositories(repos);
+
+      /* Auto-select first repository if none selected yet */
+      if (!selectedRepo && repos.length > 0) {
+        onSelectRepo(repos[0]);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error fetching repositories.";
       setError(msg);

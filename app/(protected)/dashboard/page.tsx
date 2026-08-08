@@ -97,18 +97,21 @@ export default function DashboardPage() {
                 size="sm"
                 onClick={async () => {
                   try {
+                    const targetOwner = selectedRepo?.owner;
+                    const targetName = selectedRepo?.name;
                     const res = await fetch("/api/inngest/trigger", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
-                        eventName: "github.connected",
-                        repositoryOwner: selectedRepo?.owner,
-                        repositoryName: selectedRepo?.name,
+                        eventName: "all",
+                        repositoryOwner: targetOwner,
+                        repositoryName: targetName,
                       }),
                     });
                     const d = await res.json();
                     if (d.success) {
-                      alert(`Inngest Sync Triggered! Event: ${d.eventName}. Check your Inngest Dev Server terminal for live execution.`);
+                      const repoLabel = d.repositoryOwner && d.repositoryName ? `${d.repositoryOwner}/${d.repositoryName}` : "all repositories";
+                      alert(`Inngest Sync Triggered for ${repoLabel}! Background jobs (embeddings, summary, activity) dispatched.`);
                     } else {
                       alert(`Inngest trigger error: ${d.error}`);
                     }
@@ -120,7 +123,7 @@ export default function DashboardPage() {
                 title="Trigger Inngest background jobs manually"
               >
                 <Sparkles className="h-3 w-3 text-amber-500" />
-                Run Inngest Sync
+                Run Inngest Sync {selectedRepo ? `(${selectedRepo.name})` : ""}
               </Button>
             </div>
           </header>
