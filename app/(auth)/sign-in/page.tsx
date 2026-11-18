@@ -21,12 +21,14 @@ export default async function SignInPage({
   const { callbackUrl } = await searchParams;
 
   return (
-    <div className='w-full max-w-sm'>
-      <div className='rounded-2xl border bg-card/80 p-8 shadow-card backdrop-blur-xl'>
-        <div className='space-y-2 text-center'>
-          <h1 className='text-2xl font-semibold tracking-tight'>Welcome back</h1>
-          <p className='text-sm text-muted-foreground'>
-            Sign in to talk to your repositories.
+    <div className='w-full max-w-md'>
+      <div className='animate-in fade-in zoom-in-95 slide-in-from-bottom-2 rounded-2xl bg-card/95 p-8 shadow-card backdrop-blur-xl duration-500 md:p-10'>
+        <div className='space-y-3 text-center'>
+          <h1 className='text-3xl font-bold tracking-[-0.03em]'>
+            Welcome <span className='highlight'>back</span>
+          </h1>
+          <p className='text-[15px] text-muted-foreground'>
+            Sign in with GitHub to talk to your repositories.
           </p>
         </div>
 
@@ -34,19 +36,21 @@ export default async function SignInPage({
           <GithubSignInForm callbackUrl={callbackUrl} />
         </div>
 
-        <ul className='mt-8 space-y-2.5 border-t pt-6'>
+        <ul className='dotted-t mt-8 space-y-3 pt-6'>
           {ASSURANCES.map((item) => (
             <li
               key={item}
-              className='flex items-start gap-2.5 text-xs text-muted-foreground'
+              className='flex items-start gap-2.5 text-sm text-muted-foreground'
             >
-              <Check className='mt-px size-3.5 shrink-0 text-success' />
+              <span className='mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-brand/10'>
+                <Check className='size-3 text-brand' />
+              </span>
               {item}
             </li>
           ))}
         </ul>
       </div>
-      <p className='mt-6 text-center text-xs text-muted-foreground'>
+      <p className='mt-6 text-center text-sm text-foreground/60'>
         GitHub is the only sign-in method. No passwords to remember.
       </p>
     </div>
