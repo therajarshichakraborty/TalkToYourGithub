@@ -14,7 +14,8 @@ type Block =
   | { kind: "paragraph"; text: string };
 
 const isTableRow = (line: string) => /^\s*\|.*\|\s*$/.test(line);
-const isSeparatorRow = (line: string) => /^\s*\|?[\s:|-]+\|?\s*$/.test(line) && line.includes("-");
+const isSeparatorRow = (line: string) =>
+  /^\s*\|?[\s:|-]+\|?\s*$/.test(line) && line.includes("-");
 const LIST_ITEM = /^\s*(?:[-*+]|(\d+)[.)])\s+(.*)$/;
 
 function sanitize(markdown: string) {
@@ -25,7 +26,11 @@ function sanitize(markdown: string) {
 }
 
 function splitRow(line: string) {
-  return line.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+  return line
+    .trim()
+    .replace(/^\||\|$/g, "")
+    .split("|")
+    .map((c) => c.trim());
 }
 
 function parse(markdown: string): Block[] {
@@ -46,23 +51,33 @@ function parse(markdown: string): Block[] {
       const lang = trimmed.slice(3).trim();
       const code: string[] = [];
       i++;
-      while (i < lines.length && !lines[i].trim().startsWith("```")) code.push(lines[i++]);
+      while (i < lines.length && !lines[i].trim().startsWith("```"))
+        code.push(lines[i++]);
       i++;
       blocks.push({ kind: "code", lang, code: code.join("\n") });
       continue;
     }
 
-    if (isTableRow(line) && i + 1 < lines.length && isSeparatorRow(lines[i + 1])) {
+    if (
+      isTableRow(line) &&
+      i + 1 < lines.length &&
+      isSeparatorRow(lines[i + 1])
+    ) {
       const rows = [splitRow(line)];
       i += 2;
-      while (i < lines.length && isTableRow(lines[i])) rows.push(splitRow(lines[i++]));
+      while (i < lines.length && isTableRow(lines[i]))
+        rows.push(splitRow(lines[i++]));
       blocks.push({ kind: "table", rows });
       continue;
     }
 
     const heading = trimmed.match(/^(#{1,6})\s+(.*)$/);
     if (heading) {
-      blocks.push({ kind: "heading", level: heading[1].length, text: heading[2] });
+      blocks.push({
+        kind: "heading",
+        level: heading[1].length,
+        text: heading[2],
+      });
       i++;
       continue;
     }
@@ -91,7 +106,11 @@ function parse(markdown: string): Block[] {
         if (m && Boolean(m[1]) === ordered) {
           items.push(m[2]);
           i++;
-        } else if (lines[i].trim() && /^\s{2,}/.test(lines[i]) && items.length) {
+        } else if (
+          lines[i].trim() &&
+          /^\s{2,}/.test(lines[i]) &&
+          items.length
+        ) {
           items[items.length - 1] += ` ${lines[i++].trim()}`;
         } else break;
       }
@@ -110,7 +129,8 @@ function parse(markdown: string): Block[] {
     ) {
       paragraph.push(lines[i++].trim());
     }
-    if (paragraph.length) blocks.push({ kind: "paragraph", text: paragraph.join(" ") });
+    if (paragraph.length)
+      blocks.push({ kind: "paragraph", text: paragraph.join(" ") });
     else i++;
   }
 
@@ -121,7 +141,8 @@ function safeHref(url: string) {
   return /^(https?:\/\/|mailto:|\/(?![/\\])|#)/i.test(url) ? url : undefined;
 }
 
-const INLINE = /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*\s][^*]*\*|_[^_\s][^_]*_|\[[^\]]+\]\([^)\s]+\))/g;
+const INLINE =
+  /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*\s][^*]*\*|_[^_\s][^_]*_|\[[^\]]+\]\([^)\s]+\))/g;
 
 function Inline({ text }: { text: string }) {
   const parts = text.split(INLINE).filter(Boolean);
@@ -130,7 +151,10 @@ function Inline({ text }: { text: string }) {
       {parts.map((part, i) => {
         if (part.startsWith("`") && part.endsWith("`")) {
           return (
-            <code key={i} className='rounded border bg-muted px-1.5 py-0.5 font-mono text-[0.85em]'>
+            <code
+              key={i}
+              className='rounded border bg-muted px-1.5 py-0.5 font-mono text-[0.85em]'
+            >
               {part.slice(1, -1)}
             </code>
           );
@@ -173,20 +197,40 @@ const KEYWORDS = new Set(
     " ",
   ),
 );
-const TOKEN = /(\/\/.*$|#.*$|\/\*.*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*\b)/g;
-const HASH_COMMENT_LANGS = new Set(["py", "python", "sh", "bash", "shell", "zsh", "yaml", "yml", "toml", "rb", "ruby", "dockerfile"]);
+const TOKEN =
+  /(\/\/.*$|#.*$|\/\*.*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*\b)/g;
+const HASH_COMMENT_LANGS = new Set([
+  "py",
+  "python",
+  "sh",
+  "bash",
+  "shell",
+  "zsh",
+  "yaml",
+  "yml",
+  "toml",
+  "rb",
+  "ruby",
+  "dockerfile",
+]);
 
 function highlight(line: string, lang: string) {
   const hashComments = HASH_COMMENT_LANGS.has(lang.toLowerCase());
   const parts = line.split(TOKEN).filter((p) => p !== "");
   return parts.map((token, i) => {
     let cls = "";
-    if (token.startsWith("//") || token.startsWith("/*") || (hashComments && token.startsWith("#"))) {
+    if (
+      token.startsWith("//") ||
+      token.startsWith("/*") ||
+      (hashComments && token.startsWith("#"))
+    ) {
       cls = "text-muted-foreground italic";
-    } else if (/^["'`]/.test(token)) cls = "text-emerald-600 dark:text-emerald-400";
+    } else if (/^["'`]/.test(token))
+      cls = "text-emerald-600 dark:text-emerald-400";
     else if (/^\d/.test(token)) cls = "text-amber-600 dark:text-amber-300";
     else if (KEYWORDS.has(token)) cls = "text-violet-600 dark:text-violet-400";
-    else if (/^(true|false|null|undefined)$/.test(token)) cls = "text-amber-600 dark:text-amber-300";
+    else if (/^(true|false|null|undefined)$/.test(token))
+      cls = "text-amber-600 dark:text-amber-300";
     else if (/^[A-Z]/.test(token)) cls = "text-sky-600 dark:text-sky-400";
     return cls ? (
       <span key={i} className={cls}>
@@ -210,7 +254,9 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   return (
     <div className='overflow-hidden rounded-lg border bg-muted/40'>
       <div className='flex items-center justify-between border-b px-3 py-1.5'>
-        <span className='font-mono text-[11px] text-muted-foreground'>{lang || "text"}</span>
+        <span className='font-mono text-[11px] text-muted-foreground'>
+          {lang || "text"}
+        </span>
         <button
           type='button'
           onClick={copy}
@@ -289,7 +335,10 @@ export function MarkdownRenderer({
                 key={i}
                 role='heading'
                 aria-level={block.level + 1}
-                className={cn("pt-2", HEADING_STYLES[Math.min(block.level, 4) - 1])}
+                className={cn(
+                  "pt-2",
+                  HEADING_STYLES[Math.min(block.level, 4) - 1],
+                )}
               >
                 <Inline text={block.text} />
               </p>
@@ -314,7 +363,10 @@ export function MarkdownRenderer({
           }
           case "quote":
             return (
-              <blockquote key={i} className='border-l-2 pl-4 text-muted-foreground'>
+              <blockquote
+                key={i}
+                className='border-l-2 pl-4 text-muted-foreground'
+              >
                 <Inline text={block.text} />
               </blockquote>
             );
