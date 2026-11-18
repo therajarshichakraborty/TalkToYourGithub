@@ -1,19 +1,15 @@
-/*
- * API route: /api/chat/history
- * Description: Fetches stored chat history messages for a specific user and repository context.
- */
-
-import { auth } from "@/lib/auth";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
+const HISTORY_LIMIT = 50;
+
 export async function GET(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
-
   if (!session?.user?.id) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -21,61 +17,48 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const owner = searchParams.get("owner");
   const name = searchParams.get("name");
-  const userId = session.user.id;
+  const scoped = Boolean(owner && name);
 
   try {
-    let conversation;
-
-    if (owner && name) {
-      const [conv] = await db
-        .select()
-        .from(schema.conversations)
-        .where(
-          and(
-            eq(schema.conversations.userId, userId),
-            eq(schema.conversations.repositoryOwner, owner),
-            eq(schema.conversations.repositoryName, name),
-          ),
-        )
-        .limit(1);
-      conversation = conv;
-    } else {
-      const [conv] = await db
-        .select()
-        .from(schema.conversations)
-        .where(and(eq(schema.conversations.userId, userId)))
-        .orderBy(schema.conversations.updatedAt)
-        .limit(1);
-      conversation = conv;
-    }
+    const [conversation] = await db
+      .select({ id: schema.conversations.id })
+      .from(schema.conversations)
+      .where(
+        and(
+          eq(schema.conversations.userId, session.user.id),
+          scoped
+            ? eq(schema.conversations.repositoryOwner, owner!)
+            : isNull(schema.conversations.repositoryOwner),
+          scoped
+            ? eq(schema.conversations.repositoryName, name!)
+            : isNull(schema.conversations.repositoryName),
+        ),
+      )
+      .orderBy(desc(schema.conversations.updatedAt))
+      .limit(1);
 
     if (!conversation) {
       return Response.json({ success: true, messages: [] });
     }
 
-    const chatMessages = await db
+    const rows = await db
       .select()
       .from(schema.messages)
       .where(eq(schema.messages.conversationId, conversation.id))
-      .orderBy(asc(schema.messages.createdAt));
+      .orderBy(desc(schema.messages.createdAt))
+      .limit(HISTORY_LIMIT);
 
-    const formattedMessages = chatMessages.map((m) => ({
+    const messages = rows.reverse().map((m) => ({
       id: m.id,
       role: m.role,
       content: m.content,
-      toolInvocations: m.toolCalls || undefined,
+      toolInvocations: Array.isArray(m.toolCalls) ? m.toolCalls : undefined,
       createdAt: m.createdAt,
     }));
 
-    return Response.json({
-      success: true,
-      conversationId: conversation.id,
-      messages: formattedMessages,
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[/api/chat/history] Error fetching history:", message);
-
+    return Response.json({ success: true, messages });
+  } catch (error) {
+    console.error("[chat/history] load failed", error);
     return Response.json(
       { error: "Failed to load chat history." },
       { status: 500 },
