@@ -8,11 +8,19 @@ Talk to your GitHub connects to your GitHub account and lets you chat with every
 
 ### Landing page
 
-![Landing page](./public/image.png)
+![Landing page](./docs/screenshots/landing.png)
 
-### Dashboard
+### Features
 
-![Dashboard](./public/image%20copy.png)
+![Features](./docs/screenshots/features.png)
+
+### Pricing
+
+![Pricing](./docs/screenshots/pricing.png)
+
+### Sign in
+
+![Sign in](./docs/screenshots/sign-in.png)
 
 ## Features
 
