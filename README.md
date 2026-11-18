@@ -155,9 +155,7 @@ BETTER_AUTH_SECRET="..."
 BETTER_AUTH_URL="http://localhost:3000"
 GITHUB_CLIENT_ID="..."
 GITHUB_CLIENT_SECRET="..."
-
-# GitHub
-GITHUB_TOKEN="..."
+GITHUB_WEBHOOK_SECRET="..." # optional, verifies webhook signatures
 
 # AI
 OPENROUTER_API_KEY="..."
