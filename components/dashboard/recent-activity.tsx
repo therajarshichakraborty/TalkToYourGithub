@@ -63,7 +63,8 @@ export function RecentActivity() {
       </header>
 
       <div className='flex-1 divide-y'>
-        {groups === null && !error &&
+        {groups === null &&
+          !error &&
           Array.from({ length: 4 }, (_, i) => (
             <div key={i} className='space-y-2 px-5 py-4'>
               <Skeleton className='h-4 w-40' />
@@ -88,10 +89,12 @@ export function RecentActivity() {
           <Link
             key={group.fullName}
             href={repositoryPath(group.owner, group.name)}
-            className='block px-5 py-4 transition-colors hover:bg-accent/50'
+            className='group block px-5 py-4 transition-colors hover:bg-accent/50'
           >
             <div className='flex items-center justify-between gap-3'>
-              <span className='truncate text-sm font-medium'>{group.fullName}</span>
+              <span className='truncate text-sm font-medium transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:text-brand'>
+                {group.fullName}
+              </span>
               <span className='shrink-0 text-xs text-muted-foreground'>
                 {formatDistanceToNowStrict(new Date(group.latestActivityAt), {
                   addSuffix: true,
