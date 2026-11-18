@@ -1,6 +1,12 @@
 "use client";
 
-import { Activity, CircleDot, FolderGit2, MessageSquareText, Star } from "lucide-react";
+import {
+  Activity,
+  CircleDot,
+  FolderGit2,
+  MessageSquareText,
+  Star,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +30,11 @@ function localGreeting() {
 
 export function Overview() {
   const { user, repositories, isLoading } = useWorkspace();
-  const greeting = useSyncExternalStore(subscribe, localGreeting, () => "Welcome back");
+  const greeting = useSyncExternalStore(
+    subscribe,
+    localGreeting,
+    () => "Welcome back",
+  );
 
   const [now] = useState(() => Date.now());
 
@@ -45,7 +55,7 @@ export function Overview() {
 
   return (
     <div className='mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8'>
-      <div className='flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between'>
+      <div className='flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-500 sm:flex-row sm:items-end sm:justify-between'>
         <div>
           <h1 className='text-2xl font-semibold tracking-tight'>
             {greeting}, {user.name.split(" ")[0]}
@@ -62,7 +72,7 @@ export function Overview() {
         </Button>
       </div>
 
-      <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
+      <div className='grid gap-4 animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-500 delay-75 sm:grid-cols-2 xl:grid-cols-4'>
         <StatTile
           label='Repositories'
           icon={FolderGit2}
@@ -93,12 +103,14 @@ export function Overview() {
         />
       </div>
 
-      <div className='grid gap-4 lg:grid-cols-[1fr_1.4fr]'>
+      <div className='grid gap-4 animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-500 delay-150 lg:grid-cols-[1fr_1.4fr]'>
         <LanguageBreakdown repositories={repositories} isLoading={isLoading} />
         <RecentActivity />
       </div>
 
-      <RepositoryTable repositories={repositories} isLoading={isLoading} />
+      <div className='animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-500 delay-200'>
+        <RepositoryTable repositories={repositories} isLoading={isLoading} />
+      </div>
     </div>
   );
 }
