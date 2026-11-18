@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "motion/react";
 import { useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -38,7 +39,8 @@ function toSlices(repositories: Repository[]): Slice[] {
     .filter(([name]) => name !== "Unspecified")
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   const top = ranked.slice(0, TOP_N);
-  const otherCount = repositories.length - top.reduce((sum, [, n]) => sum + n, 0);
+  const otherCount =
+    repositories.length - top.reduce((sum, [, n]) => sum + n, 0);
   const total = repositories.length || 1;
 
   const slices = top.map(([name, count], i) => ({
@@ -91,19 +93,24 @@ export function LanguageBreakdown({
         <TooltipProvider>
           <div
             role='img'
-            aria-label={slices.map((s) => `${s.name} ${pct(s.share)}`).join(", ")}
+            aria-label={slices
+              .map((s) => `${s.name} ${pct(s.share)}`)
+              .join(", ")}
             className='flex h-3 w-full gap-0.5 overflow-hidden rounded-full'
           >
-            {slices.map((slice) => (
+            {slices.map((slice, i) => (
               <Tooltip key={slice.name}>
                 <TooltipTrigger asChild>
-                  <span
+                  <motion.span
                     className='h-full cursor-default transition-opacity first:rounded-l-full last:rounded-r-full hover:opacity-80'
-                    style={{
-                      width: `${slice.share * 100}%`,
-                      minWidth: 4,
-                      backgroundColor: slice.color,
+                    initial={{ width: 0 }}
+                    animate={{ width: `${slice.share * 100}%` }}
+                    transition={{
+                      duration: 0.8,
+                      delay: 0.1 + i * 0.07,
+                      ease: [0.22, 1, 0.36, 1],
                     }}
+                    style={{ minWidth: 4, backgroundColor: slice.color }}
                   />
                 </TooltipTrigger>
                 <TooltipContent>
@@ -115,7 +122,10 @@ export function LanguageBreakdown({
 
           <ul className='mt-5 space-y-2.5'>
             {slices.map((slice) => (
-              <li key={slice.name} className='flex items-center gap-2.5 text-sm'>
+              <li
+                key={slice.name}
+                className='flex items-center gap-2.5 text-sm'
+              >
                 <span
                   className='size-2.5 shrink-0 rounded-sm'
                   style={{ backgroundColor: slice.color }}
