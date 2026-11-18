@@ -41,8 +41,8 @@ async function main() {
         occurredAt: logs[0].occurredAt,
       });
     }
-  } catch (err: any) {
-    console.error("DB check error:", err?.message || err);
+  } catch (err) {
+    console.error("DB check error:", err instanceof Error ? err.message : err);
   }
 }
 

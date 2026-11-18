@@ -1,110 +1,81 @@
-import { getCorsairTenantClient, ToolContextOptions } from "./helper";
+import {
+  githubGet,
+  repoPath,
+  toErrorMessage,
+  type GithubAuthContext,
+} from "@/lib/github/client";
+import type { Issue } from "@/lib/github/types";
 
-export interface GetIssuesOptions extends ToolContextOptions {
+export interface GetIssuesOptions extends GithubAuthContext {
   owner: string;
   repo: string;
   state?: "open" | "closed" | "all";
   perPage?: number;
 }
 
-export async function getIssues(options: GetIssuesOptions) {
-  if (!options.owner || !options.repo) {
-    throw new Error("Both 'owner' and 'repo' are required to fetch issues.");
-  }
+interface RawIssue {
+  number: number;
+  title: string;
+  state: string;
+  user: { login: string } | null;
+  labels: Array<string | { name?: string }>;
+  comments: number;
+  updated_at: string;
+  html_url: string;
+}
 
-  const perPage = options.perPage || 30;
-  const state = options.state || "all";
-  const targetFullName = `${options.owner}/${options.repo}`;
+interface SearchResponse {
+  total_count: number;
+  items: RawIssue[];
+}
 
-  // 1. Try Corsair API / Synced DB
-  try {
-    const { tenant } = await getCorsairTenantClient(options);
-    if (tenant.github?.db?.issues?.search) {
-      const dbIssues = await tenant.github.db.issues.search({});
-      if (dbIssues && Array.isArray(dbIssues) && dbIssues.length > 0) {
-        return {
-          success: true,
-          source: "synced_db",
-          owner: options.owner,
-          repo: options.repo,
-          count: dbIssues.length,
-          issues: dbIssues,
-        };
-      }
-    }
-
-    const issues = await (tenant as any).github?.api?.issues?.list({
-      owner: options.owner,
-      repo: options.repo,
-      state,
-      perPage,
-    });
-    if (issues && Array.isArray(issues) && issues.length > 0) {
-      return {
-        success: true,
-        source: "corsair_api",
-        owner: options.owner,
-        repo: options.repo,
-        count: issues.length,
-        issues,
-      };
-    }
-  } catch (corsairErr: unknown) {
-    console.warn(
-      `[getIssues] Corsair note for ${targetFullName}:`,
-      corsairErr instanceof Error ? corsairErr.message : corsairErr,
-    );
-  }
-
-  // 2. Direct GitHub REST API Fallback
-  try {
-    const token = process.env.GITHUB_TOKEN;
-    const reqHeaders: Record<string, string> = {
-      "User-Agent": "TalkToYourGithub",
-      Accept: "application/vnd.github.v3+json",
-    };
-    if (token) {
-      reqHeaders.Authorization = `Bearer ${token}`;
-    }
-
-    let ghRes = await fetch(
-      `https://api.github.com/repos/${options.owner}/${options.repo}/issues?state=${state}&per_page=${perPage}`,
-      { headers: reqHeaders },
-    );
-
-    if (!ghRes.ok && reqHeaders.Authorization) {
-      delete reqHeaders.Authorization;
-      ghRes = await fetch(
-        `https://api.github.com/repos/${options.owner}/${options.repo}/issues?state=${state}&per_page=${perPage}`,
-        { headers: reqHeaders },
-      );
-    }
-
-    if (ghRes.ok) {
-      const data = await ghRes.json();
-      if (Array.isArray(data)) {
-        return {
-          success: true,
-          source: "github_rest",
-          owner: options.owner,
-          repo: options.repo,
-          count: data.length,
-          issues: data,
-        };
-      }
-    }
-  } catch (restErr: unknown) {
-    console.warn(
-      `[getIssues] GitHub REST API fallback note for ${targetFullName}:`,
-      restErr instanceof Error ? restErr.message : restErr,
-    );
-  }
-
+function normalize(issue: RawIssue): Issue {
   return {
-    success: false,
-    owner: options.owner,
-    repo: options.repo,
-    error: `Could not find issues for '${targetFullName}'.`,
-    issues: [],
+    number: issue.number,
+    title: issue.title,
+    state: issue.state,
+    author: issue.user?.login ?? "unknown",
+    labels: issue.labels
+      .map((l) => (typeof l === "string" ? l : (l.name ?? "")))
+      .filter(Boolean),
+    comments: issue.comments,
+    updatedAt: issue.updated_at,
+    url: issue.html_url,
   };
+}
+
+export async function getIssues({
+  owner,
+  repo,
+  state = "open",
+  perPage = 10,
+  ...ctx
+}: GetIssuesOptions) {
+  try {
+    repoPath(owner, repo);
+    const qualifiers = [`repo:${owner}/${repo}`, "is:issue"];
+    if (state !== "all") qualifiers.push(`is:${state}`);
+
+    const data = await githubGet<SearchResponse>(ctx, "/search/issues", {
+      q: qualifiers.join(" "),
+      sort: "updated",
+      order: "desc",
+      per_page: perPage,
+    });
+
+    const issues = data.items.map(normalize);
+    return {
+      success: true as const,
+      total: data.total_count,
+      count: issues.length,
+      issues,
+    };
+  } catch (error) {
+    return {
+      success: false as const,
+      error: toErrorMessage(error),
+      total: 0,
+      issues: [] as Issue[],
+    };
+  }
 }

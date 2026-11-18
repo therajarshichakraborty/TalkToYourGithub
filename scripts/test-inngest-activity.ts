@@ -35,6 +35,8 @@ async function main() {
       data: {
         userId,
         corsairTenantId: tenantId,
+        repositoryOwner: "",
+        repositoryName: "",
       },
     });
     console.log("✅ Inngest activity.update event sent:", sendResult);
@@ -52,6 +54,8 @@ async function main() {
       data: {
         userId,
         corsairTenantId: tenantId,
+        repositoryOwner: "",
+        repositoryName: "",
       },
     });
     console.log("✅ Inngest activity.continue_working event sent:", sendResult);

@@ -1,116 +1,113 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "@/db";
-import * as schema from "@/db/schema";
 import { nextCookies } from "better-auth/next-js";
-import { corsair } from "@/server/corsair";
 import { setupCorsair } from "corsair";
 import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import * as schema from "@/db/schema";
 import { inngest } from "@/inngest";
+import { corsair, corsairTenant } from "@/server/corsair";
 
-async function provisionCorsairTenant({
-  userId,
-  githubUserId,
-  accessToken,
-}: {
+interface GithubAccount {
   userId: string;
   githubUserId: string;
   accessToken: string;
-}) {
-  const tenantId = githubUserId;
+}
 
-  // 1. Persist corsair_tenant_id on users table
-  await db
-    .update(schema.user)
-    .set({ corsairTenantId: tenantId })
-    .where(eq(schema.user.id, userId));
-
-  // 2. Provision Corsair tenant account, credentials, and trigger initial backfill
-  try {
-    await setupCorsair(corsair, {
-      tenantId,
-      credentials: {
-        github: {
-          api_key: accessToken,
-        },
-      },
-      backfill: true,
-    });
-    console.log(
-      `[Corsair] Account provisioned & backfill completed for tenant '${tenantId}'`,
-    );
-  } catch (corsairErr) {
-    console.error(
-      `[Corsair] Setup/backfill warning for tenant '${tenantId}':`,
-      corsairErr,
-    );
-
-    // Fallback: try setting api_key directly on tenant client if account row exists
-    try {
-      const tenant = corsair.withTenant(tenantId) as any;
-      if (tenant?.github?.keys?.set_api_key) {
-        await tenant.github.keys.set_api_key(accessToken);
-      }
-    } catch (fallbackErr) {
-      console.error(`[Corsair] Fallback set_api_key error:`, fallbackErr);
-    }
-  }
-
-  // 4. Upsert githubConnections record
-  let githubLogin = githubUserId;
+async function fetchGithubLogin(accessToken: string): Promise<string | null> {
   try {
     const res = await fetch("https://api.github.com/user", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "User-Agent": "TalkToYourGithubApp",
+        Accept: "application/vnd.github+json",
+        "User-Agent": "talk-to-your-github",
       },
     });
-    if (res.ok) {
-      const userData = await res.json();
-      if (userData.login) {
-        githubLogin = userData.login;
-      }
-    }
-  } catch (err) {
-    console.error("[Corsair] Failed to fetch GitHub profile login:", err);
-  }
-
-  await db
-    .insert(schema.githubConnections)
-    .values({
-      userId,
-      githubUserId,
-      githubLogin,
-    })
-    .onConflictDoNothing();
-
-  console.log(
-    `[Corsair] Provisioned tenant '${tenantId}' for user '${userId}' (GitHub login: ${githubLogin})`,
-  );
-
-  // 5. Trigger Inngest github.connected event to generate repo summary
-  try {
-    await inngest.send({
-      name: "github.connected",
-      data: {
-        userId,
-        corsairTenantId: tenantId,
-      },
-    });
-    console.log(`[Inngest] Sent 'github.connected' event for user '${userId}'`);
-  } catch (inngestErr) {
-    console.error(
-      "[Inngest] Error sending 'github.connected' event:",
-      inngestErr,
-    );
+    if (!res.ok) return null;
+    const user = (await res.json()) as { login?: string };
+    return user.login ?? null;
+  } catch {
+    return null;
   }
 }
 
+async function upsertConnection({ userId, githubUserId, accessToken }: GithubAccount) {
+  const githubLogin = (await fetchGithubLogin(accessToken)) ?? githubUserId;
+  const [existing] = await db
+    .select({ id: schema.githubConnections.id })
+    .from(schema.githubConnections)
+    .where(eq(schema.githubConnections.userId, userId))
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(schema.githubConnections)
+      .set({ githubLogin, githubUserId })
+      .where(eq(schema.githubConnections.id, existing.id));
+  } else {
+    await db
+      .insert(schema.githubConnections)
+      .values({ userId, githubUserId, githubLogin });
+  }
+}
+
+async function onFirstConnect(account: GithubAccount) {
+  const tenantId = account.githubUserId;
+
+  await db
+    .update(schema.user)
+    .set({ corsairTenantId: tenantId })
+    .where(eq(schema.user.id, account.userId));
+
+  try {
+    await setupCorsair(corsair, {
+      tenantId,
+      credentials: { github: { api_key: account.accessToken } },
+      backfill: false,
+    });
+  } catch (error) {
+    console.error(`[auth] Corsair setup failed for tenant ${tenantId}`, error);
+  }
+
+  await upsertConnection(account);
+
+  await inngest
+    .send({
+      name: "github.connected",
+      data: {
+        userId: account.userId,
+        corsairTenantId: tenantId,
+        repositoryOwner: "",
+        repositoryName: "",
+      },
+    })
+    .catch((error) => console.error("[auth] initial sync not queued", error));
+}
+
+async function onReconnect(account: GithubAccount) {
+  await corsairTenant(account.githubUserId)
+    .github?.keys?.set_api_key(account.accessToken)
+    .catch((error) => console.error("[auth] credential refresh failed", error));
+  await upsertConnection(account);
+}
+
+function toGithubAccount(account: {
+  providerId: string;
+  userId: string;
+  accountId: string;
+  accessToken?: string | null;
+}): GithubAccount | null {
+  return account.providerId === "github" && account.accessToken
+    ? {
+        userId: account.userId,
+        githubUserId: account.accountId,
+        accessToken: account.accessToken,
+      }
+    : null;
+}
+
 export const auth = betterAuth({
-  database: drizzleAdapter(db, {
-    provider: "pg",
-    schema,
-  }),
+  database: drizzleAdapter(db, { provider: "pg", schema }),
   socialProviders: {
     github: {
       clientId: process.env.GITHUB_CLIENT_ID as string,
@@ -122,24 +119,14 @@ export const auth = betterAuth({
     account: {
       create: {
         after: async (account) => {
-          if (account.providerId === "github" && account.accessToken) {
-            await provisionCorsairTenant({
-              userId: account.userId,
-              githubUserId: account.accountId,
-              accessToken: account.accessToken,
-            });
-          }
+          const github = toGithubAccount(account);
+          if (github) await onFirstConnect(github);
         },
       },
       update: {
         after: async (account) => {
-          if (account.providerId === "github" && account.accessToken) {
-            await provisionCorsairTenant({
-              userId: account.userId,
-              githubUserId: account.accountId,
-              accessToken: account.accessToken,
-            });
-          }
+          const github = toGithubAccount(account);
+          if (github) await onReconnect(github);
         },
       },
     },

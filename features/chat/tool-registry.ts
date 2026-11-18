@@ -1,328 +1,196 @@
-/**
- * tool-registry.ts
- * Wraps every raw tool function in an AI SDK `tool()` definition.
- * Each entry declares the Zod input schema and an execute function that
- * passes the authenticated userId through to the underlying helper.
- *
- * Usage:
- *   import { buildToolRegistry } from "@/features/chat/tool-registry";
- *   const tools = buildToolRegistry({ userId });
- *   // pass `tools` directly to streamText()
- */
-
 import { tool } from "ai";
 import { z } from "zod";
-import { getRepositories } from "@/lib/tools/get-repositories";
 import { getBranches } from "@/lib/tools/get-branches";
 import { getCommits } from "@/lib/tools/get-commits";
-import { getPullRequests } from "@/lib/tools/get-pull-requests";
-import { getIssues } from "@/lib/tools/get-issues";
 import { getFileContent } from "@/lib/tools/get-file-content";
-import { createIssue } from "@/lib/tools/create-issue";
-import { getRepositorySummary } from "@/lib/tools/get-repository-summary";
+import { getIssues } from "@/lib/tools/get-issues";
 import { getProjectMemory } from "@/lib/tools/get-project-memory";
+import { getPullRequests } from "@/lib/tools/get-pull-requests";
+import { getRepositories } from "@/lib/tools/get-repositories";
+import { getRepositorySummary } from "@/lib/tools/get-repository-summary";
+import { repoPath } from "@/lib/github/client";
 import { reviewPullRequest } from "@/lib/tools/review-pull-request";
+import type { ActiveRepo } from "./system-prompt";
 
-/**
- * Context required to build tool registry for authenticated session.
- */
 export interface ToolRegistryContext {
   userId: string;
+  activeRepo?: ActiveRepo | null;
 }
 
-/**
- * Builds AI SDK tool registry bound to current authenticated user.
- */
-export function buildToolRegistry(ctx: ToolRegistryContext) {
+const repoParams = {
+  owner: z.string().optional().describe("Defaults to active repo owner"),
+  repo: z.string().optional().describe("Defaults to active repo name"),
+};
+
+const MISSING_REPO = "Repository not specified. Ask the user which repo.";
+
+const stateParam = z.enum(["open", "closed", "all"]).default("open");
+
+export function buildToolRegistry({ userId, activeRepo }: ToolRegistryContext) {
+  const withRepo = async <T>(
+    owner: string | undefined,
+    repo: string | undefined,
+    run: (target: { owner: string; repo: string }) => Promise<T>,
+  ) => {
+    const target =
+      owner && repo
+        ? { owner, repo }
+        : !owner && repo && activeRepo
+          ? { owner: activeRepo.owner, repo }
+          : !owner && !repo && activeRepo
+            ? { owner: activeRepo.owner, repo: activeRepo.name }
+            : null;
+    if (!target) {
+      return { success: false as const, error: MISSING_REPO };
+    }
+    return run(target);
+  };
+
   return {
     getRepositories: tool({
-      description:
-        "List all GitHub repositories that are synced for the authenticated user. " +
-        "Call this first whenever the user refers to 'my repos', 'my projects', or an ambiguous repo name.",
+      description: "List the user's repositories, most recently pushed first.",
       parameters: z.object({
-        perPage: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .default(30)
-          .describe("Maximum number of repositories to return (default 30)."),
+        query: z.string().optional().describe("Filter by name substring"),
+        limit: z.number().int().min(1).max(100).default(20),
       }),
-      execute: async ({ perPage }) => {
-        return getRepositories({ userId: ctx.userId, perPage });
+      execute: async ({ query, limit }) => {
+        const result = await getRepositories({ userId });
+        if (!result.success) return result;
+        const q = query?.toLowerCase();
+        const repos = result.repositories
+          .filter((r) => !q || r.fullName.toLowerCase().includes(q))
+          .slice(0, limit)
+          .map((r) => ({
+            repo: r.fullName,
+            lang: r.language,
+            private: r.isPrivate,
+            stars: r.stars,
+            pushed: r.pushedAt?.slice(0, 10),
+          }));
+        return { success: true, total: result.count, repos };
       },
     }),
 
     getBranches: tool({
-      description:
-        "List all branches in a specific repository. " +
-        "Reads from the local Corsair mirror first and falls back to the live GitHub API.",
-      parameters: z.object({
-        owner: z
-          .string()
-          .describe(
-            "GitHub username or organisation that owns the repository.",
-          ),
-        repo: z
-          .string()
-          .describe("Repository name (without the owner prefix)."),
-        perPage: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .default(30)
-          .describe("Number of branches to return (default 30)."),
-      }),
-      execute: async ({ owner, repo, perPage }) => {
-        return getBranches({ userId: ctx.userId, owner, repo, perPage });
-      },
+      description: "List branch names.",
+      parameters: z.object(repoParams),
+      execute: async ({ owner, repo }) =>
+        withRepo(owner, repo, (t) =>
+          getBranches({ userId, ...t, perPage: 50 }),
+        ),
     }),
 
     getCommits: tool({
-      description:
-        "List recent commits in a repository via the live GitHub API. " +
-        "Returns author, message, sha, and timestamp for each commit.",
+      description: "Recent commits (sha, message, author, date).",
       parameters: z.object({
-        owner: z
-          .string()
-          .describe(
-            "GitHub username or organisation that owns the repository.",
-          ),
-        repo: z.string().describe("Repository name."),
-        perPage: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .default(30)
-          .describe("Number of commits to fetch (default 30)."),
+        ...repoParams,
+        branch: z.string().optional(),
+        limit: z.number().int().min(1).max(30).default(10),
       }),
-      execute: async ({ owner, repo, perPage }) => {
-        return getCommits({ userId: ctx.userId, owner, repo, perPage });
-      },
+      execute: async ({ owner, repo, branch, limit }) =>
+        withRepo(owner, repo, (t) =>
+          getCommits({ userId, ...t, branch, perPage: limit }),
+        ),
     }),
 
     getPullRequests: tool({
-      description:
-        "List pull requests in a repository. " +
-        "Supports filtering by state: open, closed, or all (default all). " +
-        "Reads from the local Corsair mirror first and falls back to the live GitHub API.",
+      description: "List pull requests.",
       parameters: z.object({
-        owner: z
-          .string()
-          .describe(
-            "GitHub username or organisation that owns the repository.",
-          ),
-        repo: z.string().describe("Repository name."),
-        state: z
-          .enum(["open", "closed", "all"])
-          .default("all")
-          .describe(
-            "Filter by pull request state. Defaults to 'all' if omitted.",
-          ),
-        perPage: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .default(30)
-          .describe("Number of pull requests to return (default 30)."),
+        ...repoParams,
+        state: stateParam,
+        limit: z.number().int().min(1).max(30).default(10),
       }),
-      execute: async ({ owner, repo, state, perPage }) => {
-        return getPullRequests({
-          userId: ctx.userId,
-          owner,
-          repo,
-          state,
-          perPage,
-        });
-      },
-    }),
-
-    reviewPullRequest: tool({
-      description:
-        "Perform an AI-powered code review on a specific Pull Request by PR number. " +
-        "Analyzes PR description and file diffs, returning structured review sections (summary, positives, potential bugs, security flags, recommendations).",
-      parameters: z.object({
-        owner: z.string().describe("GitHub owner or organization."),
-        repo: z.string().describe("Repository name."),
-        pullNumber: z
-          .number()
-          .int()
-          .positive()
-          .describe("Pull request number to review (e.g. 1, 42)."),
-      }),
-      execute: async ({ owner, repo, pullNumber }) => {
-        return reviewPullRequest({
-          userId: ctx.userId,
-          owner,
-          repo,
-          pullNumber,
-        });
-      },
+      execute: async ({ owner, repo, state, limit }) =>
+        withRepo(owner, repo, (t) =>
+          getPullRequests({ userId, ...t, state, perPage: limit }),
+        ),
     }),
 
     getIssues: tool({
-      description:
-        "List issues in a repository. " +
-        "Supports filtering by state: open, closed, or all (default all). " +
-        "Reads from the local Corsair mirror first and falls back to the live GitHub API.",
+      description: "List issues (excludes PRs).",
       parameters: z.object({
-        owner: z
-          .string()
-          .describe(
-            "GitHub username or organisation that owns the repository.",
-          ),
-        repo: z.string().describe("Repository name."),
-        state: z
-          .enum(["open", "closed", "all"])
-          .default("all")
-          .describe("Filter by issue state. Defaults to 'all' if omitted."),
-        perPage: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .default(30)
-          .describe("Number of issues to return (default 30)."),
+        ...repoParams,
+        state: stateParam,
+        limit: z.number().int().min(1).max(30).default(10),
       }),
-      execute: async ({ owner, repo, state, perPage }) => {
-        return getIssues({ userId: ctx.userId, owner, repo, state, perPage });
-      },
+      execute: async ({ owner, repo, state, limit }) =>
+        withRepo(owner, repo, (t) =>
+          getIssues({ userId, ...t, state, perPage: limit }),
+        ),
     }),
 
     getFileContent: tool({
       description:
-        "Read the content of a specific file or list directory contents in a repository " +
-        "via the live GitHub API. Use this to inspect source code, configuration files, " +
-        "or any file at a given path. For directories it returns a list of child items.",
+        "Read a file, or list a directory when path is '' or a folder.",
       parameters: z.object({
-        owner: z
-          .string()
-          .describe(
-            "GitHub username or organisation that owns the repository.",
-          ),
-        repo: z.string().describe("Repository name."),
-        path: z
-          .string()
-          .default("")
-          .describe(
-            "File or directory path relative to repository root. Pass '' or omit to list root directory, or pass 'src/' / 'lib/auth.ts'.",
-          ),
-        ref: z
-          .string()
-          .default("main")
-          .describe(
-            "Branch name, tag, or commit SHA to read from (defaults to main).",
-          ),
+        ...repoParams,
+        path: z.string().default(""),
+        ref: z.string().optional().describe("Branch, tag or sha"),
       }),
-      execute: async ({ owner, repo, path, ref }) => {
-        return getFileContent({ userId: ctx.userId, owner, repo, path, ref });
-      },
+      execute: async ({ owner, repo, path, ref }) =>
+        withRepo(owner, repo, (t) =>
+          getFileContent({ userId, ...t, path, ref }),
+        ),
     }),
 
-    createIssue: tool({
-      description:
-        "Create a new issue in a GitHub repository via the live GitHub API. " +
-        "This is a write operation: always confirm the title and repository with the user before calling this tool.",
+    reviewPullRequest: tool({
+      description: "AI code review of one pull request.",
       parameters: z.object({
-        owner: z
-          .string()
-          .describe(
-            "GitHub username or organisation that owns the repository.",
-          ),
-        repo: z.string().describe("Repository name."),
-        title: z.string().describe("The title of the issue to create."),
-        body: z
-          .string()
-          .default("")
-          .describe(
-            "Optional markdown body text that describes the issue in detail.",
-          ),
-        labels: z
-          .array(z.string())
-          .default([])
-          .describe(
-            "Optional list of label names to attach to the issue (e.g. ['bug', 'help wanted']).",
-          ),
-        assignees: z
-          .array(z.string())
-          .default([])
-          .describe(
-            "Optional list of GitHub usernames to assign the issue to.",
-          ),
+        ...repoParams,
+        pullNumber: z.number().int().positive(),
       }),
-      execute: async ({ owner, repo, title, body, labels, assignees }) => {
-        return createIssue({
-          userId: ctx.userId,
-          owner,
-          repo,
-          title,
-          body,
-          labels,
-          assignees,
-        });
-      },
+      execute: async ({ owner, repo, pullNumber }) =>
+        withRepo(owner, repo, (t) =>
+          reviewPullRequest({ userId, ...t, pullNumber }),
+        ),
     }),
 
     getRepositorySummary: tool({
-      description:
-        "Fetch pre-generated high-level summaries of repositories directly from the local database. " +
-        "Use this for fast repository overviews or when the user asks for a summary of their project.",
-      parameters: z.object({
-        owner: z
-          .string()
-          .default("")
-          .describe("Optional GitHub username or organisation owner."),
-        repo: z.string().default("").describe("Optional repository name."),
-      }),
-      execute: async ({ owner, repo }) => {
-        return getRepositorySummary({
-          userId: ctx.userId,
-          owner,
-          repo,
-        });
-      },
+      description: "Stored AI summary of a repo, or of all repos if none given.",
+      parameters: z.object(repoParams),
+      execute: async ({ owner, repo }) =>
+        getRepositorySummary({
+          userId,
+          owner: owner || activeRepo?.owner,
+          repo: repo || activeRepo?.name,
+        }),
     }),
 
     getProjectMemory: tool({
       description:
-        "Perform semantic search across stored project embeddings (commits, PRs, issues, README) in pgvector database. " +
-        "Use this when answering questions about project history, why decisions were made, or finding relevant code/PR context.",
+        "Semantic search over indexed commits, PRs, issues and READMEs. Use for 'why' or history questions.",
       parameters: z.object({
-        query: z
-          .string()
-          .describe(
-            "Search query string or question to match against project vector memory.",
-          ),
-        owner: z
-          .string()
-          .default("")
-          .describe("Optional repository owner to scope the search."),
-        repo: z
-          .string()
-          .default("")
-          .describe("Optional repository name to scope the search."),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(20)
-          .default(5)
-          .describe(
-            "Maximum number of vector memory items to return (default 5).",
-          ),
+        query: z.string(),
+        ...repoParams,
       }),
-      execute: async ({ query, owner, repo, limit }) => {
-        return getProjectMemory({
-          userId: ctx.userId,
+      execute: async ({ query, owner, repo }) =>
+        getProjectMemory({
+          userId,
           query,
-          owner,
-          repo,
-          limit,
-        });
-      },
+          owner: owner || activeRepo?.owner,
+          repo: repo || activeRepo?.name,
+          limit: 4,
+        }),
+    }),
+
+    draftIssue: tool({
+      description:
+        "Draft a GitHub issue. Shows the user a card with a Create button; nothing is filed until they click it.",
+      parameters: z.object({
+        ...repoParams,
+        title: z.string().max(256),
+        body: z.string().max(20000).default(""),
+        labels: z.array(z.string()).max(10).default([]),
+      }),
+      execute: async ({ owner, repo, title, body, labels }) =>
+        withRepo(owner, repo, async (t) => {
+          try {
+            repoPath(t.owner, t.repo);
+          } catch (error) {
+            return { success: false as const, error: (error as Error).message };
+          }
+          return { success: true as const, draft: { ...t, title, body, labels } };
+        }),
     }),
   } as const;
 }

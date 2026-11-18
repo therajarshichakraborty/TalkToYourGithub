@@ -1,42 +1,30 @@
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
-import { ToolContextOptions } from "./helper";
+import { toErrorMessage } from "@/lib/github/client";
 
-/**
- * Options interface for getRepositorySummary tool.
- */
-export interface GetRepositorySummaryOptions extends ToolContextOptions {
+export interface GetRepositorySummaryOptions {
+  userId: string;
   owner?: string;
   repo?: string;
-  repositoryOwner?: string;
-  repositoryName?: string;
 }
 
-/**
- * Tool function: getRepositorySummary
- * Reads stored repository summaries directly from your own repositorySummaries database table.
- */
-export async function getRepositorySummary(
-  options: GetRepositorySummaryOptions,
-) {
-  if (!options.userId) {
-    throw new Error(
-      "[getRepositorySummary] Missing required parameter 'userId'.",
-    );
-  }
-
-  const owner = options.owner || options.repositoryOwner;
-  const repo = options.repo || options.repositoryName;
-
+export async function getRepositorySummary({
+  userId,
+  owner,
+  repo,
+}: GetRepositorySummaryOptions) {
   try {
     if (owner && repo) {
-      const results = await db
-        .select()
+      const [row] = await db
+        .select({
+          summary: schema.repositorySummaries.summary,
+          generatedAt: schema.repositorySummaries.generatedAt,
+        })
         .from(schema.repositorySummaries)
         .where(
           and(
-            eq(schema.repositorySummaries.userId, options.userId),
+            eq(schema.repositorySummaries.userId, userId),
             eq(schema.repositorySummaries.repositoryOwner, owner),
             eq(schema.repositorySummaries.repositoryName, repo),
           ),
@@ -44,56 +32,31 @@ export async function getRepositorySummary(
         .orderBy(desc(schema.repositorySummaries.updatedAt))
         .limit(1);
 
-      if (results.length > 0) {
-        const summaryRecord = results[0];
-        return {
-          success: true,
-          found: true,
-          repositoryOwner: summaryRecord.repositoryOwner,
-          repositoryName: summaryRecord.repositoryName,
-          summary: summaryRecord.summary,
-          generatedAt: summaryRecord.generatedAt,
-          updatedAt: summaryRecord.updatedAt,
-        };
-      }
-
-      return {
-        success: true,
-        found: false,
-        repositoryOwner: owner,
-        repositoryName: repo,
-        message: `No generated summary found for repository ${owner}/${repo}.`,
-      };
+      return row
+        ? { success: true as const, found: true, repo: `${owner}/${repo}`, ...row }
+        : { success: true as const, found: false, repo: `${owner}/${repo}` };
     }
 
-    // Return all summaries for the user if owner/repo not specified
-    const summaries = await db
-      .select()
+    const rows = await db
+      .select({
+        owner: schema.repositorySummaries.repositoryOwner,
+        name: schema.repositorySummaries.repositoryName,
+        summary: schema.repositorySummaries.summary,
+      })
       .from(schema.repositorySummaries)
-      .where(eq(schema.repositorySummaries.userId, options.userId))
-      .orderBy(desc(schema.repositorySummaries.updatedAt));
+      .where(eq(schema.repositorySummaries.userId, userId))
+      .orderBy(desc(schema.repositorySummaries.updatedAt))
+      .limit(15);
 
     return {
-      success: true,
-      found: summaries.length > 0,
-      count: summaries.length,
-      summaries: summaries.map((s) => ({
-        id: s.id,
-        repositoryOwner: s.repositoryOwner,
-        repositoryName: s.repositoryName,
-        summary: s.summary,
-        generatedAt: s.generatedAt,
+      success: true as const,
+      found: rows.length > 0,
+      summaries: rows.map((r) => ({
+        repo: `${r.owner}/${r.name}`,
+        summary: r.summary.slice(0, 280),
       })),
     };
   } catch (error) {
-    console.error("[getRepositorySummary] Error querying database:", error);
-    return {
-      success: false,
-      found: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to read repository summary from database.",
-    };
+    return { success: false as const, found: false, error: toErrorMessage(error) };
   }
 }

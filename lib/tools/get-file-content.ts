@@ -1,184 +1,112 @@
-import { getCorsairTenantClient, ToolContextOptions } from "./helper";
+import {
+  githubGet,
+  repoPath,
+  toErrorMessage,
+  type GithubAuthContext,
+} from "@/lib/github/client";
+import type { DirectoryEntry } from "@/lib/github/types";
 
-export interface GetFileContentOptions extends ToolContextOptions {
+export interface GetFileContentOptions extends GithubAuthContext {
   owner: string;
   repo: string;
-  path: string;
+  path?: string;
   ref?: string;
+  maxChars?: number;
 }
 
-export async function getFileContent(options: GetFileContentOptions) {
-  const targetPath =
-    options.path !== undefined && options.path !== null ? options.path : "";
-  if (!options.owner || !options.repo) {
-    throw new Error(
-      "Parameters 'owner' and 'repo' are required to fetch file content.",
-    );
-  }
+interface RawContentItem {
+  name: string;
+  path: string;
+  type: DirectoryEntry["type"];
+  size: number;
+  html_url: string | null;
+  content?: string;
+  encoding?: string;
+}
 
-  const targetFullName = `${options.owner}/${options.repo}/${targetPath}`;
+const DEFAULT_MAX_CHARS = 6000;
 
-  // 1. Try Corsair API
+export async function getFileContent({
+  owner,
+  repo,
+  path = "",
+  ref,
+  maxChars = DEFAULT_MAX_CHARS,
+  ...ctx
+}: GetFileContentOptions) {
+  const cleanPath = path.replace(/^\/+|\/+$/g, "");
+  const segments = cleanPath ? cleanPath.split("/") : [];
+
   try {
-    const { tenant } = await getCorsairTenantClient(options);
-    const res = await ((tenant as any).github?.api?.repositories as any)?.getContent({
-      owner: options.owner,
-      repo: options.repo,
-      path: targetPath,
-      ref: options.ref,
-    });
-
-    if (res) {
-      if (!Array.isArray(res) && "type" in res && res.type === "file") {
-        let contentStr = res.content || "";
-        if (res.encoding === "base64" && contentStr) {
-          contentStr = Buffer.from(contentStr, "base64").toString("utf-8");
-        }
-
-        const publicUrl =
-          res.htmlUrl ||
-          `https://github.com/${options.owner}/${options.repo}/blob/${options.ref || "main"}/${options.path}`;
-
-        return {
-          success: true,
-          source: "corsair_api",
-          owner: options.owner,
-          repo: options.repo,
-          path: options.path,
-          ref: options.ref || "default",
-          type: "file",
-          name: res.name,
-          sha: res.sha,
-          size: res.size,
-          encoding: res.encoding,
-          downloadUrl: res.downloadUrl ?? null,
-          htmlUrl: res.htmlUrl ?? null,
-          publicUrl,
-          content: contentStr,
-        };
-      }
-
-      if (Array.isArray(res) || ("type" in res && res.type === "dir")) {
-        const items = Array.isArray(res) ? res : [];
-        return {
-          success: true,
-          source: "corsair_api",
-          owner: options.owner,
-          repo: options.repo,
-          path: options.path,
-          ref: options.ref || "default",
-          type: "directory",
-          itemCount: items.length,
-          items: items.map((item: any) => ({
-            name: item.name,
-            path: item.path,
-            type: item.type,
-            sha: item.sha,
-            size: item.size,
-            downloadUrl: item.downloadUrl ?? null,
-            htmlUrl: item.htmlUrl ?? null,
-          })),
-        };
-      }
+    if (segments.some((s) => s === "." || s === ".." || s === "")) {
+      throw new Error(`Invalid path "${path}".`);
     }
-  } catch (corsairErr: unknown) {
-    console.warn(
-      `[getFileContent] Corsair API note for ${targetFullName}:`,
-      corsairErr instanceof Error ? corsairErr.message : corsairErr,
-    );
-  }
 
-  // 2. Direct GitHub REST API Fallback
-  try {
-    const token = process.env.GITHUB_TOKEN;
-    const reqHeaders: Record<string, string> = {
-      "User-Agent": "TalkToYourGithub",
-      Accept: "application/vnd.github.v3+json",
+    const data = await githubGet<RawContentItem | RawContentItem[]>(
+      ctx,
+      repoPath(
+        owner,
+        repo,
+        `/contents/${segments.map(encodeURIComponent).join("/")}`,
+      ),
+      { ref: ref || undefined },
+    );
+
+    if (Array.isArray(data)) {
+      const items: DirectoryEntry[] = data.map((item) => ({
+        name: item.name,
+        path: item.path,
+        type: item.type,
+      }));
+      return {
+        success: true as const,
+        type: "directory" as const,
+        owner,
+        repo,
+        path: cleanPath,
+        ref: ref ?? null,
+        items,
+      };
+    }
+
+    if (data.encoding === "none") {
+      return {
+        success: false as const,
+        owner,
+        repo,
+        path: data.path,
+        error: `${data.path} is too large to read (${data.size} bytes).`,
+        content: null,
+      };
+    }
+
+    const decoded =
+      data.encoding === "base64" && data.content
+        ? Buffer.from(data.content, "base64").toString("utf-8")
+        : (data.content ?? "");
+    const truncated = decoded.length > maxChars;
+
+    return {
+      success: true as const,
+      type: "file" as const,
+      owner,
+      repo,
+      path: data.path,
+      ref: ref ?? null,
+      name: data.name,
+      size: data.size,
+      url: data.html_url,
+      truncated,
+      content: truncated ? decoded.slice(0, maxChars) : decoded,
     };
-    if (token) {
-      reqHeaders.Authorization = `Bearer ${token}`;
-    }
-
-    const refQuery = options.ref ? `?ref=${options.ref}` : "";
-    let ghRes = await fetch(
-      `https://api.github.com/repos/${options.owner}/${options.repo}/contents/${targetPath}${refQuery}`,
-      { headers: reqHeaders },
-    );
-
-    if (!ghRes.ok && reqHeaders.Authorization) {
-      delete reqHeaders.Authorization;
-      ghRes = await fetch(
-        `https://api.github.com/repos/${options.owner}/${options.repo}/contents/${targetPath}${refQuery}`,
-        { headers: reqHeaders },
-      );
-    }
-
-    if (ghRes.ok) {
-      const data = await ghRes.json();
-
-      // Directory listing
-      if (Array.isArray(data)) {
-        return {
-          success: true,
-          source: "github_rest",
-          owner: options.owner,
-          repo: options.repo,
-          path: options.path,
-          ref: options.ref || "default",
-          type: "directory",
-          itemCount: data.length,
-          items: data.map((item: any) => ({
-            name: item.name,
-            path: item.path,
-            type: item.type,
-            sha: item.sha,
-            size: item.size,
-            downloadUrl: item.download_url ?? null,
-            htmlUrl: item.html_url ?? null,
-          })),
-        };
-      }
-
-      // Single File content
-      if (data && data.type === "file") {
-        let contentStr = data.content || "";
-        if (data.encoding === "base64" && contentStr) {
-          contentStr = Buffer.from(contentStr, "base64").toString("utf-8");
-        }
-        return {
-          success: true,
-          source: "github_rest",
-          owner: options.owner,
-          repo: options.repo,
-          path: options.path,
-          ref: options.ref || "default",
-          type: "file",
-          name: data.name,
-          sha: data.sha,
-          size: data.size,
-          encoding: data.encoding,
-          downloadUrl: data.download_url ?? null,
-          htmlUrl: data.html_url ?? null,
-          publicUrl:
-            data.html_url ||
-            `https://github.com/${options.owner}/${options.repo}/blob/${options.ref || "main"}/${options.path}`,
-          content: contentStr,
-        };
-      }
-    }
-  } catch (restErr: unknown) {
-    console.warn(
-      `[getFileContent] GitHub REST API fallback note for ${targetFullName}:`,
-      restErr instanceof Error ? restErr.message : restErr,
-    );
+  } catch (error) {
+    return {
+      success: false as const,
+      owner,
+      repo,
+      path: cleanPath,
+      error: toErrorMessage(error),
+      content: null,
+    };
   }
-
-  return {
-    success: false,
-    owner: options.owner,
-    repo: options.repo,
-    path: options.path,
-    error: `Could not fetch content for '${targetFullName}'.`,
-    content: null,
-  };
 }

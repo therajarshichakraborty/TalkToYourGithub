@@ -1,87 +1,87 @@
-import { corsair } from "@/server/corsair";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { processWebhook } from "corsair";
-import { headers } from "next/headers";
-import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import * as schema from "@/db/schema";
 import { inngest } from "@/inngest";
+import { corsair } from "@/server/corsair";
 
-/**
- * Route handler: POST /api/webhooks
- * Receives external webhooks from GitHub, processes them via Corsair engine,
- * and dispatches background activity logging events to Inngest.
- */
-export async function POST(req: NextRequest) {
-  try {
-    const headerList = await headers();
-    const headersObj: Record<string, string> = {};
-    headerList.forEach((value, key) => {
-      headersObj[key] = value;
-    });
+export const runtime = "nodejs";
 
-    const bodyText = await req.text();
-    let body: unknown = bodyText;
-    try {
-      body = JSON.parse(bodyText);
-    } catch {
-      // Keep as string if not valid JSON
-    }
+function hasValidSignature(rawBody: string, signature: string | null) {
+  const secret = process.env.GITHUB_WEBHOOK_SECRET;
+  if (!secret) return true;
+  if (!signature?.startsWith("sha256=")) return false;
 
-    const { searchParams } = new URL(req.url);
-    const tenantId = searchParams.get("tenantId") || undefined;
-
-    const result = await processWebhook(
-      corsair,
-      headersObj,
-      body as Record<string, unknown> | string,
-      tenantId ? { tenantId } : undefined,
-    );
-
-    // Dispatch background event to Inngest to update developer activity log
-    await inngest
-      .send({
-        name: "github.webhook",
-        data: {
-          corsairTenantId: tenantId,
-          plugin: result.plugin ?? undefined,
-          action: result.action ?? undefined,
-        },
-      })
-      .catch((inngestErr) => {
-        console.warn(
-          "[Webhook Route] Failed to dispatch Inngest event:",
-          inngestErr,
-        );
-      });
-
-    return NextResponse.json(
-      {
-        success: true,
-        plugin: result.plugin,
-        action: result.action,
-        response: result.response,
-      },
-      {
-        status: 200,
-        headers: result.responseHeaders,
-      },
-    );
-  } catch (error: unknown) {
-    console.error("[Webhook Error]:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Internal server error",
-      },
-      { status: 500 },
-    );
-  }
+  const expected = Buffer.from(
+    `sha256=${createHmac("sha256", secret).update(rawBody).digest("hex")}`,
+  );
+  const received = Buffer.from(signature);
+  return expected.length === received.length && timingSafeEqual(expected, received);
 }
 
-/**
- * Route handler: GET /api/webhooks
- * Health check endpoint for testing webhook server availability.
- */
-export async function GET() {
-  return NextResponse.json({
-    status: "online",
-    message: "Corsair webhook endpoint active",
-  });
+function repositoryFrom(body: unknown) {
+  const repo = (body as { repository?: { name?: string; owner?: { login?: string } } })
+    ?.repository;
+  return {
+    repositoryOwner: repo?.owner?.login ?? "",
+    repositoryName: repo?.name ?? "",
+  };
+}
+
+export async function POST(req: Request) {
+  const tenantId = new URL(req.url).searchParams.get("tenantId");
+  if (!tenantId) {
+    return Response.json({ error: "Missing tenantId." }, { status: 400 });
+  }
+
+  const [owner] = await db
+    .select({ id: schema.user.id })
+    .from(schema.user)
+    .where(eq(schema.user.corsairTenantId, tenantId))
+    .limit(1);
+  if (!owner) {
+    return Response.json({ error: "Unknown tenant." }, { status: 404 });
+  }
+
+  const rawBody = await req.text();
+  if (!hasValidSignature(rawBody, req.headers.get("x-hub-signature-256"))) {
+    return Response.json({ error: "Invalid signature." }, { status: 401 });
+  }
+
+  let body: unknown = rawBody;
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    return Response.json({ error: "Body must be JSON." }, { status: 400 });
+  }
+
+  const headers = Object.fromEntries(req.headers.entries());
+
+  try {
+    const result = await processWebhook(
+      corsair,
+      headers,
+      body as Record<string, unknown>,
+      { tenantId },
+    );
+    const handled =
+      Boolean(result.plugin) &&
+      (result.response as { success?: boolean } | undefined)?.success === true;
+
+    if (handled) {
+      await inngest.send({
+        name: "github.webhook",
+        data: { userId: owner.id, corsairTenantId: tenantId, ...repositoryFrom(body) },
+      });
+    }
+
+    return Response.json(
+      { success: handled, plugin: result.plugin, action: result.action },
+      { status: handled ? 200 : 202, headers: result.responseHeaders },
+    );
+  } catch (error) {
+    console.error("[webhooks] processing failed", error);
+    return Response.json({ error: "Webhook processing failed." }, { status: 500 });
+  }
 }

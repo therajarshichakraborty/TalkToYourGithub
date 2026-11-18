@@ -1,220 +1,190 @@
-/*
- * API route: /api/repositories/[owner]/[name]
- * Description: Retrieves detailed metadata, AI summary, activity logs, and signals for a specific repository.
- */
-
-import { auth } from "@/lib/auth";
+import { generateText } from "ai";
+import { and, desc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
-import { getCommits } from "@/lib/tools/get-commits";
+import { chatModel } from "@/features/chat/openai";
+import { auth } from "@/lib/auth";
+import {
+  githubCount,
+  githubGet,
+  GithubError,
+  repoPath,
+  toErrorMessage,
+} from "@/lib/github/client";
+import {
+  buildSummaryPrompt,
+  findSummary,
+  saveSummary,
+  SUMMARY_SYSTEM_PROMPT,
+} from "@/lib/summaries";
 import { getBranches } from "@/lib/tools/get-branches";
-import { getPullRequests } from "@/lib/tools/get-pull-requests";
+import { getCommits } from "@/lib/tools/get-commits";
 import { getIssues } from "@/lib/tools/get-issues";
-import { getFileContent } from "@/lib/tools/get-file-content";
+import { getPullRequests } from "@/lib/tools/get-pull-requests";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+interface RawRepo {
+  full_name: string;
+  description: string | null;
+  default_branch: string;
+  language: string | null;
+  private: boolean;
+  stargazers_count: number;
+  forks_count: number;
+  watchers_count: number;
+  open_issues_count: number;
+  html_url: string;
+  pushed_at: string | null;
+  topics?: string[];
+}
+
+async function fetchReadme(userId: string, owner: string, name: string) {
+  try {
+    const data = await githubGet<{ content: string; encoding: string }>(
+      { userId },
+      repoPath(owner, name, "/readme"),
+    );
+    return Buffer.from(data.content, data.encoding as BufferEncoding).toString(
+      "utf-8",
+    );
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(
-  req: Request,
-  props: { params: Promise<{ owner: string; name: string }> },
+  _req: Request,
+  { params }: { params: Promise<{ owner: string; name: string }> },
 ) {
-  /* Authenticate user session */
   const session = await auth.api.getSession({ headers: await headers() });
-
   if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized access" }, { status: 401 });
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { owner, name } = await props.params;
+  const { owner, name } = await params;
   const userId = session.user.id;
+  const target = { userId, owner, repo: name };
 
   try {
-    /*
-     * 1. Query repository summary from database
-     */
-    const [summaryRow] = await db
-      .select()
-      .from(schema.repositorySummaries)
-      .where(
-        and(
-          eq(schema.repositorySummaries.userId, userId),
-          eq(schema.repositorySummaries.repositoryOwner, owner),
-          eq(schema.repositorySummaries.repositoryName, name),
-        ),
-      )
-      .limit(1);
+    const countOrNull = (path: string, query?: Record<string, string>) =>
+      githubCount({ userId }, repoPath(owner, name, path), query).catch(() => null);
 
-    /*
-     * 2. Query activity logs from database for this repository
-     */
-    const activityLogs = await db
-      .select()
-      .from(schema.activityLogs)
-      .where(
-        and(
-          eq(schema.activityLogs.userId, userId),
-          eq(schema.activityLogs.repositoryOwner, owner),
-          eq(schema.activityLogs.repositoryName, name),
-        ),
-      )
-      .orderBy(desc(schema.activityLogs.occurredAt))
-      .limit(30);
-
-    /*
-     * 3. Fetch live context (commits, branches, PRs, issues, README)
-     */
-    const [commitsRes, branchesRes, prsRes, issuesRes, readmeRes] =
-      await Promise.allSettled([
-        getCommits({ userId, owner, repo: name, perPage: 100 }),
-        getBranches({ userId, owner, repo: name, perPage: 100 }),
-        getPullRequests({
-          userId,
-          owner,
-          repo: name,
-          state: "all",
-          perPage: 100,
-        }),
-        getIssues({ userId, owner, repo: name, state: "all", perPage: 100 }),
-        getFileContent({ userId, owner, repo: name, path: "README.md" }),
+    const [
+      repo,
+      commits,
+      branches,
+      pulls,
+      issues,
+      readme,
+      stored,
+      activity,
+      branchCount,
+      pullCount,
+    ] = await Promise.all([
+        githubGet<RawRepo>({ userId }, repoPath(owner, name)),
+        getCommits({ ...target, perPage: 10 }),
+        getBranches({ ...target, perPage: 30 }),
+        getPullRequests({ ...target, state: "open", perPage: 20 }),
+        getIssues({ ...target, state: "open", perPage: 20 }),
+        fetchReadme(userId, owner, name),
+        findSummary({ userId, owner, name }),
+        db
+          .select({
+            id: schema.activityLogs.id,
+            type: schema.activityLogs.activityType,
+            title: schema.activityLogs.title,
+            description: schema.activityLogs.description,
+            occurredAt: schema.activityLogs.occurredAt,
+          })
+          .from(schema.activityLogs)
+          .where(
+            and(
+              eq(schema.activityLogs.userId, userId),
+              eq(schema.activityLogs.repositoryOwner, owner),
+              eq(schema.activityLogs.repositoryName, name),
+            ),
+          )
+          .orderBy(desc(schema.activityLogs.occurredAt))
+          .limit(30),
+        countOrNull("/branches"),
+        countOrNull("/pulls", { state: "open" }),
       ]);
 
-    const commits =
-      commitsRes.status === "fulfilled" && commitsRes.value.success
-        ? commitsRes.value.commits
-        : [];
-    const branches =
-      branchesRes.status === "fulfilled" && branchesRes.value.success
-        ? (branchesRes.value.branches as any[])
-        : [];
-    const pullRequests =
-      prsRes.status === "fulfilled" && prsRes.value.success
-        ? prsRes.value.pullRequests
-        : [];
-    const issues =
-      issuesRes.status === "fulfilled" && issuesRes.value.success
-        ? issuesRes.value.issues
-        : [];
-    const readme =
-      readmeRes.status === "fulfilled" && readmeRes.value.success
-        ? readmeRes.value.content
-        : null;
+    let summary = stored?.summary ?? null;
+    let summaryGeneratedAt = stored?.generatedAt ?? null;
 
-    /*
-     * 4. If summary is missing in DB, generate initial AI summary on the fly and persist it
-     */
-    let finalSummary = summaryRow?.summary || null;
-    let finalGeneratedAt = summaryRow?.generatedAt || null;
-
-    if (!finalSummary) {
+    if (!summary) {
       try {
-        const prompt = `
-Write a concise 2-paragraph AI summary for GitHub repository '${owner}/${name}'.
-Primary language: ${branches.length > 0 ? "TypeScript/JavaScript" : "Unknown"}
-Sampled Branches (${branches.length}): ${branches
-          .slice(0, 5)
-          .map((b: any) => (typeof b === "string" ? b : b?.name || ""))
-          .join(", ")}
-Recent Commits (${commits.length}): ${commits
-          .slice(0, 5)
-          .map((c: any) => c.commit?.message || c.message || "")
-          .join(" | ")}
-Issues Count: ${issues.length}, Pull Requests Count: ${pullRequests.length}
-README Preview: ${readme ? readme.slice(0, 800) : "No README available."}
-
-Paragraph 1: State primary purpose and core functionality of '${owner}/${name}'.
-Paragraph 2: State technical architecture, commit activity phase, and project health.
-Prose only, no markdown headers or bullet points.
-`.trim();
-
-        const { generateText } = await import("ai");
-        const { chatModel } = await import("@/features/chat");
-
         const { text } = await generateText({
           model: chatModel,
-          system: "You are an expert AI software documentation assistant.",
-          prompt,
+          system: SUMMARY_SYSTEM_PROMPT,
+          prompt: buildSummaryPrompt({
+            fullName: repo.full_name,
+            description: repo.description,
+            language: repo.language,
+            commits: commits.commits.map((c) => c.message),
+            readme,
+          }),
+          maxTokens: 220,
+          temperature: 0.3,
         });
-
-        if (text) {
-          finalSummary = text.trim();
-          finalGeneratedAt = new Date();
-
-          await db
-            .insert(schema.repositorySummaries)
-            .values({
-              userId,
-              repositoryOwner: owner,
-              repositoryName: name,
-              summary: finalSummary,
-              generatedAt: finalGeneratedAt,
-            })
-            .onConflictDoUpdate({
-              target: [
-                schema.repositorySummaries.userId,
-                schema.repositorySummaries.repositoryOwner,
-                schema.repositorySummaries.repositoryName,
-              ],
-              set: {
-                summary: finalSummary,
-                generatedAt: finalGeneratedAt,
-                updatedAt: finalGeneratedAt,
-              },
-            });
+        if (text.trim()) {
+          summary = text.trim();
+          summaryGeneratedAt = new Date();
+          await saveSummary({ userId, owner, name }, summary);
         }
-      } catch (genErr) {
-        console.warn(
-          `[route.ts] Note generating auto-summary for ${owner}/${name}:`,
-          genErr,
-        );
+      } catch (error) {
+        console.error(`[repo] summary failed for ${owner}/${name}`, error);
       }
     }
 
+    const openPullRequests = pullCount ?? pulls.pullRequests.length;
+    const openIssues = issues.success
+      ? issues.total
+      : Math.max(repo.open_issues_count - openPullRequests, 0);
+
     return Response.json({
       success: true,
-      owner,
-      name,
-      fullName: `${owner}/${name}`,
-      summary: finalSummary,
-      summaryGeneratedAt: finalGeneratedAt
-        ? new Date(finalGeneratedAt).toISOString()
-        : null,
-      activityLogs: activityLogs.map((l) => ({
-        id: l.id,
-        type: l.activityType,
-        title: l.title,
-        description: l.description,
-        occurredAt: l.occurredAt.toISOString(),
-      })),
-      stats: {
-        commitsCount: commits.length,
-        branchesCount: branches.length,
-        pullRequestsCount: pullRequests.length,
-        issuesCount: issues.length,
+      repo: {
+        owner,
+        name,
+        fullName: repo.full_name,
+        description: repo.description ?? "",
+        defaultBranch: repo.default_branch,
+        language: repo.language,
+        isPrivate: repo.private,
+        htmlUrl: repo.html_url,
+        pushedAt: repo.pushed_at,
+        topics: repo.topics ?? [],
       },
-      commits: commits.slice(0, 5).map((c: any) => ({
-        message: c.commit?.message || c.message || "",
-        author: c.commit?.author?.name || c.author || "Unknown",
-        date: c.commit?.author?.date || c.date || "",
-        sha: c.sha ? String(c.sha).slice(0, 7) : "",
+      stats: {
+        stars: repo.stargazers_count,
+        forks: repo.forks_count,
+        branches: branchCount ?? branches.branches.length,
+        openPullRequests,
+        openIssues,
+      },
+      summary,
+      summaryGeneratedAt: summaryGeneratedAt?.toISOString() ?? null,
+      commits: commits.commits,
+      pullRequests: pulls.pullRequests,
+      issues: issues.issues,
+      branches: branches.branches,
+      readme: readme ? readme.slice(0, 4000) : null,
+      activity: activity.map((a) => ({
+        ...a,
+        occurredAt: a.occurredAt.toISOString(),
       })),
-      branches: branches
-        .slice(0, 5)
-        .map((b: any) => (typeof b === "string" ? b : b?.name || ""))
-        .filter(Boolean),
-      readmeSnippet: readme ? readme.slice(0, 2000) : null,
     });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(
-      `[/api/repositories/${owner}/${name}] Error fetching repo details:`,
-      message,
-    );
-
+  } catch (error) {
+    const status = error instanceof GithubError ? error.status : 500;
+    console.error(`[repo] load failed for ${owner}/${name}`, error);
     return Response.json(
-      { error: `Internal server error loading repository ${owner}/${name}` },
-      { status: 500 },
+      { error: toErrorMessage(error) },
+      { status: status >= 400 && status < 500 ? status : 500 },
     );
   }
 }

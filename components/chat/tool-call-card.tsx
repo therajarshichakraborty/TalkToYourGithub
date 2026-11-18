@@ -1,522 +1,317 @@
-/*
- * Component: ToolCallCard
- * Description: Rich visual component for rendering AI tool execution results in the chat UI.
- * Handles specific card layouts for PR reviews, commit lists, branch lists, issues, and file content.
- */
-
 "use client";
 
-import React, { useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  Wrench,
-  CheckCircle2,
-  AlertCircle,
-  GitCommit,
-  GitBranch,
-  GitPullRequest,
-  FileCode,
-  Sparkles,
-  ChevronDown,
-  ChevronUp,
-  ShieldAlert,
-  ThumbsUp,
-  Lightbulb,
+  Check,
+  ChevronRight,
+  CircleAlert,
   ExternalLink,
+  FileCode2,
   Folder,
+  Loader2,
 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import type {
+  Commit,
+  DirectoryEntry,
+  Issue,
+  PullRequest,
+} from "@/lib/github/types";
+import { cn } from "@/lib/utils";
 
-interface ToolCallCardProps {
+export interface ToolInvocationView {
+  toolCallId: string;
   toolName: string;
-  args: any;
-  result?: any;
-  state: "call" | "result";
+  args: Record<string, unknown>;
+  state: "partial-call" | "call" | "result";
+  result?: unknown;
+}
+
+const LABELS: Record<string, string> = {
+  getRepositories: "Listed repositories",
+  getBranches: "Read branches",
+  getCommits: "Read commits",
+  getPullRequests: "Read pull requests",
+  getIssues: "Read issues",
+  getFileContent: "Read files",
+  reviewPullRequest: "Reviewed pull request",
+  getRepositorySummary: "Loaded summary",
+  getProjectMemory: "Searched project memory",
+  createIssue: "Created issue",
+  draftIssue: "Drafted issue",
+};
+
+interface IssueDraft {
+  owner: string;
+  repo: string;
+  title: string;
+  body: string;
+  labels: string[];
+}
+
+function DraftIssue({ draft }: { draft: IssueDraft }) {
+  const [state, setState] = useState<"idle" | "pending" | "done">("idle");
+  const [url, setUrl] = useState<string | null>(null);
+
+  const create = async () => {
+    setState("pending");
+    try {
+      const res = await fetch("/api/issues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not create the issue.");
+      setUrl(data.issue.url);
+      setState("done");
+      toast.success(`Issue #${data.issue.number} created`);
+    } catch (error) {
+      setState("idle");
+      toast.error(
+        error instanceof Error ? error.message : "Could not create the issue.",
+      );
+    }
+  };
+
+  return (
+    <div className='space-y-3 p-3 text-xs'>
+      <p className='font-mono text-muted-foreground'>
+        {draft.owner}/{draft.repo}
+      </p>
+      <p className='text-sm font-medium'>{draft.title}</p>
+      {draft.body && (
+        <p className='whitespace-pre-wrap leading-relaxed text-muted-foreground'>
+          {draft.body}
+        </p>
+      )}
+      {draft.labels.length > 0 && (
+        <div className='flex flex-wrap gap-1'>
+          {draft.labels.map((label) => (
+            <span key={label} className='rounded-full border px-2 py-0.5'>
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
+      {state === "done" && url ? (
+        <a
+          href={url}
+          target='_blank'
+          rel='noreferrer'
+          className='inline-flex items-center gap-1 font-medium text-brand hover:underline'
+        >
+          View issue on GitHub
+          <ExternalLink className='size-3' />
+        </a>
+      ) : (
+        <Button
+          size='sm'
+          onClick={create}
+          disabled={state === "pending"}
+          className='h-7 text-xs'
+        >
+          {state === "pending" && <Loader2 className='animate-spin' />}
+          Create issue
+        </Button>
+      )}
+    </div>
+  );
+}
+
+type AnyResult = Record<string, unknown> & {
+  success?: boolean;
+  error?: string;
+};
+
+function list<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function Row({ children, href }: { children: React.ReactNode; href?: string }) {
+  const className =
+    "flex items-center gap-2 px-3 py-1.5 text-xs transition-colors hover:bg-accent/60";
+  return href ? (
+    <a href={href} target='_blank' rel='noreferrer' className={className}>
+      {children}
+      <ExternalLink className='ml-auto size-3 shrink-0 text-muted-foreground' />
+    </a>
+  ) : (
+    <div className={className}>{children}</div>
+  );
+}
+
+function renderResult(name: string, result: AnyResult): React.ReactNode {
+  if (result.success === false) {
+    return <p className='px-3 py-2 text-xs text-destructive'>{result.error}</p>;
+  }
+
+  switch (name) {
+    case "getCommits":
+      return list<Commit>(result.commits).map((c) => (
+        <Row key={c.sha}>
+          <span className='font-mono text-muted-foreground'>{c.sha}</span>
+          <span className='truncate'>{c.message}</span>
+        </Row>
+      ));
+    case "getPullRequests":
+      return list<PullRequest>(result.pullRequests).map((pr) => (
+        <Row key={pr.number} href={pr.url}>
+          <span className='font-mono text-muted-foreground'>#{pr.number}</span>
+          <span className='truncate'>{pr.title}</span>
+        </Row>
+      ));
+    case "getIssues":
+      return list<Issue>(result.issues).map((issue) => (
+        <Row key={issue.number} href={issue.url}>
+          <span className='font-mono text-muted-foreground'>
+            #{issue.number}
+          </span>
+          <span className='truncate'>{issue.title}</span>
+        </Row>
+      ));
+    case "getBranches":
+      return (
+        <div className='flex flex-wrap gap-1.5 p-3'>
+          {list<string>(result.branches).map((b) => (
+            <span
+              key={String(b)}
+              className='rounded border bg-background px-1.5 py-0.5 font-mono text-[11px]'
+            >
+              {String(b)}
+            </span>
+          ))}
+        </div>
+      );
+    case "getRepositories":
+      return list<{ repo: string; lang: string | null }>(result.repos).map(
+        (r) => (
+          <Row key={r.repo}>
+            <span className='truncate'>{r.repo}</span>
+            <span className='ml-auto font-mono text-muted-foreground'>
+              {r.lang ?? ""}
+            </span>
+          </Row>
+        ),
+      );
+    case "getFileContent":
+      if (result.type === "directory") {
+        return list<DirectoryEntry>(result.items).map((item) => (
+          <Row key={item.path}>
+            {item.type === "dir" ? (
+              <Folder className='size-3.5 shrink-0 text-muted-foreground' />
+            ) : (
+              <FileCode2 className='size-3.5 shrink-0 text-muted-foreground' />
+            )}
+            <span className='truncate font-mono'>{item.name}</span>
+          </Row>
+        ));
+      }
+      return (
+        <Row href={(result.url as string | null) ?? undefined}>
+          <FileCode2 className='size-3.5 shrink-0 text-muted-foreground' />
+          <span className='truncate font-mono'>{result.path as string}</span>
+          {Boolean(result.truncated) && (
+            <span className='text-muted-foreground'>(truncated)</span>
+          )}
+        </Row>
+      );
+    case "draftIssue": {
+      const draft = result.draft as IssueDraft | undefined;
+      return draft ? <DraftIssue draft={draft} /> : null;
+    }
+    case "createIssue": {
+      const issue = result.issue as
+        { number: number; title: string; url?: string } | undefined;
+      if (!issue) return null;
+      return (
+        <Row href={issue.url}>
+          <span className='font-mono text-muted-foreground'>
+            #{issue.number}
+          </span>
+          <span className='truncate'>{issue.title}</span>
+        </Row>
+      );
+    }
+    case "reviewPullRequest": {
+      const review = (result.review ?? {}) as Record<string, unknown>;
+      const sections = [
+        ["Potential issues", list<string>(review.issues)],
+        ["Security", list<string>(review.security)],
+        ["Suggestions", list<string>(review.suggestions)],
+      ] as const;
+      return (
+        <div className='space-y-3 p-3 text-xs'>
+          <p className='leading-relaxed'>{String(review.summary ?? "")}</p>
+          {sections.map(([title, items]) =>
+            items.length ? (
+              <div key={title}>
+                <p className='mb-1 font-medium'>{title}</p>
+                <ul className='list-disc space-y-1 pl-4 text-muted-foreground'>
+                  {items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null,
+          )}
+        </div>
+      );
+    }
+    default:
+      return null;
+  }
 }
 
 export function ToolCallCard({
-  toolName,
-  args,
-  result,
-  state,
-}: ToolCallCardProps) {
-  const [isExpanded, setIsExpanded] = useState<boolean>(true);
+  invocation,
+}: {
+  invocation: ToolInvocationView;
+}) {
+  const expandedByDefault = ["reviewPullRequest", "draftIssue"].includes(
+    invocation.toolName,
+  );
+  const [open, setOpen] = useState(expandedByDefault);
+  const done = invocation.state === "result";
+  const result = (done ? invocation.result : undefined) as
+    AnyResult | undefined;
+  const failed = result?.success === false;
+  const label = LABELS[invocation.toolName] ?? invocation.toolName;
+  const rendered = result ? renderResult(invocation.toolName, result) : null;
+  const body =
+    Array.isArray(rendered) && rendered.length === 0 ? null : rendered;
 
-  if (state !== "result" || !result) {
-    return (
-      <div className='flex items-center gap-2 p-2 rounded-lg bg-muted/40 border border-border text-xs font-mono'>
-        <Wrench className='h-3.5 w-3.5 text-primary animate-spin' />
-        <span className='font-semibold'>{toolName}</span>
-        <span className='text-muted-foreground truncate max-w-[200px]'>
-          {JSON.stringify(args || {})}
-        </span>
-      </div>
-    );
-  }
-
-  /*
-   * Handler for reviewPullRequest tool
-   */
-  if (toolName === "reviewPullRequest" && result.success && result.review) {
-    const rev = result.review;
-    return (
-      <Card className='my-2 border-primary/30 bg-muted/20 text-xs shadow-xs'>
-        <CardHeader className='p-3 pb-2 flex flex-row items-center justify-between border-b bg-muted/40'>
-          <div className='flex items-center gap-2'>
-            <Sparkles className='h-4 w-4 text-purple-500' />
-            <CardTitle className='text-xs font-semibold'>
-              PR Review: {result.owner}/{result.repo} #{result.pullNumber}
-            </CardTitle>
-            <Badge variant='outline' className='text-[10px]'>
-              {result.title}
-            </Badge>
-          </div>
-          <Button
-            variant='ghost'
-            size='sm'
-            className='h-6 w-6 p-0'
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            {isExpanded ? (
-              <ChevronUp className='h-3.5 w-3.5' />
-            ) : (
-              <ChevronDown className='h-3.5 w-3.5' />
-            )}
-          </Button>
-        </CardHeader>
-
-        {isExpanded && (
-          <CardContent className='p-3 space-y-3'>
-            {/* PR Summary */}
-            <div className='space-y-1'>
-              <span className='font-medium text-foreground text-[11px]'>
-                Overview
-              </span>
-              <p className='text-muted-foreground leading-relaxed'>
-                {rev.summary}
-              </p>
-            </div>
-
-            {/* Positives */}
-            {rev.positives?.length > 0 && (
-              <div className='space-y-1 p-2 rounded bg-emerald-500/10 border border-emerald-500/20'>
-                <span className='font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 text-[11px]'>
-                  <ThumbsUp className='h-3 w-3' />
-                  Positives ({rev.positives.length})
-                </span>
-                <ul className='list-disc list-inside space-y-0.5 text-muted-foreground'>
-                  {rev.positives.map((p: string, idx: number) => (
-                    <li key={idx}>{p}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Potential Issues */}
-            {rev.potentialIssues?.length > 0 && (
-              <div className='space-y-1 p-2 rounded bg-amber-500/10 border border-amber-500/20'>
-                <span className='font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 text-[11px]'>
-                  <AlertCircle className='h-3 w-3' />
-                  Potential Bugs / Risks ({rev.potentialIssues.length})
-                </span>
-                <ul className='list-disc list-inside space-y-0.5 text-muted-foreground'>
-                  {rev.potentialIssues.map((pi: string, idx: number) => (
-                    <li key={idx}>{pi}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Security Flags */}
-            {rev.securityFlags?.length > 0 && (
-              <div className='space-y-1 p-2 rounded bg-destructive/10 border border-destructive/20'>
-                <span className='font-semibold text-destructive flex items-center gap-1.5 text-[11px]'>
-                  <ShieldAlert className='h-3 w-3' />
-                  Security Flags ({rev.securityFlags.length})
-                </span>
-                <ul className='list-disc list-inside space-y-0.5 text-destructive/90'>
-                  {rev.securityFlags.map((sf: string, idx: number) => (
-                    <li key={idx}>{sf}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Suggestions */}
-            {rev.suggestions?.length > 0 && (
-              <div className='space-y-1 p-2 rounded bg-blue-500/10 border border-blue-500/20'>
-                <span className='font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1.5 text-[11px]'>
-                  <Lightbulb className='h-3 w-3' />
-                  Actionable Suggestions ({rev.suggestions.length})
-                </span>
-                <ul className='list-disc list-inside space-y-0.5 text-muted-foreground'>
-                  {rev.suggestions.map((s: string, idx: number) => (
-                    <li key={idx}>{s}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </CardContent>
-        )}
-      </Card>
-    );
-  }
-
-  /*
-   * Handler for getCommits tool
-   */
-  if (
-    toolName === "getCommits" &&
-    result.success &&
-    Array.isArray(result.commits)
-  ) {
-    return (
-      <Card className='my-2 border-border bg-muted/20 text-xs shadow-xs'>
-        <CardHeader className='p-2.5 px-3 flex flex-row items-center justify-between border-b bg-muted/40'>
-          <div className='flex items-center gap-2'>
-            <GitCommit className='h-4 w-4 text-blue-500' />
-            <span className='font-semibold'>
-              Commits ({result.commits.length})
-            </span>
-            <span className='text-muted-foreground text-[11px]'>
-              {args.owner}/{args.repo}
-            </span>
-          </div>
-          <Button
-            variant='ghost'
-            size='sm'
-            className='h-6 w-6 p-0'
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            {isExpanded ? (
-              <ChevronUp className='h-3.5 w-3.5' />
-            ) : (
-              <ChevronDown className='h-3.5 w-3.5' />
-            )}
-          </Button>
-        </CardHeader>
-        {isExpanded && (
-          <CardContent className='p-2.5 space-y-1.5'>
-            {result.commits.slice(0, 5).map((c: any, i: number) => (
-              <div
-                key={i}
-                className='flex items-center justify-between gap-2 p-1.5 rounded bg-background border text-[11px]'
-              >
-                <div className='truncate flex-1'>
-                  <span className='font-medium'>
-                    {c.commit?.message || c.message || "Commit"}
-                  </span>
-                  <span className='text-muted-foreground ml-2 text-[10px]'>
-                    by {c.commit?.author?.name || c.author || "Unknown"}
-                  </span>
-                </div>
-                {c.sha && (
-                  <Badge
-                    variant='outline'
-                    className='font-mono text-[9px] shrink-0'
-                  >
-                    {String(c.sha).slice(0, 7)}
-                  </Badge>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        )}
-      </Card>
-    );
-  }
-
-  /*
-   * Handler for getBranches tool
-   */
-  if (
-    toolName === "getBranches" &&
-    result.success &&
-    Array.isArray(result.branches)
-  ) {
-    return (
-      <Card className='my-2 border-border bg-muted/20 text-xs shadow-xs'>
-        <CardHeader className='p-2.5 px-3 flex flex-row items-center justify-between border-b bg-muted/40'>
-          <div className='flex items-center gap-2'>
-            <GitBranch className='h-4 w-4 text-emerald-500' />
-            <span className='font-semibold'>
-              Branches ({result.branches.length})
-            </span>
-            <span className='text-muted-foreground text-[11px]'>
-              {args.owner}/{args.repo}
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className='p-2.5 flex flex-wrap gap-1.5'>
-          {result.branches.map((b: any, idx: number) => {
-            const name = typeof b === "string" ? b : b?.name || "";
-            if (!name) return null;
-            return (
-              <Badge
-                key={idx}
-                variant='secondary'
-                className='font-mono text-[11px] gap-1'
-              >
-                <GitBranch className='h-3 w-3 text-muted-foreground' />
-                {name}
-              </Badge>
-            );
-          })}
-        </CardContent>
-      </Card>
-    );
-  }
-
-  /*
-   * Handler for getPullRequests tool
-   */
-  if (
-    toolName === "getPullRequests" &&
-    result.success &&
-    Array.isArray(result.pullRequests)
-  ) {
-    return (
-      <Card className='my-2 border-border bg-muted/20 text-xs shadow-xs'>
-        <CardHeader className='p-2.5 px-3 flex flex-row items-center justify-between border-b bg-muted/40'>
-          <div className='flex items-center gap-2'>
-            <GitPullRequest className='h-4 w-4 text-purple-500' />
-            <span className='font-semibold'>
-              Pull Requests ({result.pullRequests.length})
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className='p-2.5 space-y-1.5'>
-          {result.pullRequests.slice(0, 5).map((pr: any, i: number) => (
-            <div
-              key={i}
-              className='flex items-center justify-between gap-2 p-1.5 rounded bg-background border text-[11px]'
-            >
-              <span className='font-medium truncate flex-1'>
-                #{pr.number || pr.id} {pr.title || "Pull Request"}
-              </span>
-              <Badge
-                variant={pr.state === "open" ? "default" : "secondary"}
-                className='text-[10px]'
-              >
-                {pr.state || "open"}
-              </Badge>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-    );
-  }
-
-  /*
-   * Handler for getFileContent tool (Directory listing & file content)
-   */
-  if (toolName === "getFileContent" && result.success) {
-    const owner = result.owner || args?.owner;
-    const repo = result.repo || args?.repo;
-    const ref =
-      result.ref && result.ref !== "default" ? result.ref : args?.ref || "main";
-
-    if (result.type === "directory" && Array.isArray(result.items)) {
-      const dirGithubUrl =
-        owner && repo
-          ? `https://github.com/${owner}/${repo}/tree/${ref}/${result.path || ""}`.replace(
-              /\/+$/,
-              "",
-            )
-          : undefined;
-
-      return (
-        <Card className='my-2 border-border bg-muted/20 text-xs shadow-xs overflow-hidden rounded-2xl'>
-          <CardHeader className='p-3 flex flex-row items-center justify-between border-b bg-muted/40'>
-            <div className='flex items-center gap-2 truncate'>
-              <Folder className='h-4 w-4 text-indigo-500 shrink-0' />
-              {dirGithubUrl ? (
-                <a
-                  href={dirGithubUrl}
-                  target='_blank'
-                  rel='noopener noreferrer'
-                  className='font-bold text-foreground hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline flex items-center gap-1.5 transition-colors group truncate'
-                  title='Open directory on GitHub'
-                >
-                  <span className='truncate'>
-                    Directory: /{result.path || ""}
-                  </span>
-                  <ExternalLink className='h-3 w-3 text-muted-foreground opacity-70 group-hover:opacity-100 shrink-0' />
-                </a>
-              ) : (
-                <span className='font-bold text-foreground truncate'>
-                  Directory: /{result.path || ""}
-                </span>
-              )}
-              <Badge
-                variant='outline'
-                className='text-[10px] rounded-full font-mono shrink-0'
-              >
-                {result.itemCount} items
-              </Badge>
-            </div>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='h-6 w-6 p-0 shrink-0'
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? (
-                <ChevronUp className='h-3.5 w-3.5' />
-              ) : (
-                <ChevronDown className='h-3.5 w-3.5' />
-              )}
-            </Button>
-          </CardHeader>
-          {isExpanded && (
-            <CardContent className='p-3 space-y-1.5'>
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs font-mono'>
-                {result.items.map((item: any, idx: number) => {
-                  const isDir =
-                    item.type === "dir" || item.type === "directory";
-                  const itemPath =
-                    item.path ||
-                    (result.path ? `${result.path}/${item.name}` : item.name);
-
-                  const githubUrl =
-                    item.htmlUrl ||
-                    item.html_url ||
-                    (owner && repo
-                      ? `https://github.com/${owner}/${repo}/${
-                          isDir ? "tree" : "blob"
-                        }/${ref}/${itemPath}`
-                      : undefined);
-
-                  if (githubUrl) {
-                    return (
-                      <a
-                        key={idx}
-                        href={githubUrl}
-                        target='_blank'
-                        rel='noopener noreferrer'
-                        className='flex items-center gap-2 p-2 rounded-xl bg-background border border-border/60 hover:border-indigo-500/50 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-all cursor-pointer group text-decoration-none'
-                        title={`Open ${item.name} on GitHub`}
-                      >
-                        {isDir ? (
-                          <Folder className='h-3.5 w-3.5 text-indigo-500 shrink-0' />
-                        ) : (
-                          <FileCode className='h-3.5 w-3.5 text-muted-foreground group-hover:text-indigo-500 shrink-0 transition-colors' />
-                        )}
-                        <span className='truncate font-medium text-foreground text-[11px] flex-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors'>
-                          {item.name}
-                        </span>
-                        <Badge
-                          variant='secondary'
-                          className='text-[9px] uppercase px-1.5 py-0 font-sans shrink-0'
-                        >
-                          {isDir ? "dir" : "file"}
-                        </Badge>
-                        <ExternalLink className='h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0' />
-                      </a>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={idx}
-                      className='flex items-center gap-2 p-2 rounded-xl bg-background border border-border/60'
-                    >
-                      {isDir ? (
-                        <Folder className='h-3.5 w-3.5 text-indigo-500 shrink-0' />
-                      ) : (
-                        <FileCode className='h-3.5 w-3.5 text-muted-foreground shrink-0' />
-                      )}
-                      <span className='truncate font-medium text-foreground text-[11px] flex-1'>
-                        {item.name}
-                      </span>
-                      <Badge
-                        variant='secondary'
-                        className='text-[9px] uppercase px-1.5 py-0 font-sans'
-                      >
-                        {isDir ? "dir" : "file"}
-                      </Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      );
-    }
-
-    if (result.type === "file") {
-      const fileUrl =
-        result.publicUrl ||
-        result.htmlUrl ||
-        (owner && repo
-          ? `https://github.com/${owner}/${repo}/blob/${ref}/${result.path}`
-          : undefined);
-
-      return (
-        <Card className='my-2 border-border bg-muted/20 text-xs shadow-xs overflow-hidden rounded-2xl'>
-          <CardHeader className='p-3 flex flex-row items-center justify-between border-b bg-muted/40'>
-            <div className='flex items-center gap-2 truncate'>
-              <FileCode className='h-4 w-4 text-indigo-500 shrink-0' />
-              <span className='font-bold text-foreground truncate'>
-                File: {result.name || result.path}
-              </span>
-              {result.size && (
-                <Badge
-                  variant='outline'
-                  className='text-[10px] rounded-full font-mono shrink-0'
-                >
-                  {result.size} bytes
-                </Badge>
-              )}
-            </div>
-            {fileUrl && (
-              <a
-                href={fileUrl}
-                target='_blank'
-                rel='noopener noreferrer'
-                className='inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0'
-                title='View file on GitHub'
-              >
-                <span>View on GitHub</span>
-                <ExternalLink className='h-3 w-3' />
-              </a>
-            )}
-          </CardHeader>
-        </Card>
-      );
-    }
-  }
-
-  /*
-   * Generic tool execution output fallback card
-   */
   return (
-    <div className='my-1.5 p-2 rounded bg-muted/40 border text-xs font-mono space-y-1'>
-      <div className='flex items-center justify-between text-[11px]'>
-        <div className='flex items-center gap-1.5 font-semibold text-foreground'>
-          <CheckCircle2 className='h-3.5 w-3.5 text-emerald-500' />
-          <span>{toolName}</span>
+    <div className='overflow-hidden rounded-lg border bg-muted/30'>
+      <button
+        type='button'
+        onClick={() => setOpen((v) => !v)}
+        disabled={!done || !body}
+        className='flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-muted-foreground transition-colors enabled:hover:text-foreground'
+      >
+        {!done ? (
+          <Loader2 className='size-3.5 animate-spin' />
+        ) : failed ? (
+          <CircleAlert className='size-3.5 text-destructive' />
+        ) : (
+          <Check className='size-3.5 text-success' />
+        )}
+        <span className='font-medium'>{label}</span>
+        {done && body && (
+          <ChevronRight
+            className={cn(
+              "ml-auto size-3.5 transition-transform",
+              open && "rotate-90",
+            )}
+          />
+        )}
+      </button>
+      {open && body && (
+        <div className='max-h-72 animate-in fade-in slide-in-from-top-1 overflow-y-auto border-t bg-background duration-200'>
+          {body}
         </div>
-        <span className='text-muted-foreground text-[10px]'>Executed</span>
-      </div>
-      <div className='text-muted-foreground text-[11px] truncate'>
-        Result count:{" "}
-        {Array.isArray(
-          result.repositories ||
-            result.commits ||
-            result.branches ||
-            result.issues,
-        )
-          ? (
-              result.repositories ||
-              result.commits ||
-              result.branches ||
-              result.issues
-            ).length
-          : "1 item"}
-      </div>
+      )}
     </div>
   );
 }
