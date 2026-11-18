@@ -33,7 +33,13 @@ import { useRepositoryDetails } from "./use-repository-details";
 
 type Tab = "overview" | "assistant" | "activity";
 
-export function RepositoryView({ owner, name }: { owner: string; name: string }) {
+export function RepositoryView({
+  owner,
+  name,
+}: {
+  owner: string;
+  name: string;
+}) {
   const [tab, setTab] = useState<Tab>("overview");
   const { data, error, isLoading, reload } = useRepositoryDetails(owner, name);
   const cached = useWorkspace().findRepository(owner, name);
@@ -100,7 +106,11 @@ export function RepositoryView({ owner, name }: { owner: string; name: string })
                 <RefreshCw className={isLoading ? "animate-spin" : undefined} />
               </Button>
               <SyncButton owner={owner} name={name} />
-              <Button asChild size='sm' className='shadow-button h-8 gap-1.5 text-xs'>
+              <Button
+                asChild
+                size='sm'
+                className='shadow-button h-8 gap-1.5 text-xs'
+              >
                 <a href={url} target='_blank' rel='noreferrer'>
                   <GithubIcon className='size-3.5' />
                   Open
@@ -118,23 +128,55 @@ export function RepositoryView({ owner, name }: { owner: string; name: string })
       </div>
 
       <TabsContent value='overview' className='min-h-0 flex-1 overflow-y-auto'>
-        <div className='mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8'>
+        <div className='mx-auto w-full max-w-7xl animate-in fade-in slide-in-from-bottom-2 space-y-6 p-4 duration-500 md:p-8'>
           {error && !data ? (
             <div className='rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm'>
-              <p className='font-medium text-destructive'>Could not load this repository.</p>
+              <p className='font-medium text-destructive'>
+                Could not load this repository.
+              </p>
               <p className='mt-1 text-muted-foreground'>{error}</p>
-              <Button variant='outline' size='sm' onClick={reload} className='mt-4'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={reload}
+                className='mt-4'
+              >
                 Try again
               </Button>
             </div>
           ) : (
             <>
               <div className='grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5'>
-                <StatTile label='Stars' icon={Star} value={String(data?.stats.stars ?? 0)} isLoading={!data} />
-                <StatTile label='Forks' icon={GitFork} value={String(data?.stats.forks ?? 0)} isLoading={!data} />
-                <StatTile label='Branches' icon={GitBranch} value={String(data?.stats.branches ?? 0)} isLoading={!data} />
-                <StatTile label='Open PRs' icon={GitPullRequest} value={String(data?.stats.openPullRequests ?? 0)} isLoading={!data} />
-                <StatTile label='Open issues' icon={CircleDot} value={String(data?.stats.openIssues ?? 0)} isLoading={!data} />
+                <StatTile
+                  label='Stars'
+                  icon={Star}
+                  value={String(data?.stats.stars ?? 0)}
+                  isLoading={!data}
+                />
+                <StatTile
+                  label='Forks'
+                  icon={GitFork}
+                  value={String(data?.stats.forks ?? 0)}
+                  isLoading={!data}
+                />
+                <StatTile
+                  label='Branches'
+                  icon={GitBranch}
+                  value={String(data?.stats.branches ?? 0)}
+                  isLoading={!data}
+                />
+                <StatTile
+                  label='Open PRs'
+                  icon={GitPullRequest}
+                  value={String(data?.stats.openPullRequests ?? 0)}
+                  isLoading={!data}
+                />
+                <StatTile
+                  label='Open issues'
+                  icon={CircleDot}
+                  value={String(data?.stats.openIssues ?? 0)}
+                  isLoading={!data}
+                />
               </div>
 
               {!data ? (
@@ -145,8 +187,13 @@ export function RepositoryView({ owner, name }: { owner: string; name: string })
               ) : (
                 <div className='grid gap-6 lg:grid-cols-[1.3fr_1fr]'>
                   <div className='min-w-0 space-y-6'>
-                    <SummaryPanel summary={data.summary} generatedAt={data.summaryGeneratedAt} />
-                    {data.readme && <ReadmePanel readme={data.readme} url={url} />}
+                    <SummaryPanel
+                      summary={data.summary}
+                      generatedAt={data.summaryGeneratedAt}
+                    />
+                    {data.readme && (
+                      <ReadmePanel readme={data.readme} url={url} />
+                    )}
                   </div>
                   <div className='min-w-0 space-y-6'>
                     <CommitsPanel commits={data.commits} url={url} />
@@ -181,8 +228,11 @@ export function RepositoryView({ owner, name }: { owner: string; name: string })
       </TabsContent>
 
       <TabsContent value='activity' className='min-h-0 flex-1 overflow-y-auto'>
-        <div className='mx-auto w-full max-w-3xl p-4 md:p-8'>
-          <Panel title='Activity' description='Commits, pull requests, issues and conversations'>
+        <div className='mx-auto w-full max-w-3xl animate-in fade-in slide-in-from-bottom-2 p-4 duration-500 md:p-8'>
+          <Panel
+            title='Activity'
+            description='Commits, pull requests, issues and conversations'
+          >
             {!data ? (
               <div className='space-y-3 p-5'>
                 {Array.from({ length: 5 }, (_, i) => (
@@ -193,7 +243,8 @@ export function RepositoryView({ owner, name }: { owner: string; name: string })
               <div className='flex flex-col items-center gap-2 px-5 py-12 text-center'>
                 <Activity className='size-5 text-muted-foreground' />
                 <p className='text-sm text-muted-foreground'>
-                  No activity recorded yet. Run a sync or ask the assistant a question.
+                  No activity recorded yet. Run a sync or ask the assistant a
+                  question.
                 </p>
               </div>
             ) : (
@@ -207,9 +258,12 @@ export function RepositoryView({ owner, name }: { owner: string; name: string })
                           {item.title ?? "Activity"}
                         </p>
                         <span className='shrink-0 text-xs text-muted-foreground'>
-                          {formatDistanceToNowStrict(new Date(item.occurredAt), {
-                            addSuffix: true,
-                          })}
+                          {formatDistanceToNowStrict(
+                            new Date(item.occurredAt),
+                            {
+                              addSuffix: true,
+                            },
+                          )}
                         </span>
                       </div>
                       <p className='mt-0.5 text-xs text-muted-foreground'>
