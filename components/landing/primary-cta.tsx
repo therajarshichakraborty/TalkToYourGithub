@@ -1,7 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { GithubIcon } from "@/components/brand/github-icon";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function PrimaryCta({
@@ -13,26 +12,31 @@ export function PrimaryCta({
   size?: "sm" | "lg";
   className?: string;
 }) {
+  const large = size === "lg";
+
   return (
-    <Button
-      asChild
+    <Link
+      href={isSignedIn ? "/dashboard" : "/sign-in"}
       className={cn(
-        "group shadow-button rounded-full font-medium",
-        size === "lg" ? "h-11 px-6 text-sm" : "h-8 px-4 text-xs",
+        "btn-brand group",
+        large ? "h-12 pl-5 pr-1.5 text-base" : "h-10 px-4 text-[15px]",
         className,
       )}
     >
-      <Link href={isSignedIn ? "/dashboard" : "/sign-in"}>
-        {isSignedIn ? (
-          "Open dashboard"
-        ) : (
-          <>
-            <GithubIcon className='size-4' />
-            Continue with GitHub
-          </>
-        )}
-        <ArrowRight className='size-3.5 transition-transform group-hover:translate-x-0.5' />
-      </Link>
-    </Button>
+      {isSignedIn
+        ? "Open dashboard"
+        : large
+          ? "Continue with GitHub"
+          : "Sign in"}
+      {large ? (
+        <span className='flex size-9 items-center justify-center rounded-md bg-white text-brand shadow-sm'>
+          {isSignedIn ? (
+            <ArrowRight className='size-4 transition-transform group-hover:translate-x-0.5' />
+          ) : (
+            <GithubIcon className='size-4.5 text-neutral-900' />
+          )}
+        </span>
+      ) : null}
+    </Link>
   );
 }
