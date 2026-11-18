@@ -1,210 +1,150 @@
+import { embed } from "ai";
+import { and, eq, ilike, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { ToolContextOptions } from "./helper";
-import { embed } from "ai";
 import { embeddingModel } from "@/features/chat/openai";
+import { toErrorMessage } from "@/lib/github/client";
 import { getPineconeIndex } from "@/lib/pinecone";
 
-/**
- * Options interface for getProjectMemory tool.
- */
-export interface GetProjectMemoryOptions extends ToolContextOptions {
+export interface GetProjectMemoryOptions {
+  userId: string;
   query: string;
   owner?: string;
   repo?: string;
-  repositoryOwner?: string;
-  repositoryName?: string;
   limit?: number;
   minSimilarity?: number;
 }
 
-/**
- * Interface representing a scored memory item returned by vector similarity search.
- */
-export interface ProjectMemoryItem {
-  id: string;
-  sourceType: string;
-  sourceId: string;
-  content: string;
-  similarity: number;
-  metadata: Record<string, unknown> | null;
+interface SearchScope {
+  userId: string;
+  owner?: string;
+  repo?: string;
+  limit: number;
+  minSimilarity: number;
 }
 
-/**
- * Helper function: computes cosine similarity between two numeric vector arrays.
- */
-function cosineSimilarity(vecA: number[], vecB: number[]): number {
-  if (!vecA || !vecB || vecA.length !== vecB.length || vecA.length === 0) {
-    return 0;
-  }
-  let dotProduct = 0;
+interface Memory {
+  type: string;
+  score: number;
+  content: string;
+}
+
+const SNIPPET_CHARS = 400;
+const FALLBACK_SCAN_LIMIT = 500;
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length === 0 || a.length !== b.length) return 0;
+  let dot = 0;
   let normA = 0;
   let normB = 0;
-  for (let i = 0; i < vecA.length; i++) {
-    dotProduct += vecA[i] * vecB[i];
-    normA += vecA[i] * vecA[i];
-    normB += vecB[i] * vecB[i];
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
   }
-  if (normA === 0 || normB === 0) return 0;
-  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  return normA && normB ? dot / (Math.sqrt(normA) * Math.sqrt(normB)) : 0;
 }
 
-/**
- * Tool function: getProjectMemory
- * Performs vector semantic search on Pinecone Vector Database (with pgvector table fallback)
- * to retrieve relevant project context, code snippets, commits, issues, and PR history.
- */
-export async function getProjectMemory(options: GetProjectMemoryOptions) {
-  if (!options.userId) {
-    throw new Error("[getProjectMemory] Missing required parameter 'userId'.");
+const sameText = (a: unknown, b: string | undefined) =>
+  !b || (typeof a === "string" && a.toLowerCase() === b.toLowerCase());
+
+async function searchPinecone(
+  vector: number[],
+  { userId, owner, repo, limit, minSimilarity }: SearchScope,
+): Promise<Memory[]> {
+  const filter: Record<string, string> = { userId };
+  if (owner) filter.repositoryOwner = owner;
+  if (repo) filter.repositoryName = repo;
+
+  const response = await getPineconeIndex().query({
+    vector,
+    topK: limit * 3,
+    includeMetadata: true,
+    filter,
+  });
+
+  return (response.matches ?? [])
+    .filter((m) => {
+      const meta = m.metadata ?? {};
+      return (
+        (m.score ?? 0) >= minSimilarity &&
+        meta.userId === userId &&
+        sameText(meta.repositoryOwner, owner) &&
+        sameText(meta.repositoryName, repo)
+      );
+    })
+    .map((m) => ({
+      type: String(m.metadata?.sourceType ?? "memory"),
+      score: Number((m.score ?? 0).toFixed(3)),
+      content: String(m.metadata?.content ?? ""),
+    }));
+}
+
+async function searchDatabase(
+  vector: number[],
+  { userId, owner, repo, minSimilarity }: SearchScope,
+): Promise<Memory[]> {
+  const conditions: SQL[] = [eq(schema.embeddings.userId, userId)];
+  if (owner) {
+    conditions.push(ilike(sql`${schema.embeddings.metadata}->>'repositoryOwner'`, owner));
   }
-  if (!options.query || !options.query.trim()) {
-    throw new Error("[getProjectMemory] Missing required parameter 'query'.");
+  if (repo) {
+    conditions.push(ilike(sql`${schema.embeddings.metadata}->>'repositoryName'`, repo));
   }
 
-  const limit = options.limit || 5;
-  const minSimilarity = options.minSimilarity ?? 0.1;
-  const targetOwner = (options.owner || options.repositoryOwner)?.toLowerCase();
-  const targetRepo = (options.repo || options.repositoryName)?.toLowerCase();
+  const rows = await db
+    .select({
+      sourceType: schema.embeddings.sourceType,
+      content: schema.embeddings.content,
+      embedding: schema.embeddings.embedding,
+    })
+    .from(schema.embeddings)
+    .where(and(...conditions))
+    .limit(FALLBACK_SCAN_LIMIT);
+
+  return rows.flatMap((row) => {
+    if (!Array.isArray(row.embedding)) return [];
+    const score = cosineSimilarity(vector, row.embedding as number[]);
+    return score >= minSimilarity
+      ? [{ type: row.sourceType, score: Number(score.toFixed(3)), content: row.content }]
+      : [];
+  });
+}
+
+export async function getProjectMemory({
+  userId,
+  query,
+  owner,
+  repo,
+  limit = 5,
+  minSimilarity = 0.1,
+}: GetProjectMemoryOptions) {
+  if (!query.trim()) {
+    return { success: false as const, error: "A search query is required.", memories: [] };
+  }
 
   try {
-    // Generate query embedding vector
-    const { embedding: queryVector } = await embed({
-      model: embeddingModel,
-      value: options.query,
-    });
+    const { embedding } = await embed({ model: embeddingModel, value: query });
+    const scope: SearchScope = { userId, owner, repo, limit, minSimilarity };
 
-    // 1. Primary Vector Store: Pinecone Vector Search
-    const pineconeMemories: ProjectMemoryItem[] = [];
+    let memories: Memory[] = [];
     try {
-      const index = getPineconeIndex();
-      let queryResponse = await index
-        .query({
-          vector: queryVector,
-          topK: limit * 4,
-          includeMetadata: true,
-          filter: {
-            userId: options.userId,
-          },
-        })
-        .catch(async () => {
-          // Fallback: Query Pinecone without filter if metadata index filter is not active
-          return await index.query({
-            vector: queryVector,
-            topK: limit * 4,
-            includeMetadata: true,
-          });
-        });
-
-      if (
-        queryResponse &&
-        queryResponse.matches &&
-        queryResponse.matches.length > 0
-      ) {
-        for (const match of queryResponse.matches) {
-          const score = match.score ?? 0;
-          if (score < minSimilarity) continue;
-          const meta = (match.metadata as Record<string, unknown>) || {};
-          const recordUserId = meta.userId as string | undefined;
-          const recordOwner = (meta.repositoryOwner as string)?.toLowerCase();
-          const recordRepo = (meta.repositoryName as string)?.toLowerCase();
-
-          if (recordUserId && recordUserId !== options.userId) continue;
-          if (targetOwner && recordOwner && targetOwner !== recordOwner)
-            continue;
-          if (targetRepo && recordRepo && targetRepo !== recordRepo) continue;
-
-          pineconeMemories.push({
-            id: match.id,
-            sourceType: (meta.sourceType as string) || "pinecone",
-            sourceId: (meta.sourceId as string) || match.id,
-            content: (meta.content as string) || "",
-            similarity: Number(score.toFixed(4)),
-            metadata: meta,
-          });
-        }
-      }
-    } catch (pineconeErr) {
-      console.warn(
-        "[getProjectMemory] Pinecone vector search note:",
-        pineconeErr instanceof Error ? pineconeErr.message : pineconeErr,
-      );
+      memories = await searchPinecone(embedding, scope);
+    } catch (error) {
+      console.warn("[memory] Pinecone unavailable, using database", toErrorMessage(error));
+    }
+    if (memories.length === 0) {
+      memories = await searchDatabase(embedding, scope);
     }
 
-    if (pineconeMemories.length > 0) {
-      pineconeMemories.sort((a, b) => b.similarity - a.similarity);
-      const topPinecone = pineconeMemories.slice(0, limit);
-      return {
-        success: true,
-        source: "pinecone",
-        count: topPinecone.length,
-        query: options.query,
-        memories: topPinecone,
-      };
-    }
+    const top = memories
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map((m) => ({ ...m, content: m.content.slice(0, SNIPPET_CHARS) }));
 
-    // 2. Fallback: Database pgvector embeddings table
-    const storedEmbeddings = await db
-      .select()
-      .from(schema.embeddings)
-      .where(eq(schema.embeddings.userId, options.userId));
-
-    if (!storedEmbeddings || storedEmbeddings.length === 0) {
-      return {
-        success: true,
-        count: 0,
-        memories: [],
-        message: "No project memory embeddings found for user.",
-      };
-    }
-
-    const scoredMemories: ProjectMemoryItem[] = [];
-
-    for (const record of storedEmbeddings) {
-      const vector = record.embedding as number[] | null;
-      if (!vector || !Array.isArray(vector)) continue;
-
-      const metadata = (record.metadata as Record<string, unknown>) || {};
-      const recordOwner = (metadata.repositoryOwner as string)?.toLowerCase();
-      const recordRepo = (metadata.repositoryName as string)?.toLowerCase();
-
-      if (targetOwner && recordOwner && targetOwner !== recordOwner) continue;
-      if (targetRepo && recordRepo && targetRepo !== recordRepo) continue;
-
-      const score = cosineSimilarity(queryVector, vector);
-      if (score >= minSimilarity) {
-        scoredMemories.push({
-          id: record.id,
-          sourceType: record.sourceType,
-          sourceId: record.sourceId,
-          content: record.content,
-          similarity: Number(score.toFixed(4)),
-          metadata,
-        });
-      }
-    }
-
-    scoredMemories.sort((a, b) => b.similarity - a.similarity);
-    const topResults = scoredMemories.slice(0, limit);
-
-    return {
-      success: true,
-      source: "pgvector_fallback",
-      count: topResults.length,
-      query: options.query,
-      memories: topResults,
-    };
+    return { success: true as const, count: top.length, memories: top };
   } catch (error) {
-    console.error("[getProjectMemory] Error searching embeddings:", error);
-    return {
-      success: false,
-      count: 0,
-      memories: [],
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to perform semantic search on embeddings table.",
-    };
+    console.error("[memory] search failed", error);
+    return { success: false as const, error: toErrorMessage(error), memories: [] };
   }
 }
