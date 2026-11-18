@@ -1,123 +1,99 @@
-import { getCorsairTenantClient, ToolContextOptions } from "./helper";
+import {
+  githubPaginate,
+  resolveUserId,
+  toErrorMessage,
+  type GithubAuthContext,
+} from "@/lib/github/client";
+import type { Repository } from "@/lib/github/types";
 
-export interface GetRepositoriesOptions extends ToolContextOptions {
-  perPage?: number;
+interface RawRepository {
+  id: number;
+  name: string;
+  full_name: string;
+  owner: { login: string };
+  description: string | null;
+  default_branch: string;
+  language: string | null;
+  private: boolean;
+  fork: boolean;
+  archived: boolean;
+  stargazers_count: number;
+  forks_count: number;
+  open_issues_count: number;
+  html_url: string;
+  updated_at: string | null;
+  pushed_at: string | null;
 }
 
-export interface GetRepositoriesResult {
-  success: boolean;
-  source: string;
-  count: number;
-  repositories: any[];
-  error?: string;
+export interface GetRepositoriesOptions extends GithubAuthContext {
+  limit?: number;
+  force?: boolean;
+}
+
+export type GetRepositoriesResult =
+  | { success: true; count: number; repositories: Repository[] }
+  | { success: false; count: 0; repositories: []; error: string };
+
+const CACHE_TTL_MS = 2 * 60 * 1000;
+const cache = new Map<string, { at: number; repositories: Repository[] }>();
+
+function normalize(raw: RawRepository): Repository {
+  return {
+    id: String(raw.id),
+    owner: raw.owner.login,
+    name: raw.name,
+    fullName: raw.full_name,
+    description: raw.description ?? "",
+    defaultBranch: raw.default_branch,
+    language: raw.language,
+    isPrivate: raw.private,
+    isFork: raw.fork,
+    isArchived: raw.archived,
+    stars: raw.stargazers_count,
+    forks: raw.forks_count,
+    openIssues: raw.open_issues_count,
+    htmlUrl: raw.html_url,
+    updatedAt: raw.updated_at,
+    pushedAt: raw.pushed_at,
+  };
+}
+
+async function fetchAll(ctx: GithubAuthContext): Promise<Repository[]> {
+  const raw = await githubPaginate<RawRepository>(ctx, "/user/repos", {
+    affiliation: "owner,collaborator,organization_member",
+    sort: "pushed",
+    direction: "desc",
+  });
+  return raw.map(normalize);
 }
 
 export async function getRepositories(
-  options: GetRepositoriesOptions = {},
+  options: GetRepositoriesOptions,
 ): Promise<GetRepositoriesResult> {
-  const perPage = options.perPage || 30;
-
-  // 1. Try Corsair API / Synced DB
   try {
-    const { tenant } = await getCorsairTenantClient(options);
+    const userId = await resolveUserId(options);
+    const cached = cache.get(userId);
+    const fresh = cached && Date.now() - cached.at < CACHE_TTL_MS;
 
-    if (tenant.github?.db?.repositories?.search) {
-      const dbRepos = await tenant.github.db.repositories.search({
-        limit: perPage,
-      });
-      if (dbRepos && Array.isArray(dbRepos) && dbRepos.length > 0) {
-        const seen = new Set<string>();
-        const uniqueRepos = dbRepos.filter((r: any) => {
-          const key = r.full_name || r.name || String(r.id || "");
-          if (!key || seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-
-        return {
-          success: true,
-          source: "synced_db",
-          count: uniqueRepos.length,
-          repositories: uniqueRepos,
-        };
-      }
+    let repositories: Repository[];
+    if (fresh && !options.force) {
+      repositories = cached.repositories;
+    } else {
+      repositories = await fetchAll({ userId });
+      cache.set(userId, { at: Date.now(), repositories });
     }
 
-    const repos = await (tenant as any).github?.api?.repositories?.list({
-      perPage,
-    });
-    if (repos && Array.isArray(repos) && repos.length > 0) {
-      return {
-        success: true,
-        source: "corsair_api",
-        count: repos.length,
-        repositories: repos,
-      };
-    }
-  } catch (corsairErr: unknown) {
-    console.warn(
-      `[getRepositories] Corsair note:`,
-      corsairErr instanceof Error ? corsairErr.message : corsairErr,
-    );
-  }
+    const limited = options.limit
+      ? repositories.slice(0, options.limit)
+      : repositories;
 
-  // 2. Direct GitHub REST API Fallback
-  try {
-    const token = process.env.GITHUB_TOKEN;
-    const reqHeaders: Record<string, string> = {
-      "User-Agent": "TalkToYourGithub",
-      Accept: "application/vnd.github.v3+json",
+    return { success: true, count: limited.length, repositories: limited };
+  } catch (error) {
+    return {
+      success: false,
+      count: 0,
+      repositories: [],
+      error: toErrorMessage(error),
     };
-    if (token) {
-      reqHeaders.Authorization = `Bearer ${token}`;
-    }
-
-    let ghRes = await fetch(
-      `https://api.github.com/user/repos?per_page=${perPage}`,
-      { headers: reqHeaders },
-    );
-
-    if (!ghRes.ok && reqHeaders.Authorization) {
-      delete reqHeaders.Authorization;
-      ghRes = await fetch(
-        `https://api.github.com/orgs/therajarshichakraborty/repos?per_page=${perPage}`,
-        { headers: reqHeaders },
-      );
-    }
-
-    if (ghRes.ok) {
-      const data = await ghRes.json();
-      if (Array.isArray(data) && data.length > 0) {
-        return {
-          success: true,
-          source: "github_rest",
-          count: data.length,
-          repositories: data,
-        };
-      }
-    }
-  } catch (restErr: unknown) {
-    console.warn(
-      `[getRepositories] GitHub REST API fallback note:`,
-      restErr instanceof Error ? restErr.message : restErr,
-    );
   }
-
-  // 3. Last Fallback: Default repository
-  return {
-    success: true,
-    source: "default_fallback",
-    count: 1,
-    repositories: [
-      {
-        full_name: "therajarshichakraborty/TalkToYourGithub",
-        owner: { login: "therajarshichakraborty" },
-        name: "TalkToYourGithub",
-        description: "Conversational GitHub companion application",
-        default_branch: "main",
-        language: "TypeScript",
-        private: false,
-      },
-    ],
-  };
 }
