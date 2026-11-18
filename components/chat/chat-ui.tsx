@@ -38,7 +38,7 @@ function MessageBubble({ message }: { message: Message }) {
 
   if (isUser) {
     return (
-      <div className='flex justify-end'>
+      <div className='flex animate-in fade-in slide-in-from-bottom-2 justify-end duration-300'>
         <div className='max-w-[85%] whitespace-pre-wrap wrap-break-word rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground'>
           {message.content}
         </div>
@@ -47,7 +47,7 @@ function MessageBubble({ message }: { message: Message }) {
   }
 
   return (
-    <div className='flex gap-3'>
+    <div className='flex animate-in fade-in slide-in-from-bottom-2 gap-3 duration-300'>
       <LogoMark className='mt-0.5 size-7 shrink-0' />
       <div className='min-w-0 flex-1 space-y-3'>
         {invocations.length > 0 && (
@@ -67,7 +67,10 @@ function Thinking() {
   return (
     <div className='flex gap-3'>
       <LogoMark className='size-7 shrink-0' />
-      <div className='flex items-center gap-1 py-2' aria-label='Assistant is thinking'>
+      <div
+        className='flex items-center gap-1 py-2'
+        aria-label='Assistant is thinking'
+      >
         {[0, 1, 2].map((i) => (
           <span
             key={i}
@@ -166,7 +169,8 @@ export function ChatUI({ repo }: { repo: ChatRepo | null }) {
   const last = messages.at(-1);
   const showThinking =
     busy &&
-    (last?.role === "user" || (!last?.content && !last?.toolInvocations?.length));
+    (last?.role === "user" ||
+      (!last?.content && !last?.toolInvocations?.length));
 
   return (
     <div className='flex h-full flex-col'>
@@ -177,10 +181,12 @@ export function ChatUI({ repo }: { repo: ChatRepo | null }) {
               <LogoMark className='size-8 animate-pulse rounded-lg' />
             </div>
           ) : messages.length === 0 ? (
-            <div className='flex flex-col items-center pt-[10vh] text-center'>
+            <div className='flex animate-in fade-in zoom-in-95 flex-col items-center pt-[10vh] text-center duration-500'>
               <LogoMark className='size-10 rounded-xl' />
               <h2 className='mt-5 text-2xl font-semibold tracking-tight'>
-                {repo ? `Ask about ${repo.name}` : "What would you like to know?"}
+                {repo
+                  ? `Ask about ${repo.name}`
+                  : "What would you like to know?"}
               </h2>
               <p className='mt-2 max-w-md text-sm text-muted-foreground'>
                 {repo
@@ -193,7 +199,7 @@ export function ChatUI({ repo }: { repo: ChatRepo | null }) {
                     key={text}
                     type='button'
                     onClick={() => append({ role: "user", content: text })}
-                    className='rounded-xl border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground'
+                    className='rounded-xl border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:text-foreground hover:shadow-card'
                   >
                     {text}
                   </button>
@@ -223,17 +229,31 @@ export function ChatUI({ repo }: { repo: ChatRepo | null }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                if (
+                  e.key === "Enter" &&
+                  !e.shiftKey &&
+                  !e.nativeEvent.isComposing
+                ) {
                   e.preventDefault();
                   submit();
                 }
               }}
-              placeholder={repo ? `Ask about ${repo.owner}/${repo.name}…` : "Ask about your repositories…"}
+              placeholder={
+                repo
+                  ? `Ask about ${repo.owner}/${repo.name}…`
+                  : "Ask about your repositories…"
+              }
               aria-label='Message'
               className='max-h-50 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground'
             />
             {busy ? (
-              <Button type='button' size='icon' variant='secondary' onClick={stop} aria-label='Stop'>
+              <Button
+                type='button'
+                size='icon'
+                variant='secondary'
+                onClick={stop}
+                aria-label='Stop'
+              >
                 <Square className='size-3.5 fill-current' />
               </Button>
             ) : (
