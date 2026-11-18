@@ -21,19 +21,19 @@ const ROWS = [
 
 const reveal = (delay: number) => ({
   initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: "-80px" },
   transition: { delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] as const },
 });
 
 export function ProductPreview() {
   return (
-    <div className='relative mx-auto w-full max-w-5xl'>
-      <div className='absolute -inset-x-10 -top-10 bottom-0 -z-10 rounded-[2rem] bg-brand/10 blur-3xl' />
-      <div className='overflow-hidden rounded-2xl border bg-card shadow-card'>
-        <div className='flex h-10 items-center gap-2 border-b bg-muted/40 px-4'>
-          <span className='size-2.5 rounded-full bg-foreground/15' />
-          <span className='size-2.5 rounded-full bg-foreground/15' />
-          <span className='size-2.5 rounded-full bg-foreground/15' />
+    <div className='mx-auto w-full max-w-5xl rounded-2xl bg-muted p-2 ring-1 ring-border md:p-3'>
+      <div className='overflow-hidden rounded-xl bg-card shadow-card'>
+        <div className='flex h-10 items-center gap-2 border-b px-4'>
+          <span className='size-2.5 rounded-full bg-[#ff5f57]' />
+          <span className='size-2.5 rounded-full bg-[#febc2e]' />
+          <span className='size-2.5 rounded-full bg-[#28c840]' />
           <span className='mx-auto font-mono text-[11px] text-muted-foreground'>
             app / payments-api
           </span>
@@ -65,7 +65,10 @@ export function ProductPreview() {
           </aside>
 
           <div className='flex flex-col gap-4 p-5 text-left md:p-6'>
-            <motion.div {...reveal(0.3)} className='ml-auto max-w-sm rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground'>
+            <motion.div
+              {...reveal(0.3)}
+              className='ml-auto max-w-sm rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground'
+            >
               Which open PRs are blocking the next release?
             </motion.div>
 
@@ -85,8 +88,8 @@ export function ProductPreview() {
               <LogoMark className='size-6 shrink-0 rounded-md' />
               <div className='min-w-0 flex-1 space-y-3 text-sm'>
                 <p>
-                  Three open PRs touch the release milestone. <strong>#214</strong>{" "}
-                  is the only one with failing checks.
+                  Three open PRs touch the release milestone.{" "}
+                  <strong>#214</strong> is the only one with failing checks.
                 </p>
                 <div className='overflow-hidden rounded-lg border'>
                   {ROWS.map((row, i) => (
@@ -96,7 +99,9 @@ export function ProductPreview() {
                       className='flex items-center gap-3 border-b px-3 py-2 text-xs last:border-b-0'
                     >
                       <GitPullRequest className='size-3.5 shrink-0 text-success' />
-                      <span className='font-mono text-muted-foreground'>{row.pr}</span>
+                      <span className='font-mono text-muted-foreground'>
+                        {row.pr}
+                      </span>
                       <span className='truncate'>{row.title}</span>
                       <span className='ml-auto font-mono text-muted-foreground'>
                         {row.age}
