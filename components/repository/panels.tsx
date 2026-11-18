@@ -30,7 +30,9 @@ export function Panel({
         <div className='min-w-0'>
           <h2 className='text-sm font-medium'>{title}</h2>
           {description && (
-            <p className='truncate text-xs text-muted-foreground'>{description}</p>
+            <p className='truncate text-xs text-muted-foreground'>
+              {description}
+            </p>
           )}
         </div>
         {action}
@@ -41,7 +43,11 @@ export function Panel({
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className='px-5 py-8 text-center text-sm text-muted-foreground'>{children}</p>;
+  return (
+    <p className='px-5 py-8 text-center text-sm text-muted-foreground'>
+      {children}
+    </p>
+  );
 }
 
 const ago = (date: string) =>
@@ -98,12 +104,15 @@ export function SummaryPanel({
   );
 }
 
-export function CommitsPanel({ commits, url }: { commits: Commit[]; url: string }) {
+export function CommitsPanel({
+  commits,
+  url,
+}: {
+  commits: Commit[];
+  url: string;
+}) {
   return (
-    <Panel
-      title='Recent commits'
-      action={<ViewAll href={`${url}/commits`} />}
-    >
+    <Panel title='Recent commits' action={<ViewAll href={`${url}/commits`} />}>
       {commits.length === 0 ? (
         <Empty>No commits yet.</Empty>
       ) : (
@@ -165,7 +174,8 @@ export function WorkItemsPanel({
                 <div className='min-w-0 flex-1'>
                   <p className='truncate text-sm'>{item.title}</p>
                   <p className='text-xs text-muted-foreground'>
-                    #{item.number} · {item.author} · updated {ago(item.updatedAt)}
+                    #{item.number} · {item.author} · updated{" "}
+                    {ago(item.updatedAt)}
                   </p>
                 </div>
               </a>
