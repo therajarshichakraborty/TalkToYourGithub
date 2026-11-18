@@ -1,363 +1,257 @@
 "use client";
-/*
- * Component: ChatUI
- * Description: Interactive AI Chat Interface powered by useChat() from AI SDK.
- * Handles streaming responses, tool invocation status display, and repository context integration.
- */
 
-import React, { useRef, useEffect } from "react";
-import { useChat } from "@ai-sdk/react";
-import { RepositoryItem } from "@/components/sidebar/repo-list";
+import { useChat, type Message } from "@ai-sdk/react";
+import { ArrowUp, Square } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { LogoMark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Send,
-  Square,
-  Bot,
-  User,
-  Wrench,
-  Sparkles,
-  GitBranch,
-  FolderGit2,
-  GitCommit,
-  GitPullRequest,
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-  FileCode,
-  Lightbulb,
-} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { MarkdownRenderer } from "./markdown-renderer";
+import { ToolCallCard, type ToolInvocationView } from "./tool-call-card";
 
-import { ToolCallCard } from "./tool-call-card";
-import { MarkdownRenderer } from "@/components/chat/markdown-renderer";
+const REQUEST_WINDOW = 8;
 
-interface ChatUIProps {
-  activeRepo: RepositoryItem | null;
+export interface ChatRepo {
+  owner: string;
+  name: string;
 }
 
-export function ChatUI({ activeRepo }: ChatUIProps) {
-  /*
-   * Initialize AI SDK useChat hook pointing to our /api/chat endpoint
-   */
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    isLoading,
-    stop,
-    append,
-    setMessages,
-  } = useChat({
-    api: "/api/chat",
-    body: {
-      activeRepo: activeRepo
-        ? { owner: activeRepo.owner, name: activeRepo.name }
-        : null,
-    },
-    onError: (err) => {
-      console.error("[ChatUI] useChat error:", err);
-    },
-  });
-
-  /* Auto-scroll container reference */
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  /*
-   * Fetch chat history for the active repository from /api/chat/history
-   */
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const query = activeRepo
-          ? `?owner=${encodeURIComponent(activeRepo.owner)}&name=${encodeURIComponent(activeRepo.name)}`
-          : "";
-        const res = await fetch(`/api/chat/history${query}`);
-        const data = await res.json();
-        if (data.success && Array.isArray(data.messages)) {
-          setMessages(data.messages);
-        }
-      } catch (err) {
-        console.warn("[ChatUI] Note loading history:", err);
-      }
-    };
-
-    fetchHistory();
-  }, [activeRepo?.owner, activeRepo?.name]);
-
-  /* Scroll to bottom when messages update or loading state changes */
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
-
-  /*
-   * Preset starter prompts to help users quickly trigger repository actions
-   */
-  const samplePrompts = activeRepo
+function suggestionsFor(repo: ChatRepo | null) {
+  return repo
     ? [
-        `Review PR #1 in ${activeRepo.fullName}.`,
-        `What are the recent commits in ${activeRepo.fullName}?`,
-        `List all active branches for ${activeRepo.fullName}.`,
-        `Summarize the repository structure and purpose of ${activeRepo.name}.`,
+        "Summarize what this repository does",
+        "What changed in the last 10 commits?",
+        "Which pull requests are open?",
+        "What does the tech stack look like?",
       ]
     : [
-        "List all my connected GitHub repositories.",
-        "What are my recent activities across all repositories?",
-        "Show me recent commits across my projects.",
-        "Help me understand my GitHub project status.",
+        "Which of my repositories were active this week?",
+        "List my private repositories",
+        "Which repos use TypeScript?",
+        "Find repositories with open issues",
       ];
+}
 
-  /*
-   * Helper function to append a sample prompt directly to the chat
-   */
-  const handlePromptClick = (promptText: string) => {
-    append({
-      role: "user",
-      content: promptText,
-    });
-  };
+function MessageBubble({ message }: { message: Message }) {
+  const isUser = message.role === "user";
+  const invocations = (message.toolInvocations ?? []) as ToolInvocationView[];
 
-  /*
-   * Render helper for AI tool invocation steps (e.g. reviewPullRequest, getCommits, getBranches, etc.)
-   */
-  const renderToolInvocations = (toolInvocations: any[]) => {
-    if (!toolInvocations || toolInvocations.length === 0) return null;
-
+  if (isUser) {
     return (
-      <div className='my-2 space-y-2'>
-        <div className='flex items-center gap-1.5 font-medium text-muted-foreground text-xs'>
-          <Wrench className='h-3.5 w-3.5 text-primary' />
-          <span>Executed AI Tools ({toolInvocations.length})</span>
+      <div className='flex justify-end'>
+        <div className='max-w-[85%] whitespace-pre-wrap wrap-break-word rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground'>
+          {message.content}
         </div>
-        {toolInvocations.map((tool, idx) => (
-          <ToolCallCard
-            key={tool.toolCallId || idx}
-            toolName={tool.toolName}
-            args={tool.args}
-            result={tool.result}
-            state={tool.state}
+      </div>
+    );
+  }
+
+  return (
+    <div className='flex gap-3'>
+      <LogoMark className='mt-0.5 size-7 shrink-0' />
+      <div className='min-w-0 flex-1 space-y-3'>
+        {invocations.length > 0 && (
+          <div className='space-y-1.5'>
+            {invocations.map((inv) => (
+              <ToolCallCard key={inv.toolCallId} invocation={inv} />
+            ))}
+          </div>
+        )}
+        {message.content && <MarkdownRenderer content={message.content} />}
+      </div>
+    </div>
+  );
+}
+
+function Thinking() {
+  return (
+    <div className='flex gap-3'>
+      <LogoMark className='size-7 shrink-0' />
+      <div className='flex items-center gap-1 py-2' aria-label='Assistant is thinking'>
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className='size-1.5 animate-pulse rounded-full bg-muted-foreground'
+            style={{ animationDelay: `${i * 150}ms` }}
           />
         ))}
       </div>
-    );
+    </div>
+  );
+}
+
+export function ChatUI({ repo }: { repo: ChatRepo | null }) {
+  const chatId = repo ? `${repo.owner}/${repo.name}` : "general";
+  const repoRef = useRef(repo);
+  useEffect(() => {
+    repoRef.current = repo;
+  }, [repo]);
+
+  const {
+    messages,
+    input,
+    setInput,
+    handleSubmit,
+    append,
+    setMessages,
+    status,
+    stop,
+    error,
+  } = useChat({
+    id: chatId,
+    api: "/api/chat",
+    experimental_prepareRequestBody: ({ messages: all }) => ({
+      activeRepo: repoRef.current,
+      messages: all
+        .slice(-REQUEST_WINDOW)
+        .map(({ role, content }) => ({ role, content })),
+    }),
+  });
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const busy = status === "submitted" || status === "streaming";
+
+  const owner = repo?.owner;
+  const name = repo?.name;
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const historyLoaded = loadedFor === chatId;
+
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const query =
+      owner && name
+        ? `?owner=${encodeURIComponent(owner)}&name=${encodeURIComponent(name)}`
+        : "";
+    fetch(`/api/chat/history${query}`, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { messages?: Message[] };
+        if (messagesRef.current.length === 0 && Array.isArray(data.messages)) {
+          setMessages(data.messages);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadedFor(chatId);
+      });
+    return () => controller.abort();
+  }, [chatId, owner, name, setMessages]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, status]);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }, [input]);
+
+  const submit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!input.trim() || busy || !historyLoaded) return;
+    handleSubmit(e);
   };
 
+  const last = messages.at(-1);
+  const showThinking =
+    busy &&
+    (last?.role === "user" || (!last?.content && !last?.toolInvocations?.length));
+
   return (
-    <div className='flex flex-col h-full w-full bg-background overflow-hidden'>
-      {/* Top Header Status Bar */}
-      <div className='flex items-center justify-between border-b px-4 py-3 bg-muted/20 shrink-0'>
-        <div className='flex items-center gap-2.5'>
-          <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary'>
-            <Bot className='h-4 w-4' />
-          </div>
-          <div>
-            <h2 className='font-semibold text-sm leading-none flex items-center gap-2'>
-              GitHub AI Assistant
-              <Badge variant='outline' className='text-[10px] px-1.5 py-0'>
-                GPT-4o / AI SDK
-              </Badge>
-            </h2>
-            <p className='text-[11px] text-muted-foreground mt-0.5'>
-              {activeRepo ? (
-                <span className='flex items-center gap-1'>
-                  Active context:{" "}
-                  <strong className='text-foreground'>
-                    {activeRepo.fullName}
-                  </strong>
-                </span>
-              ) : (
-                "Scope: All connected repositories"
-              )}
-            </p>
-          </div>
-        </div>
-
-        {activeRepo && (
-          <Badge
-            variant='secondary'
-            className='flex items-center gap-1 text-xs'
-          >
-            <FolderGit2 className='h-3 w-3' />
-            {activeRepo.name}
-          </Badge>
-        )}
-      </div>
-
-      {/* Messages Scroll Area */}
-      <div className='flex-1 overflow-y-auto p-4 space-y-4'>
-        {/* Welcome State when conversation is empty */}
-        {messages.length === 0 && (
-          <div className='max-w-2xl mx-auto py-10 text-center space-y-6'>
-            <div className='inline-flex h-16 w-16 items-center justify-center rounded-3xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shadow-md shadow-indigo-500/10 border border-indigo-200/60 dark:border-indigo-900/40'>
-              <Sparkles className='h-8 w-8' />
+    <div className='flex h-full flex-col'>
+      <div ref={scrollRef} className='flex-1 overflow-y-auto'>
+        <div className='mx-auto w-full max-w-3xl space-y-6 px-4 py-8'>
+          {!historyLoaded && messages.length === 0 ? (
+            <div className='flex justify-center pt-[20vh]'>
+              <LogoMark className='size-8 animate-pulse rounded-lg' />
             </div>
-            <div className='space-y-2'>
-              <h3 className='text-2xl font-bold tracking-tight text-foreground'>
-                {activeRepo
-                  ? `Talk to ${activeRepo.name}`
-                  : "Welcome to TalkToYourGitHub"}
-              </h3>
-              <p className='text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed'>
-                {activeRepo
-                  ? `Ask anything about commits, branches, issues, or code structure in ${activeRepo.fullName}.`
-                  : "Ask questions, review commits, inspect issues, or trigger repository summaries using natural language."}
+          ) : messages.length === 0 ? (
+            <div className='flex flex-col items-center pt-[10vh] text-center'>
+              <LogoMark className='size-10 rounded-xl' />
+              <h2 className='mt-5 text-2xl font-semibold tracking-tight'>
+                {repo ? `Ask about ${repo.name}` : "What would you like to know?"}
+              </h2>
+              <p className='mt-2 max-w-md text-sm text-muted-foreground'>
+                {repo
+                  ? "Commits, pull requests, issues and code, answered from live GitHub data."
+                  : "Ask across all of your repositories, or pick one from the sidebar to focus."}
               </p>
-            </div>
-
-            {/* Quick Action Suggestion Cards */}
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 text-left pt-4'>
-              {samplePrompts.map((prompt, idx) => (
-                <Card
-                  key={idx}
-                  onClick={() => handlePromptClick(prompt)}
-                  className='p-4 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 hover:border-indigo-200 dark:hover:border-indigo-900/50 cursor-pointer transition-all border-border/80 shadow-xs rounded-2xl flex items-start gap-3 group'
-                >
-                  <div className='p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0 group-hover:scale-110 transition-transform'>
-                    <Lightbulb className='h-4 w-4' />
-                  </div>
-                  <span className='text-xs text-muted-foreground group-hover:text-foreground font-semibold leading-snug'>
-                    {prompt}
-                  </span>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Rendered Messages */}
-        {messages.map((message: any) => {
-          const isUser = message.role === "user";
-          return (
-            <div
-              key={message.id}
-              className={`flex items-start gap-3 max-w-3xl ${
-                isUser ? "ml-auto flex-row-reverse" : "mr-auto"
-              }`}
-            >
-              {/* Message Avatar */}
-              <Avatar className='h-8 w-8 shrink-0 mt-0.5 border shadow-xs'>
-                <AvatarFallback
-                  className={
-                    isUser
-                      ? "bg-indigo-600 text-white text-xs font-bold"
-                      : "bg-muted text-foreground text-xs"
-                  }
-                >
-                  {isUser ? (
-                    <User className='h-4 w-4' />
-                  ) : (
-                    <Bot className='h-4 w-4' />
-                  )}
-                </AvatarFallback>
-              </Avatar>
-
-              {/* Message Content Bubble */}
-              <div className='space-y-1 max-w-[85%]'>
-                {message.content ? (
-                  <div
-                    className={`rounded-2xl px-4 py-3 text-sm shadow-xs leading-relaxed ${
-                      isUser
-                        ? "bg-indigo-600 text-white rounded-tr-xs font-medium"
-                        : "bg-card text-foreground border rounded-tl-xs"
-                    }`}
+              <div className='mt-8 grid w-full gap-2 sm:grid-cols-2'>
+                {suggestionsFor(repo).map((text) => (
+                  <button
+                    key={text}
+                    type='button'
+                    onClick={() => append({ role: "user", content: text })}
+                    className='rounded-xl border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground'
                   >
-                    {isUser ? (
-                      <div className='whitespace-pre-wrap break-words'>
-                        {message.content}
-                      </div>
-                    ) : (
-                      <MarkdownRenderer content={message.content} />
-                    )}
-                  </div>
-                ) : isUser ? (
-                  <div className='rounded-2xl px-4 py-3 text-sm bg-indigo-600 text-white rounded-tr-xs'>
-                    {message.content}
-                  </div>
-                ) : !(message as any).toolInvocations?.length ? (
-                  <div className='rounded-2xl px-4 py-3 text-sm bg-card text-muted-foreground border rounded-tl-xs flex items-center gap-2.5'>
-                    <Loader2 className='h-4 w-4 animate-spin text-indigo-600' />
-                    <span>Analyzing repository & fetching context...</span>
-                  </div>
-                ) : null}
-
-                {/* Render Tool Invocations if Assistant executed tools */}
-                {!isUser &&
-                  renderToolInvocations((message as any).toolInvocations)}
+                    {text}
+                  </button>
+                ))}
               </div>
             </div>
-          );
-        })}
-
-        {/* Loading Indicator when streaming */}
-        {isLoading && (
-          <div className='flex items-center gap-3 text-xs text-muted-foreground max-w-3xl mr-auto pt-1'>
-            <Avatar className='h-8 w-8 shrink-0 border'>
-              <AvatarFallback className='bg-muted text-foreground text-xs'>
-                <Bot className='h-4 w-4' />
-              </AvatarFallback>
-            </Avatar>
-            <div className='flex items-center gap-2.5 rounded-2xl bg-card px-4 py-2.5 border shadow-xs'>
-              <Loader2 className='h-4 w-4 animate-spin text-indigo-600' />
-              <span>Thinking and fetching GitHub data...</span>
-            </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
+          ) : (
+            messages.map((message) => (
+              <MessageBubble key={message.id} message={message} />
+            ))
+          )}
+          {showThinking && <Thinking />}
+          {error && (
+            <p className='rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive'>
+              Something went wrong. Please try again.
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Message Input Bar */}
-      <div className='p-4 border-t bg-background shrink-0'>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!input.trim()) return;
-            handleSubmit(e);
-          }}
-          className='flex items-center gap-3 max-w-4xl mx-auto'
-        >
-          <Input
-            value={input}
-            onChange={handleInputChange}
-            placeholder={
-              activeRepo
-                ? `Ask about ${activeRepo.name} (e.g. commits, issues, branches)...`
-                : "Ask about your GitHub repositories..."
-            }
-            className='flex-1 h-11 text-sm bg-muted/30 border-border/80 focus-visible:ring-indigo-500 rounded-full px-5'
-          />
-
-          {isLoading ? (
-            <Button
-              type='button'
-              onClick={() => stop()}
-              variant='outline'
-              size='icon'
-              className='h-11 w-11 rounded-full text-destructive border-destructive/40 hover:bg-destructive/10 shrink-0'
-              title='Stop response'
-            >
-              <Square className='h-4 w-4 fill-current' />
-            </Button>
-          ) : (
-            <Button
-              type='submit'
-              disabled={!input.trim()}
-              size='icon'
-              className='h-11 w-11 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/25 shrink-0 transition-all hover:scale-105'
-              title='Send message'
-            >
-              <Send className='h-4 w-4' />
-            </Button>
-          )}
+      <div className='border-t bg-background/80 backdrop-blur'>
+        <form onSubmit={submit} className='mx-auto w-full max-w-3xl px-4 py-4'>
+          <div className='flex items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm transition-colors focus-within:border-foreground/25'>
+            <textarea
+              ref={inputRef}
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
+              placeholder={repo ? `Ask about ${repo.owner}/${repo.name}…` : "Ask about your repositories…"}
+              aria-label='Message'
+              className='max-h-50 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground'
+            />
+            {busy ? (
+              <Button type='button' size='icon' variant='secondary' onClick={stop} aria-label='Stop'>
+                <Square className='size-3.5 fill-current' />
+              </Button>
+            ) : (
+              <Button
+                type='submit'
+                size='icon'
+                disabled={!input.trim()}
+                aria-label='Send'
+                className={cn("rounded-xl", input.trim() && "shadow-button")}
+              >
+                <ArrowUp className='size-4' />
+              </Button>
+            )}
+          </div>
+          <p className='mt-2 text-center text-[11px] text-muted-foreground'>
+            Enter to send · Shift + Enter for a new line
+          </p>
         </form>
-        <p className='text-[10px] text-center text-muted-foreground mt-2 font-normal'>
-          TalkToYourGitHub executes read and write operations via live GitHub
-          API & Corsair sync layer.
-        </p>
       </div>
     </div>
   );
