@@ -44,6 +44,8 @@ async function main() {
       data: {
         userId,
         corsairTenantId: tenantId,
+        repositoryOwner: "",
+        repositoryName: "",
       },
     });
     console.log("✅ Inngest event sent successfully:", sendResult);
