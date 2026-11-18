@@ -44,8 +44,7 @@ export default function RootLayout({
       <body className='min-h-svh'>
         <ThemeProvider
           attribute='class'
-          defaultTheme='dark'
-          enableSystem
+          defaultTheme='light'
           disableTransitionOnChange
         >
           {children}
