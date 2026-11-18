@@ -1,6 +1,11 @@
-import { getCorsairTenantClient, ToolContextOptions } from "./helper";
+import {
+  githubPost,
+  repoPath,
+  toErrorMessage,
+  type GithubAuthContext,
+} from "@/lib/github/client";
 
-export interface CreateIssueOptions extends ToolContextOptions {
+export interface CreateIssueOptions extends GithubAuthContext {
   owner: string;
   repo: string;
   title: string;
@@ -9,80 +14,43 @@ export interface CreateIssueOptions extends ToolContextOptions {
   assignees?: string[];
 }
 
-export async function createIssue(options: CreateIssueOptions) {
-  if (!options.owner || !options.repo || !options.title) {
-    throw new Error(
-      "Parameters 'owner', 'repo', and 'title' are required to create an issue.",
-    );
-  }
+interface RawCreatedIssue {
+  number: number;
+  title: string;
+  state: string;
+  html_url: string;
+}
 
-  const { tenant } = await getCorsairTenantClient(options);
-  const targetFullName = `${options.owner}/${options.repo}`;
-
+export async function createIssue({
+  owner,
+  repo,
+  title,
+  body,
+  labels,
+  assignees,
+  ...ctx
+}: CreateIssueOptions) {
   try {
-    const issue = await (tenant as any).github?.api?.issues?.create({
-      owner: options.owner,
-      repo: options.repo,
-      title: options.title,
-      body: options.body,
-      labels: options.labels,
-      assignees: options.assignees,
-    });
-
-    if (issue) {
-      const publicUrl =
-        issue.htmlUrl ||
-        `https://github.com/${options.owner}/${options.repo}/issues/${issue.number}`;
-
-      return {
-        success: true,
-        action: "created_issue",
-        owner: options.owner,
-        repo: options.repo,
-        issue: {
-          id: issue.id,
-          number: issue.number,
-          title: issue.title,
-          body: issue.body ?? null,
-          state: issue.state,
-          htmlUrl: issue.htmlUrl ?? null,
-          publicUrl,
-          createdAt: issue.createdAt ?? null,
-        },
-      };
-    }
-  } catch (apiErr: unknown) {
-    const errMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
-    const isRateLimited =
-      errMsg.toLowerCase().includes("rate limit") ||
-      errMsg.includes("403") ||
-      errMsg.includes("429");
-
-    console.warn(
-      `[createIssue] Live API write call note for ${targetFullName}:`,
-      errMsg,
-      isRateLimited ? "(Rate Limit / Secondary Limit Detected)" : "",
+    const issue = await githubPost<RawCreatedIssue>(
+      ctx,
+      repoPath(owner, repo, "/issues"),
+      {
+        title,
+        body: body || undefined,
+        labels: labels?.length ? labels : undefined,
+        assignees: assignees?.length ? assignees : undefined,
+      },
     );
-
     return {
-      success: false,
-      owner: options.owner,
-      repo: options.repo,
-      title: options.title,
-      isRateLimited,
-      error: isRateLimited
-        ? `GitHub API secondary/write rate limit reached while creating issue on '${targetFullName}'.`
-        : `Could not create issue on '${targetFullName}': ${errMsg}`,
-      issue: null,
+      success: true as const,
+      issue: {
+        number: issue.number,
+        title: issue.title,
+        state: issue.state,
+        url: issue.html_url,
+      },
     };
+  } catch (error) {
+    return { success: false as const, error: toErrorMessage(error) };
   }
-
-  return {
-    success: false,
-    owner: options.owner,
-    repo: options.repo,
-    title: options.title,
-    error: `Failed to create issue on '${targetFullName}' via Live API.`,
-    issue: null,
-  };
 }
