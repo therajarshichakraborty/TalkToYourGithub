@@ -72,14 +72,19 @@ export function RepositoryTable({
 
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
-  const visible = rows.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+  const visible = rows.slice(
+    currentPage * PAGE_SIZE,
+    (currentPage + 1) * PAGE_SIZE,
+  );
   const from = rows.length ? currentPage * PAGE_SIZE + 1 : 0;
   const to = Math.min((currentPage + 1) * PAGE_SIZE, rows.length);
 
-  const resetPage = <T,>(setter: (v: T) => void) => (value: T) => {
-    setter(value);
-    setPage(0);
-  };
+  const resetPage =
+    <T,>(setter: (v: T) => void) =>
+    (value: T) => {
+      setter(value);
+      setPage(0);
+    };
 
   return (
     <section className='rounded-xl border bg-card'>
@@ -87,7 +92,9 @@ export function RepositoryTable({
         <div>
           <h2 className='text-sm font-medium'>All repositories</h2>
           <p className='text-xs text-muted-foreground'>
-            {isLoading ? "Loading…" : `${rows.length} of ${repositories.length} shown`}
+            {isLoading
+              ? "Loading…"
+              : `${rows.length} of ${repositories.length} shown`}
           </p>
         </div>
         <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
@@ -106,17 +113,30 @@ export function RepositoryTable({
             variant='outline'
             size='sm'
             value={visibility}
-            onValueChange={(v) => v && resetPage(setVisibility)(v as Visibility)}
+            onValueChange={(v) =>
+              v && resetPage(setVisibility)(v as Visibility)
+            }
             aria-label='Filter by visibility'
           >
             {(["all", "public", "private", "forks"] as const).map((v) => (
-              <ToggleGroupItem key={v} value={v} className='px-3 text-xs capitalize'>
+              <ToggleGroupItem
+                key={v}
+                value={v}
+                className='px-3 text-xs capitalize'
+              >
                 {v}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          <Select value={sort} onValueChange={(v) => resetPage(setSort)(v as SortKey)}>
-            <SelectTrigger size='sm' className='w-full text-xs sm:w-40' aria-label='Sort'>
+          <Select
+            value={sort}
+            onValueChange={(v) => resetPage(setSort)(v as SortKey)}
+          >
+            <SelectTrigger
+              size='sm'
+              className='w-full text-xs sm:w-40'
+              aria-label='Sort'
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -133,12 +153,19 @@ export function RepositoryTable({
           <thead>
             <tr className='border-b text-left text-xs text-muted-foreground'>
               <th className='px-5 py-2.5 font-medium'>Repository</th>
-              <th className='hidden px-3 py-2.5 font-medium md:table-cell'>Language</th>
-              <th className='hidden px-3 py-2.5 text-right font-medium sm:table-cell'>Stars</th>
+              <th className='hidden px-3 py-2.5 font-medium md:table-cell'>
+                Language
+              </th>
+              <th className='hidden px-3 py-2.5 text-right font-medium sm:table-cell'>
+                Stars
+              </th>
               <th className='px-5 py-2.5 text-right font-medium'>Last push</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody
+            key={`${currentPage}-${visibility}-${sort}`}
+            className='animate-in fade-in duration-300'
+          >
             {isLoading &&
               Array.from({ length: 6 }, (_, i) => (
                 <tr key={i} className='border-b last:border-0'>
@@ -150,7 +177,10 @@ export function RepositoryTable({
 
             {!isLoading && visible.length === 0 && (
               <tr>
-                <td colSpan={4} className='px-5 py-12 text-center text-sm text-muted-foreground'>
+                <td
+                  colSpan={4}
+                  className='px-5 py-12 text-center text-sm text-muted-foreground'
+                >
                   No repositories match these filters.
                 </td>
               </tr>
@@ -169,10 +199,17 @@ export function RepositoryTable({
                   >
                     <td className='max-w-0 px-5 py-3'>
                       <div className='flex items-center gap-2'>
-                        <span className='truncate font-medium'>{repo.name}</span>
-                        {repo.isPrivate && <Lock className='size-3 shrink-0 text-muted-foreground' />}
+                        <span className='truncate font-medium'>
+                          {repo.name}
+                        </span>
+                        {repo.isPrivate && (
+                          <Lock className='size-3 shrink-0 text-muted-foreground' />
+                        )}
                         {repo.isArchived && (
-                          <Badge variant='outline' className='h-4 px-1.5 text-[10px]'>
+                          <Badge
+                            variant='outline'
+                            className='h-4 px-1.5 text-[10px]'
+                          >
                             Archived
                           </Badge>
                         )}
