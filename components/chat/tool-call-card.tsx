@@ -69,7 +69,9 @@ function DraftIssue({ draft }: { draft: IssueDraft }) {
       toast.success(`Issue #${data.issue.number} created`);
     } catch (error) {
       setState("idle");
-      toast.error(error instanceof Error ? error.message : "Could not create the issue.");
+      toast.error(
+        error instanceof Error ? error.message : "Could not create the issue.",
+      );
     }
   };
 
@@ -80,7 +82,9 @@ function DraftIssue({ draft }: { draft: IssueDraft }) {
       </p>
       <p className='text-sm font-medium'>{draft.title}</p>
       {draft.body && (
-        <p className='whitespace-pre-wrap leading-relaxed text-muted-foreground'>{draft.body}</p>
+        <p className='whitespace-pre-wrap leading-relaxed text-muted-foreground'>
+          {draft.body}
+        </p>
       )}
       {draft.labels.length > 0 && (
         <div className='flex flex-wrap gap-1'>
@@ -102,7 +106,12 @@ function DraftIssue({ draft }: { draft: IssueDraft }) {
           <ExternalLink className='size-3' />
         </a>
       ) : (
-        <Button size='sm' onClick={create} disabled={state === "pending"} className='h-7 text-xs'>
+        <Button
+          size='sm'
+          onClick={create}
+          disabled={state === "pending"}
+          className='h-7 text-xs'
+        >
           {state === "pending" && <Loader2 className='animate-spin' />}
           Create issue
         </Button>
@@ -111,7 +120,10 @@ function DraftIssue({ draft }: { draft: IssueDraft }) {
   );
 }
 
-type AnyResult = Record<string, unknown> & { success?: boolean; error?: string };
+type AnyResult = Record<string, unknown> & {
+  success?: boolean;
+  error?: string;
+};
 
 function list<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
@@ -153,7 +165,9 @@ function renderResult(name: string, result: AnyResult): React.ReactNode {
     case "getIssues":
       return list<Issue>(result.issues).map((issue) => (
         <Row key={issue.number} href={issue.url}>
-          <span className='font-mono text-muted-foreground'>#{issue.number}</span>
+          <span className='font-mono text-muted-foreground'>
+            #{issue.number}
+          </span>
           <span className='truncate'>{issue.title}</span>
         </Row>
       ));
@@ -161,19 +175,26 @@ function renderResult(name: string, result: AnyResult): React.ReactNode {
       return (
         <div className='flex flex-wrap gap-1.5 p-3'>
           {list<string>(result.branches).map((b) => (
-            <span key={String(b)} className='rounded border bg-background px-1.5 py-0.5 font-mono text-[11px]'>
+            <span
+              key={String(b)}
+              className='rounded border bg-background px-1.5 py-0.5 font-mono text-[11px]'
+            >
               {String(b)}
             </span>
           ))}
         </div>
       );
     case "getRepositories":
-      return list<{ repo: string; lang: string | null }>(result.repos).map((r) => (
-        <Row key={r.repo}>
-          <span className='truncate'>{r.repo}</span>
-          <span className='ml-auto font-mono text-muted-foreground'>{r.lang ?? ""}</span>
-        </Row>
-      ));
+      return list<{ repo: string; lang: string | null }>(result.repos).map(
+        (r) => (
+          <Row key={r.repo}>
+            <span className='truncate'>{r.repo}</span>
+            <span className='ml-auto font-mono text-muted-foreground'>
+              {r.lang ?? ""}
+            </span>
+          </Row>
+        ),
+      );
     case "getFileContent":
       if (result.type === "directory") {
         return list<DirectoryEntry>(result.items).map((item) => (
@@ -202,12 +223,13 @@ function renderResult(name: string, result: AnyResult): React.ReactNode {
     }
     case "createIssue": {
       const issue = result.issue as
-        | { number: number; title: string; url?: string }
-        | undefined;
+        { number: number; title: string; url?: string } | undefined;
       if (!issue) return null;
       return (
         <Row href={issue.url}>
-          <span className='font-mono text-muted-foreground'>#{issue.number}</span>
+          <span className='font-mono text-muted-foreground'>
+            #{issue.number}
+          </span>
           <span className='truncate'>{issue.title}</span>
         </Row>
       );
@@ -242,13 +264,18 @@ function renderResult(name: string, result: AnyResult): React.ReactNode {
   }
 }
 
-export function ToolCallCard({ invocation }: { invocation: ToolInvocationView }) {
+export function ToolCallCard({
+  invocation,
+}: {
+  invocation: ToolInvocationView;
+}) {
   const expandedByDefault = ["reviewPullRequest", "draftIssue"].includes(
     invocation.toolName,
   );
   const [open, setOpen] = useState(expandedByDefault);
   const done = invocation.state === "result";
-  const result = (done ? invocation.result : undefined) as AnyResult | undefined;
+  const result = (done ? invocation.result : undefined) as
+    AnyResult | undefined;
   const failed = result?.success === false;
   const label = LABELS[invocation.toolName] ?? invocation.toolName;
   const rendered = result ? renderResult(invocation.toolName, result) : null;
@@ -273,12 +300,17 @@ export function ToolCallCard({ invocation }: { invocation: ToolInvocationView })
         <span className='font-medium'>{label}</span>
         {done && body && (
           <ChevronRight
-            className={cn("ml-auto size-3.5 transition-transform", open && "rotate-90")}
+            className={cn(
+              "ml-auto size-3.5 transition-transform",
+              open && "rotate-90",
+            )}
           />
         )}
       </button>
       {open && body && (
-        <div className='max-h-72 overflow-y-auto border-t bg-background'>{body}</div>
+        <div className='max-h-72 animate-in fade-in slide-in-from-top-1 overflow-y-auto border-t bg-background duration-200'>
+          {body}
+        </div>
       )}
     </div>
   );
