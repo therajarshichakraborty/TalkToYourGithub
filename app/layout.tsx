@@ -1,27 +1,57 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const pacifico = Inter({
-  weight: "400",
+const geistSans = Geist({
   subsets: ["latin"],
-  variable: "--Inter",
+  variable: "--font-geist-sans",
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Talk To Your GitHub",
-  description: "An AI-powered web app to talk to your GitHub repositories.",
+  title: {
+    default: "Talk to your GitHub",
+    template: "%s · Talk to your GitHub",
+  },
+  description:
+    "Ask your GitHub repositories anything. Commits, pull requests, issues and code, answered in plain language.",
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fcfcfc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0e0e" },
+  ],
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang='en' className={`${pacifico.variable} h-full antialiased`}>
-      <body className='min-h-full flex flex-col font-sans'>{children}</body>
+    <html
+      lang='en'
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable}`}
+    >
+      <body className='min-h-svh'>
+        <ThemeProvider
+          attribute='class'
+          defaultTheme='dark'
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster position='bottom-right' />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
