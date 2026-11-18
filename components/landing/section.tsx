@@ -1,3 +1,4 @@
+import { Reveal } from "@/components/motion/reveal";
 import { cn } from "@/lib/utils";
 
 export function Section({
@@ -12,7 +13,10 @@ export function Section({
   return (
     <section
       id={id}
-      className={cn("relative mx-auto w-full max-w-6xl px-6 py-24 md:py-32", className)}
+      className={cn(
+        "dotted-t scroll-mt-28 px-6 py-20 md:px-14 md:py-28",
+        className,
+      )}
     >
       {children}
     </section>
@@ -31,16 +35,17 @@ export function SectionHeading({
   align?: "center" | "left";
 }) {
   return (
-    <div
+    <Reveal
       className={cn(
         "mb-14 flex max-w-2xl flex-col gap-4",
         align === "center" && "mx-auto items-center text-center",
       )}
     >
-      <span className='font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground'>
+      <span className='inline-flex items-center gap-2 text-sm font-medium text-brand'>
+        <span className='size-1.5 rounded-full bg-brand' />
         {eyebrow}
       </span>
-      <h2 className='text-balance text-3xl font-semibold tracking-tight md:text-5xl'>
+      <h2 className='text-balance text-3xl font-semibold tracking-tight md:text-[2.75rem] md:leading-[1.1]'>
         {title}
       </h2>
       {description && (
@@ -48,6 +53,6 @@ export function SectionHeading({
           {description}
         </p>
       )}
-    </div>
+    </Reveal>
   );
 }
