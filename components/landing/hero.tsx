@@ -1,54 +1,82 @@
+import {
+  CircleDot,
+  FolderGit2,
+  GitCommitHorizontal,
+  GitPullRequest,
+} from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Entrance } from "@/components/motion/entrance";
+import { RevealGroup, RevealItem } from "@/components/motion/reveal";
 import { PrimaryCta } from "./primary-cta";
-import { ProductPreview } from "./product-preview";
+import { MountainBackdrop } from "./mountain-backdrop";
+
+const CAPABILITIES = [
+  { icon: FolderGit2, title: "Repositories", detail: "Every one you own" },
+  { icon: GitPullRequest, title: "Pull requests", detail: "Reviewed by AI" },
+  { icon: CircleDot, title: "Issues", detail: "Drafted & triaged" },
+  { icon: GitCommitHorizontal, title: "Commits", detail: "Explained simply" },
+];
 
 export function Hero({ isSignedIn }: { isSignedIn: boolean }) {
   return (
-    <section className='relative overflow-hidden'>
-      <div className='bg-grid mask-radial pointer-events-none absolute inset-0 -top-16' />
-      <div className='pointer-events-none absolute left-1/2 top-0 h-120 w-225 -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,var(--color-brand),transparent)] opacity-[0.12]' />
+    <section className='relative -mt-23 overflow-hidden px-6 pb-20 pt-48 md:pb-24 md:pt-56'>
+      <MountainBackdrop priority className='h-140' />
 
-      <div className='relative mx-auto flex max-w-6xl flex-col items-center px-6 pb-20 pt-20 text-center md:pt-28'>
-        <Link
-          href='#workflow'
-          className='group mb-8 inline-flex items-center gap-2 rounded-full border bg-background/60 py-1 pl-1 pr-3 text-xs text-muted-foreground backdrop-blur transition-colors hover:text-foreground'
+      <div className='relative mx-auto flex max-w-3xl flex-col items-center text-center'>
+        <Entrance>
+          <h1 className='text-balance text-[2.6rem] font-bold leading-[1.16] tracking-[-0.035em] text-foreground md:text-[4rem]'>
+            Ask your GitHub anything.
+            <br />
+            <span className='highlight'>Get answers</span> in seconds.
+          </h1>
+        </Entrance>
+
+        <Entrance delay={150}>
+          <p className='mt-7 max-w-xl text-pretty text-lg leading-relaxed text-foreground/70'>
+            Talk to your GitHub reads your repositories, commits, pull requests
+            and issues, then answers in plain English with facts you can verify.
+          </p>
+        </Entrance>
+
+        <Entrance
+          delay={300}
+          className='mt-10 flex flex-col items-center gap-3 sm:flex-row'
         >
-          <span className='rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground'>
-            New
-          </span>
-          AI pull request reviews, built in
-          <span className='transition-transform group-hover:translate-x-0.5'>→</span>
-        </Link>
-
-        <h1 className='text-gradient text-balance max-w-4xl text-5xl font-semibold leading-[1.05] tracking-tighter md:text-7xl'>
-          Talk to your GitHub like you talk to your team.
-        </h1>
-
-        <p className='text-balance mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg'>
-          Ask about commits, pull requests, issues and code across every
-          repository you own. Precise answers grounded in live GitHub data,
-          never guesses.
-        </p>
-
-        <div className='mt-10 flex flex-col items-center gap-3 sm:flex-row'>
           <PrimaryCta isSignedIn={isSignedIn} />
-          <Button
-            asChild
-            variant='ghost'
-            className='h-11 rounded-full px-6 text-sm text-muted-foreground hover:text-foreground'
-          >
-            <Link href='#features'>Explore the product</Link>
-          </Button>
-        </div>
+          <Link href='#product' className='btn-plain h-12 px-5 text-base'>
+            See it in action
+          </Link>
+        </Entrance>
+      </div>
 
-        <p className='mt-5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground/80'>
-          GitHub sign-in only · Your token, your data
+      <div className='relative mx-auto mt-24 max-w-4xl text-center'>
+        <p className='text-[15px] font-medium leading-snug text-foreground'>
+          Everything your repositories
+          <br />
+          already know
         </p>
-
-        <div className='mt-20 w-full'>
-          <ProductPreview />
-        </div>
+        <RevealGroup
+          as='ul'
+          className='mt-7 grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-4'
+        >
+          {CAPABILITIES.map(({ icon: Icon, title, detail }) => (
+            <RevealItem
+              as='li'
+              key={title}
+              className='group flex cursor-default items-center justify-center gap-3 md:justify-start'
+            >
+              <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-card shadow-card transition-all duration-300 group-hover:-translate-y-0.5 group-hover:bg-brand group-hover:text-brand-foreground'>
+                <Icon className='size-4.5' />
+              </span>
+              <span className='text-left leading-tight'>
+                <span className='block text-[15px] font-medium'>{title}</span>
+                <span className='block text-sm text-muted-foreground'>
+                  {detail}
+                </span>
+              </span>
+            </RevealItem>
+          ))}
+        </RevealGroup>
       </div>
     </section>
   );
