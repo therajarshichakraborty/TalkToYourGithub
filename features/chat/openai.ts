@@ -7,8 +7,8 @@ const openrouterKey = process.env.OPENROUTER_API_KEY;
 const isOpenRouterKey = (key?: string) =>
   Boolean(key && key.startsWith("sk-or-"));
 
-let apiKey = openaiKey || openrouterKey;
-let isOpenRouter =
+const apiKey = openaiKey || openrouterKey;
+const isOpenRouter =
   isOpenRouterKey(apiKey) || Boolean(openrouterKey && !openaiKey);
 
 if (!apiKey) {
@@ -55,28 +55,8 @@ export const embeddingModel = aiProvider.textEmbeddingModel(
 );
 
 /**
- * Deterministic vector generator for emergency fallback
- */
-function createDeterministicVector(str: string, dimensions = 1536): number[] {
-  const vec: number[] = new Array(dimensions).fill(0);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  for (let d = 0; d < dimensions; d++) {
-    const seed = Math.sin(hash + d * 0.1) * 10000;
-    vec[d] = seed - Math.floor(seed);
-  }
-  // Normalize vector
-  const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
-  return norm > 0 ? vec.map((v) => v / norm) : vec;
-}
-
-/**
- * Resilient multi-provider embedding generation.
- * Tries direct embeddingModel, falls back to OpenRouter API endpoint if configured,
- * and falls back to deterministic vector generation if AI services hit quota/auth errors.
+ * Embeds values with the primary provider, falling back to OpenRouter when configured.
+ * Throws when no provider succeeds so callers never persist meaningless vectors.
  */
 export async function generateResilientEmbeddings(
   values: string[],
@@ -129,9 +109,5 @@ export async function generateResilientEmbeddings(
     }
   }
 
-  // Fallback: Generate high-density deterministic normalized vectors so pipeline never fails
-  console.warn(
-    "[generateResilientEmbeddings] AI embedding API key quota exceeded or unavailable. Using resilient deterministic vector generator.",
-  );
-  return values.map((val) => createDeterministicVector(val, 1536));
+  throw new Error("No embedding provider is available.");
 }
