@@ -1,16 +1,20 @@
 import { z } from "zod";
 
-// Polyfill ZodObject.prototype.loose for compatibility with @corsair-dev/github (which expects Zod v4 .loose())
-if (typeof (z.ZodObject.prototype as any).loose !== "function") {
-  (z.ZodObject.prototype as any).loose = function () {
-    return this.passthrough();
+interface Loosenable {
+  loose?: () => unknown;
+  passthrough?: () => unknown;
+}
+
+const objectProto = z.ZodObject.prototype as unknown as Loosenable;
+if (typeof objectProto.loose !== "function") {
+  objectProto.loose = function (this: Loosenable) {
+    return this.passthrough?.();
   };
 }
 
-if (typeof (z.ZodType.prototype as any).loose !== "function") {
-  (z.ZodType.prototype as any).loose = function () {
-    return typeof (this as any).passthrough === "function"
-      ? (this as any).passthrough()
-      : this;
+const typeProto = z.ZodType.prototype as unknown as Loosenable;
+if (typeof typeProto.loose !== "function") {
+  typeProto.loose = function (this: Loosenable) {
+    return typeof this.passthrough === "function" ? this.passthrough() : this;
   };
 }
