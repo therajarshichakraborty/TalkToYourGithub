@@ -1,546 +1,333 @@
-/*
- * Component: MarkdownRenderer
- * Description: Robust Markdown parser for rendering AI assistant response text in ChatUI.
- * Converts markdown links, tables, lists, and code blocks (with syntax highlighting & copy support) into styled shadcn UI components.
- */
-
 "use client";
 
-import React, { useState } from "react";
-import {
-  ExternalLink,
-  FileCode,
-  Folder,
-  GitBranch,
-  ArrowUpRight,
-  Copy,
-  Check,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Check, Copy } from "lucide-react";
+import { Fragment, useState } from "react";
+import { cn } from "@/lib/utils";
 
-interface MarkdownRendererProps {
-  content: string;
+type Block =
+  | { kind: "code"; lang: string; code: string }
+  | { kind: "table"; rows: string[][] }
+  | { kind: "heading"; level: number; text: string }
+  | { kind: "list"; ordered: boolean; items: string[] }
+  | { kind: "quote"; text: string }
+  | { kind: "rule" }
+  | { kind: "paragraph"; text: string };
+
+const isTableRow = (line: string) => /^\s*\|.*\|\s*$/.test(line);
+const isSeparatorRow = (line: string) => /^\s*\|?[\s:|-]+\|?\s*$/.test(line) && line.includes("-");
+const LIST_ITEM = /^\s*(?:[-*+]|(\d+)[.)])\s+(.*)$/;
+
+function sanitize(markdown: string) {
+  return markdown
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/<\/?[a-zA-Z][^>]*>/g, "");
 }
 
-interface Block {
-  type: "code" | "table" | "text";
-  language?: string;
-  code?: string;
-  lines: string[];
+function splitRow(line: string) {
+  return line.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
 }
 
-export function MarkdownRenderer({ content }: MarkdownRendererProps) {
-  if (!content) return null;
-
-  const blocks = parseMarkdownBlocks(content);
-
-  return (
-    <div className='space-y-3 text-sm leading-relaxed text-foreground'>
-      {blocks.map((block, bIdx) => {
-        if (block.type === "code" && block.code !== undefined) {
-          return (
-            <CodeBlock key={bIdx} code={block.code} language={block.language} />
-          );
-        }
-        if (block.type === "table") {
-          return <ParsedTable key={bIdx} lines={block.lines} />;
-        }
-        return <ParsedTextBlock key={bIdx} text={block.lines.join("\n")} />;
-      })}
-    </div>
-  );
-}
-
-/**
- * Parses raw Markdown content into structured blocks (code blocks, tables, text)
- */
-function parseMarkdownBlocks(content: string): Block[] {
-  const lines = content.split("\n");
+function parse(markdown: string): Block[] {
+  const lines = sanitize(markdown).split("\n");
   const blocks: Block[] = [];
-
   let i = 0;
+
   while (i < lines.length) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // 1. Code block detection (fenced with ```)
-    if (trimmed.startsWith("```")) {
-      const language = trimmed.slice(3).trim();
-      const codeLines: string[] = [];
+    if (!trimmed) {
       i++;
-      while (i < lines.length && !lines[i].trim().startsWith("```")) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      if (i < lines.length && lines[i].trim().startsWith("```")) {
-        i++; // Consume closing ```
-      }
-      blocks.push({
-        type: "code",
-        language: language || "text",
-        code: codeLines.join("\n"),
-        lines: codeLines,
-      });
       continue;
     }
 
-    // 2. Table detection (| ... |)
-    if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
-      const tableLines: string[] = [];
-      while (
-        i < lines.length &&
-        lines[i].trim().startsWith("|") &&
-        lines[i].trim().endsWith("|")
-      ) {
-        tableLines.push(lines[i]);
-        i++;
-      }
-      blocks.push({
-        type: "table",
-        lines: tableLines,
-      });
+    if (trimmed.startsWith("```")) {
+      const lang = trimmed.slice(3).trim();
+      const code: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) code.push(lines[i++]);
+      i++;
+      blocks.push({ kind: "code", lang, code: code.join("\n") });
       continue;
     }
 
-    // 3. Normal text block
-    const textLines: string[] = [];
+    if (isTableRow(line) && i + 1 < lines.length && isSeparatorRow(lines[i + 1])) {
+      const rows = [splitRow(line)];
+      i += 2;
+      while (i < lines.length && isTableRow(lines[i])) rows.push(splitRow(lines[i++]));
+      blocks.push({ kind: "table", rows });
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) {
+      blocks.push({ kind: "heading", level: heading[1].length, text: heading[2] });
+      i++;
+      continue;
+    }
+
+    if (/^([-*_])\1{2,}$/.test(trimmed)) {
+      blocks.push({ kind: "rule" });
+      i++;
+      continue;
+    }
+
+    if (trimmed.startsWith(">")) {
+      const quote: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith(">")) {
+        quote.push(lines[i++].trim().replace(/^>\s?/, ""));
+      }
+      blocks.push({ kind: "quote", text: quote.join(" ") });
+      continue;
+    }
+
+    const listMatch = line.match(LIST_ITEM);
+    if (listMatch) {
+      const ordered = Boolean(listMatch[1]);
+      const items: string[] = [];
+      while (i < lines.length) {
+        const m = lines[i].match(LIST_ITEM);
+        if (m && Boolean(m[1]) === ordered) {
+          items.push(m[2]);
+          i++;
+        } else if (lines[i].trim() && /^\s{2,}/.test(lines[i]) && items.length) {
+          items[items.length - 1] += ` ${lines[i++].trim()}`;
+        } else break;
+      }
+      blocks.push({ kind: "list", ordered, items });
+      continue;
+    }
+
+    const paragraph: string[] = [];
     while (
       i < lines.length &&
+      lines[i].trim() &&
       !lines[i].trim().startsWith("```") &&
-      !(lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|"))
+      !/^#{1,6}\s/.test(lines[i].trim()) &&
+      !LIST_ITEM.test(lines[i]) &&
+      !(isTableRow(lines[i]) && isSeparatorRow(lines[i + 1] ?? ""))
     ) {
-      textLines.push(lines[i]);
-      i++;
+      paragraph.push(lines[i++].trim());
     }
-    if (textLines.length > 0) {
-      blocks.push({
-        type: "text",
-        lines: textLines,
-      });
-    }
+    if (paragraph.length) blocks.push({ kind: "paragraph", text: paragraph.join(" ") });
+    else i++;
   }
 
   return blocks;
 }
 
-/**
- * Sleek Code Block Component with Copy-to-Clipboard & Syntax Highlighting
- */
-function CodeBlock({ code, language }: { code: string; language?: string }) {
+function safeHref(url: string) {
+  return /^(https?:\/\/|mailto:|\/(?![/\\])|#)/i.test(url) ? url : undefined;
+}
+
+const INLINE = /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*\s][^*]*\*|_[^_\s][^_]*_|\[[^\]]+\]\([^)\s]+\))/g;
+
+function Inline({ text }: { text: string }) {
+  const parts = text.split(INLINE).filter(Boolean);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith("`") && part.endsWith("`")) {
+          return (
+            <code key={i} className='rounded border bg-muted px-1.5 py-0.5 font-mono text-[0.85em]'>
+              {part.slice(1, -1)}
+            </code>
+          );
+        }
+        if (/^(\*\*|__).*\1$/.test(part)) {
+          return (
+            <strong key={i} className='font-semibold'>
+              <Inline text={part.slice(2, -2)} />
+            </strong>
+          );
+        }
+        if (/^([*_]).*\1$/.test(part)) {
+          return <em key={i}>{part.slice(1, -1)}</em>;
+        }
+        const link = part.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
+        if (link) {
+          const href = safeHref(link[2]);
+          return href ? (
+            <a
+              key={i}
+              href={href}
+              target={href.startsWith("http") ? "_blank" : undefined}
+              rel='noreferrer'
+              className='font-medium text-brand underline-offset-4 hover:underline'
+            >
+              {link[1]}
+            </a>
+          ) : (
+            <Fragment key={i}>{link[1]}</Fragment>
+          );
+        }
+        return <Fragment key={i}>{part}</Fragment>;
+      })}
+    </>
+  );
+}
+
+const KEYWORDS = new Set(
+  "import export from default const let var function async await return if else for while do switch case break continue new class extends implements interface type enum public private protected static readonly try catch finally throw def self None True False nil package func struct go fn pub use mod match impl trait in of as".split(
+    " ",
+  ),
+);
+const TOKEN = /(\/\/.*$|#.*$|\/\*.*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*\b)/g;
+const HASH_COMMENT_LANGS = new Set(["py", "python", "sh", "bash", "shell", "zsh", "yaml", "yml", "toml", "rb", "ruby", "dockerfile"]);
+
+function highlight(line: string, lang: string) {
+  const hashComments = HASH_COMMENT_LANGS.has(lang.toLowerCase());
+  const parts = line.split(TOKEN).filter((p) => p !== "");
+  return parts.map((token, i) => {
+    let cls = "";
+    if (token.startsWith("//") || token.startsWith("/*") || (hashComments && token.startsWith("#"))) {
+      cls = "text-muted-foreground italic";
+    } else if (/^["'`]/.test(token)) cls = "text-emerald-600 dark:text-emerald-400";
+    else if (/^\d/.test(token)) cls = "text-amber-600 dark:text-amber-300";
+    else if (KEYWORDS.has(token)) cls = "text-violet-600 dark:text-violet-400";
+    else if (/^(true|false|null|undefined)$/.test(token)) cls = "text-amber-600 dark:text-amber-300";
+    else if (/^[A-Z]/.test(token)) cls = "text-sky-600 dark:text-sky-400";
+    return cls ? (
+      <span key={i} className={cls}>
+        {token}
+      </span>
+    ) : (
+      <Fragment key={i}>{token}</Fragment>
+    );
+  });
+}
+
+function CodeBlock({ lang, code }: { lang: string; code: string }) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code);
+  const copy = async () => {
+    await navigator.clipboard.writeText(code);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 1500);
   };
 
-  const displayLang = language || "code";
-
   return (
-    <div className='my-3 rounded-xl border border-slate-800 bg-[#0d1117] text-slate-100 shadow-md overflow-hidden font-mono text-xs'>
-      {/* Header bar */}
-      <div className='flex items-center justify-between px-3.5 py-2 bg-[#161b22] border-b border-slate-800 text-slate-400 text-[11px] font-sans'>
-        <div className='flex items-center gap-2 font-medium'>
-          <FileCode className='h-3.5 w-3.5 text-indigo-400' />
-          <span className='uppercase tracking-wider font-mono text-[10px] text-slate-300 font-semibold'>
-            {displayLang}
-          </span>
-        </div>
-        <Button
-          variant='ghost'
-          size='sm'
-          onClick={handleCopy}
-          className='h-6 px-2 text-[10px] text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 gap-1 rounded-md transition-colors'
+    <div className='overflow-hidden rounded-lg border bg-muted/40'>
+      <div className='flex items-center justify-between border-b px-3 py-1.5'>
+        <span className='font-mono text-[11px] text-muted-foreground'>{lang || "text"}</span>
+        <button
+          type='button'
+          onClick={copy}
+          aria-label='Copy code'
+          className='inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground'
         >
-          {copied ? (
-            <>
-              <Check className='h-3 w-3 text-emerald-400' />
-              <span className='text-emerald-400 font-medium'>Copied!</span>
-            </>
-          ) : (
-            <>
-              <Copy className='h-3 w-3' />
-              <span>Copy</span>
-            </>
-          )}
-        </Button>
+          {copied ? <Check className='size-3' /> : <Copy className='size-3' />}
+          {copied ? "Copied" : "Copy"}
+        </button>
       </div>
-
-      {/* Code body with line numbers & tokenized syntax highlighting */}
-      <div className='p-3.5 overflow-x-auto leading-relaxed bg-[#0d1117] selection:bg-indigo-500/30'>
-        <div className='font-mono text-[12px] space-y-0.5'>
-          {highlightCode(code, displayLang)}
-        </div>
-      </div>
+      <pre className='overflow-x-auto p-3 font-mono text-[12.5px] leading-relaxed'>
+        {code.split("\n").map((line, i) => (
+          <div key={i} className='min-h-lh'>
+            {highlight(line, lang)}
+          </div>
+        ))}
+      </pre>
     </div>
   );
 }
 
-/**
- * Line-by-line syntax tokenization engine
- */
-function highlightCode(code: string, lang: string): React.ReactNode[] {
-  const lines = code.split("\n");
+const HEADING_STYLES = [
+  "text-xl font-semibold tracking-tight",
+  "text-lg font-semibold tracking-tight",
+  "text-base font-semibold",
+  "text-sm font-semibold",
+];
 
-  return lines.map((line, lineIdx) => (
-    <div key={lineIdx} className='flex items-start text-left min-w-max'>
-      <span className='select-none text-right pr-4 text-slate-600 text-[10px] min-w-[2.25rem] font-mono shrink-0 pt-0.5'>
-        {lineIdx + 1}
-      </span>
-      <span className='whitespace-pre font-mono flex-1 text-slate-200'>
-        {tokenizeLine(line, lang)}
-      </span>
-    </div>
-  ));
-}
-
-/**
- * Tokenizes a single code line into syntax-highlighted React nodes
- */
-function tokenizeLine(line: string, lang: string): React.ReactNode {
-  if (!line) return "\n";
-
-  // Regex pattern for comments, strings, keywords, types, numbers, function calls, and operators
-  const tokenRegex =
-    /(\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:class|public|private|protected|static|final|abstract|interface|implements|extends|void|int|long|short|byte|boolean|double|float|char|if|else|for|while|do|switch|case|break|continue|return|new|import|export|from|default|const|let|var|function|async|await|try|catch|finally|throw|type|struct|package|def|self|nil)\b|\b(?:true|false|null|undefined)\b|\b\d+(?:\.\d+)?\b|@[A-Za-z0-9_]+|\b[A-Z][A-Za-z0-9_]*\b|\b[a-zA-Z_][a-zA-Z0-9_]*(?=\s*\()|[{}()[\];,.:=+\-*\/%<>!&|^~]+)/g;
-
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = tokenRegex.exec(line)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(line.slice(lastIndex, match.index));
-    }
-
-    const token = match[0];
-    const key = `${match.index}-${token.slice(0, 5)}`;
-
-    // 1. Comments
-    if (token.startsWith("//") || token.startsWith("/*")) {
-      parts.push(
-        <span key={key} className='text-slate-500 italic'>
-          {token}
-        </span>,
-      );
-    }
-    // 2. Strings
-    else if (
-      (token.startsWith('"') && token.endsWith('"')) ||
-      (token.startsWith("'") && token.endsWith("'")) ||
-      (token.startsWith("`") && token.endsWith("`"))
-    ) {
-      parts.push(
-        <span key={key} className='text-emerald-400'>
-          {token}
-        </span>,
-      );
-    }
-    // 3. Keywords
-    else if (
-      /^(class|public|private|protected|static|final|abstract|interface|implements|extends|void|int|long|short|byte|boolean|double|float|char|if|else|for|while|do|switch|case|break|continue|return|new|import|export|from|default|const|let|var|function|async|await|try|catch|finally|throw|type|struct|package|def|self|nil)$/.test(
-        token,
-      )
-    ) {
-      parts.push(
-        <span key={key} className='text-purple-400 font-semibold'>
-          {token}
-        </span>,
-      );
-    }
-    // 4. Booleans / null / undefined
-    else if (/^(true|false|null|undefined)$/.test(token)) {
-      parts.push(
-        <span key={key} className='text-amber-400 font-semibold'>
-          {token}
-        </span>,
-      );
-    }
-    // 5. Numbers
-    else if (/^\d+(?:\.\d+)?$/.test(token)) {
-      parts.push(
-        <span key={key} className='text-amber-300'>
-          {token}
-        </span>,
-      );
-    }
-    // 6. Annotations (e.g. @Override)
-    else if (token.startsWith("@")) {
-      parts.push(
-        <span key={key} className='text-yellow-400 font-medium'>
-          {token}
-        </span>,
-      );
-    }
-    // 7. Capitalized Class / Type Names (e.g. Solution, TreeNode, List, Integer, ArrayList)
-    else if (/^[A-Z][A-Za-z0-9_]*$/.test(token)) {
-      parts.push(
-        <span key={key} className='text-sky-400 font-medium'>
-          {token}
-        </span>,
-      );
-    }
-    // 8. Function / Method calls (followed by "(")
-    else if (
-      /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(token) &&
-      line
-        .slice(match.index + token.length)
-        .trim()
-        .startsWith("(")
-    ) {
-      parts.push(
-        <span key={key} className='text-blue-400 font-medium'>
-          {token}
-        </span>,
-      );
-    }
-    // 9. Punctuation & Operators
-    else if (/^[{}()[\];,.:=+\-*\/%<>!&|^~]+$/.test(token)) {
-      parts.push(
-        <span key={key} className='text-slate-400'>
-          {token}
-        </span>,
-      );
-    }
-    // Fallback
-    else {
-      parts.push(token);
-    }
-
-    lastIndex = tokenRegex.lastIndex;
-  }
-
-  if (lastIndex < line.length) {
-    parts.push(line.slice(lastIndex));
-  }
-
-  return parts;
-}
-
-/**
- * Parses and renders Markdown tables into clean shadcn UI cards & tables
- */
-function ParsedTable({ lines }: { lines: string[] }) {
-  if (lines.length < 2) {
-    return <ParsedTextBlock text={lines.join("\n")} />;
-  }
-
-  const parseRow = (rowStr: string) =>
-    rowStr
-      .trim()
-      .slice(1, -1)
-      .split("|")
-      .map((cell) => cell.trim());
-
-  const isSeparator = (line: string) => line.includes("---");
-  const headerRow = parseRow(lines[0]);
-
-  const bodyRows = lines
-    .slice(1)
-    .filter((l) => !isSeparator(l))
-    .map(parseRow);
+export function MarkdownRenderer({
+  content,
+  className,
+}: {
+  content: string;
+  className?: string;
+}) {
+  const blocks = parse(content);
 
   return (
-    <div className='my-3 overflow-x-auto rounded-2xl border border-border/80 bg-card/90 shadow-xs'>
-      <table className='w-full text-left text-xs'>
-        <thead className='border-b bg-muted/40 text-muted-foreground font-semibold'>
-          <tr>
-            {headerRow.map((h, i) => (
-              <th
+    <div className={cn("space-y-3 text-sm leading-relaxed", className)}>
+      {blocks.map((block, i) => {
+        switch (block.kind) {
+          case "code":
+            return <CodeBlock key={i} lang={block.lang} code={block.code} />;
+          case "table": {
+            const [head, ...body] = block.rows;
+            return (
+              <div key={i} className='overflow-x-auto rounded-lg border'>
+                <table className='w-full text-left text-xs'>
+                  <thead className='border-b bg-muted/40 text-muted-foreground'>
+                    <tr>
+                      {head.map((cell, c) => (
+                        <th key={c} className='px-3 py-2 font-medium'>
+                          <Inline text={cell} />
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className='divide-y'>
+                    {body.map((row, r) => (
+                      <tr key={r}>
+                        {row.map((cell, c) => (
+                          <td key={c} className='px-3 py-2 align-top'>
+                            <Inline text={cell} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          }
+          case "heading":
+            return (
+              <p
                 key={i}
-                className='px-4 py-2.5 font-bold uppercase text-[10px] tracking-wider'
+                role='heading'
+                aria-level={block.level + 1}
+                className={cn("pt-2", HEADING_STYLES[Math.min(block.level, 4) - 1])}
               >
-                {cleanFormattedText(h)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className='divide-y divide-border/40 text-foreground font-medium'>
-          {bodyRows.map((row, rIdx) => (
-            <tr key={rIdx} className='hover:bg-muted/30 transition-colors'>
-              {row.map((cell, cIdx) => (
-                <td key={cIdx} className='px-4 py-2.5 align-middle'>
-                  <TableCellContent text={cell} />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/**
- * Renders cell content with smart icon indicators for files, folders, PRs, and links
- */
-function TableCellContent({ text }: { text: string }) {
-  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/;
-  const linkMatch = text.match(markdownLinkRegex);
-
-  if (linkMatch) {
-    const label = linkMatch[1];
-    const url = linkMatch[2];
-
-    const isDirectory =
-      text.toLowerCase().includes("directory") || label.includes("/");
-    const isFile = text.toLowerCase().includes("file") || label.includes(".");
-
-    return (
-      <a
-        href={url}
-        target='_blank'
-        rel='noreferrer'
-        className='inline-flex items-center gap-1.5 font-semibold text-indigo-600 dark:text-indigo-400 hover:underline transition-colors group'
-      >
-        {isDirectory ? (
-          <Folder className='h-3.5 w-3.5 text-indigo-500 shrink-0' />
-        ) : isFile ? (
-          <FileCode className='h-3.5 w-3.5 text-indigo-500 shrink-0' />
-        ) : (
-          <ArrowUpRight className='h-3.5 w-3.5 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity' />
-        )}
-        <span>{label}</span>
-      </a>
-    );
-  }
-
-  if (text === "Directory" || text === "Folder") {
-    return (
-      <Badge
-        variant='outline'
-        className='gap-1 text-[10px] bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200 text-indigo-700 dark:text-indigo-300 rounded-full px-2.5'
-      >
-        <Folder className='h-3 w-3 text-indigo-500' />
-        Directory
-      </Badge>
-    );
-  }
-
-  if (text === "File") {
-    return (
-      <Badge
-        variant='outline'
-        className='gap-1 text-[10px] bg-muted/40 text-muted-foreground rounded-full px-2.5'
-      >
-        <FileCode className='h-3 w-3' />
-        File
-      </Badge>
-    );
-  }
-
-  return <span>{cleanFormattedText(text)}</span>;
-}
-
-/**
- * Parses normal text blocks with bullet points, links, bold formatting, and inline code
- */
-function ParsedTextBlock({ text }: { text: string }) {
-  const paragraphs = text.split("\n");
-
-  return (
-    <div className='space-y-1.5'>
-      {paragraphs.map((line, idx) => {
-        const trimmed = line.trim();
-        if (!trimmed) return null;
-
-        if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-          return (
-            <div
-              key={idx}
-              className='flex items-start gap-2 text-xs text-foreground pl-2'
-            >
-              <span className='text-indigo-500 font-bold mt-0.5'>•</span>
-              <span className='flex-1 leading-relaxed'>
-                {renderFormattedSpan(trimmed.slice(2))}
-              </span>
-            </div>
-          );
+                <Inline text={block.text} />
+              </p>
+            );
+          case "list": {
+            const ListTag = block.ordered ? "ol" : "ul";
+            return (
+              <ListTag
+                key={i}
+                className={cn(
+                  "space-y-1 pl-5 marker:text-muted-foreground",
+                  block.ordered ? "list-decimal" : "list-disc",
+                )}
+              >
+                {block.items.map((item, j) => (
+                  <li key={j}>
+                    <Inline text={item} />
+                  </li>
+                ))}
+              </ListTag>
+            );
+          }
+          case "quote":
+            return (
+              <blockquote key={i} className='border-l-2 pl-4 text-muted-foreground'>
+                <Inline text={block.text} />
+              </blockquote>
+            );
+          case "rule":
+            return <hr key={i} className='border-border' />;
+          default:
+            return (
+              <p key={i}>
+                <Inline text={block.text} />
+              </p>
+            );
         }
-
-        if (trimmed.startsWith("### ")) {
-          return (
-            <h4
-              key={idx}
-              className='text-sm font-bold tracking-tight text-foreground pt-2'
-            >
-              {renderFormattedSpan(trimmed.slice(4))}
-            </h4>
-          );
-        }
-
-        if (trimmed.startsWith("## ")) {
-          return (
-            <h3
-              key={idx}
-              className='text-base font-bold tracking-tight text-foreground pt-2'
-            >
-              {renderFormattedSpan(trimmed.slice(3))}
-            </h3>
-          );
-        }
-
-        return (
-          <p
-            key={idx}
-            className='text-xs sm:text-sm leading-relaxed text-foreground'
-          >
-            {renderFormattedSpan(trimmed)}
-          </p>
-        );
       })}
     </div>
   );
-}
-
-function cleanFormattedText(str: string): string {
-  return str.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/\*\*/g, "");
-}
-
-function renderFormattedSpan(str: string): React.ReactNode {
-  const tokenRegex = /(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|`[^`]+`)/g;
-  const parts = str.split(tokenRegex);
-
-  return parts.map((part, i) => {
-    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (linkMatch) {
-      const label = linkMatch[1];
-      const url = linkMatch[2];
-      return (
-        <a
-          key={i}
-          href={url}
-          target='_blank'
-          rel='noreferrer'
-          className='inline-flex items-center gap-1 font-semibold text-indigo-600 dark:text-indigo-400 hover:underline underline-offset-2 transition-colors'
-        >
-          <span>{label}</span>
-          <ArrowUpRight className='h-3 w-3 opacity-75' />
-        </a>
-      );
-    }
-
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return (
-        <strong key={i} className='font-bold text-foreground'>
-          {part.slice(2, -2)}
-        </strong>
-      );
-    }
-
-    if (part.startsWith("`") && part.endsWith("`")) {
-      return (
-        <code
-          key={i}
-          className='px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[11px] text-foreground border border-border/50'
-        >
-          {part.slice(1, -1)}
-        </code>
-      );
-    }
-
-    return part;
-  });
 }
